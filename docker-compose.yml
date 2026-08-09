@@ -10,6 +10,9 @@ services:
         INSTALL_CURSOR: ${INSTALL_CURSOR:-true}
     image: kokuboke:latest
     container_name: kokuboke
+    # 既定ではコンテナ ID がそのままホスト名になり、作り直すたびに変わる。
+    # CLI のログインが機械の識別子に紐づく場合に切れるので、固定しておく。
+    hostname: kokuboke
     restart: unless-stopped
 
     # Tailscale がホストネットワークで動いているので、ループバックにだけ出す。
