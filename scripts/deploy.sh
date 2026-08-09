@@ -3,8 +3,9 @@
 #
 #   cd <docker 共有>/kokuboke && ./scripts/deploy.sh
 #
-# 最新のコードの取り込みは Mac 側で行う（この clone の origin は Mac のパスを
-# 指しているので、NAS からは git pull できない）。
+# origin から取り込めるならここで取り込む。取り込めなくても、置いてある
+# コードでそのまま進む。NAS に GitHub の認証情報を置いていない場合は、
+# Mac 側から先に取り込んでおく（共有は SMB で見えている）。
 #   git -C /Volumes/docker/kokuboke pull
 
 set -eu
@@ -29,6 +30,17 @@ if ! grep -qE '^USERS=[^[:space:]]+' .env; then
 fi
 
 mkdir -p data
+
+echo "==> 最新を取り込む"
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  if git pull --ff-only 2>&1; then
+    :
+  else
+    echo "   取り込めなかったので、置いてあるコードで進む"
+  fi
+else
+  echo "   git の管理下ではないので飛ばす"
+fi
 
 echo "==> ビルドして起動する（N100 では数分かかる）"
 $DC up -d --build

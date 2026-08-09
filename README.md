@@ -76,24 +76,27 @@ colima 環境では `docker compose`（プラグイン版）が解決されな�
 そのままでは動かない。クロスビルドには buildx と QEMU が要るうえ、約 1GB の
 イメージを毎回転送することになる。
 
-まず Mac 側で、追跡しているファイルだけを共有へ複製する。
+まず Mac 側で共有へ複製し、`.env` を用意する。
 
 ```sh
-git clone . /Volumes/docker/kokuboke
+git clone git@github.com:YusukeKokubo/kokuboke.git /Volumes/docker/kokuboke
 cd /Volumes/docker/kokuboke
 cp .env.example .env    # USERS を家族の名前に
 mkdir -p data
 ```
 
 続いて NAS 側でビルドして起動する。ここは Mac からは実行できない。
-初期状態では SSH が閉じている（ポート 22 が拒否される）ので、UGREEN の設定で
-SSH を有効にするか、Docker アプリの端末から実行する。
+SSH は常時開いていないので、コントロールパネルで期限付きに開けるか、
+Docker アプリの端末から実行する。
 
 ```sh
 ssh <nas>
 cd <docker 共有>/kokuboke
-docker-compose up -d --build
+./scripts/deploy.sh
 ```
+
+`scripts/deploy.sh` は、取り込み・ビルド・起動確認・古いイメージの片付けを
+まとめてある。`USERS` が空のままなら先に止まる。
 
 `APP_UID` / `APP_GID` は `ls -n data` で確認した所有者に合わせる。
 ここがずれるとコンテナがログを書けない。
@@ -101,8 +104,14 @@ docker-compose up -d --build
 ビルドは N100 で数分かかる。他のコンテナと重なるとメモリを取り合うので、
 込み合う時間帯は避けた方がよい。
 
-更新するときは Mac 側で `git pull` 相当の反映（`git -C /Volumes/docker/kokuboke pull`）を
-してから、NAS で `docker-compose up -d --build` をやり直す。
+### 更新するとき
+
+NAS に GitHub の認証情報を置いていれば、SSH を開けて `./scripts/deploy.sh`
+を叩くだけでよい。置いていない場合は、先に Mac 側から取り込んでおく。
+
+```sh
+git -C /Volumes/docker/kokuboke pull    # Mac の認証情報で取り込む
+```
 
 ## 初回だけ必要なこと
 
