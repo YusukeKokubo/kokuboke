@@ -32,6 +32,9 @@ services:
     environment:
       TZ: Asia/Tokyo
       NODE_ENV: production
+      # 既定では ~/.claude.json がホーム直下に出る。ボリュームの外なので
+      # 作り直すたびに消える。設定の置き場所ごと ~/.claude に寄せる。
+      CLAUDE_CONFIG_DIR: /home/app/.claude
       PORT: '3000'
       DATA_DIR: /data
       USERS: ${USERS}

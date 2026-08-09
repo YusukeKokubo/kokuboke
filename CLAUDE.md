@@ -56,5 +56,7 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
 - cursor の認証は二か所に分かれる。`~/.cursor/cli-config.json` にあるのは素性の情報で、
   トークン本体は `~/.config/cursor/auth.json`。前者だけ永続化してもコンテナを
   作り直すたびに再ログインになる。切り分けは `docker diff`（ボリュームの中身は出ない）
+- Claude Code の `~/.claude.json` はホーム直下に出る。`~/.claude` の中ではない。
+  `CLAUDE_CONFIG_DIR` で寄せられる（2.1.226 で確認）
 - NAS の管理画面が `docker-compose.yaml` を横に作ることがある。`.yml` と両方あると
   Compose がファイルを決められずに止まる
