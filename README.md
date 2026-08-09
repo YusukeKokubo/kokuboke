@@ -58,11 +58,15 @@ node scripts/generate-icons.mjs   # public/favicon.svg から PWA アイコン�
 ## 手元で Docker として動かす
 
 ```sh
-cp .env.example .env    # DATA_PATH=./data、CPUS と MEM_LIMIT を手元の値に
+cp .env.example .env    # CPUS と MEM_LIMIT を手元の値に下げる
 docker-compose build
 docker-compose up -d
 curl localhost:3000/api/health
 ```
+
+`.env` はコンテナにそのまま渡している。機械ごとの値（`APP_UID` `CPUS` `MEM_LIMIT`
+`MAX_CONCURRENT` `BIND_ADDR`）は雛形の後半にまとめてあり、前半はアプリの設定。
+コンテナでの置き場所など、`.env` で上書きされては困るものは compose 側で押さえてある。
 
 colima 環境では `docker compose`（プラグイン版）が解決されないことがある。
 その場合は `docker-compose` を使う。

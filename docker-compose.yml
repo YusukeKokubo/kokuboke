@@ -12,10 +12,10 @@ services:
     container_name: kokuboke
     restart: unless-stopped
 
-    # Tailscale がホストネットワークで動いているので、ループバックにだけ出す。
-    # LAN からも直接見せたい場合は "3000:3000" に変える。
+    # Tailscale がホストネットワークで動いているので、既定はループバックだけ。
+    # LAN からも直接見せたい場合は .env に BIND_ADDR=0.0.0.0 を書く。
     ports:
-      - '127.0.0.1:3000:3000'
+      - '${BIND_ADDR:-127.0.0.1}:3000:3000'
 
     volumes:
       # compose ファイルからの相対で解決される。NAS の他のコンテナもこの書き方。
@@ -29,6 +29,13 @@ services:
       - cursor-config:/home/app/.cursor
       - cursor-auth:/home/app/.config/cursor
 
+    # エンジンとモデルの指定は .env にしかない。ここで渡さないとコンテナに届かず、
+    # .env に書いたのに効かない、という食い違いになる（.env はイメージに入らない）。
+    env_file:
+      - .env
+
+    # ここに書いたものが env_file より優先される。
+    # コンテナでの置き場所など、.env の値で上書きされては困るものを並べる。
     environment:
       TZ: Asia/Tokyo
       NODE_ENV: production
@@ -39,10 +46,10 @@ services:
       DATA_DIR: /data
       USERS: ${USERS}
       CONTEXT_DAYS: '3'
-      # Claude Code は 1 プロセスあたり 300〜500MB 使う。
-      # 同居コンテナが増えたら減らす。
-      MAX_CONCURRENT: '3'
       IMAGE_MAX_EDGE: '1568'
+      # Claude Code は 1 プロセスあたり 300〜500MB 使う。同居コンテナが増えたら
+      # .env で減らす。機械の余力しだいの値なのでここには既定だけ置く。
+      MAX_CONCURRENT: ${MAX_CONCURRENT:-3}
 
     # NAS の実機（N100 / 4 コア）向けの既定値。手元で試すときは .env で下げる。
     mem_limit: ${MEM_LIMIT:-2500m}
