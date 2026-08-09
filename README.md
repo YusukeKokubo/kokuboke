@@ -92,11 +92,14 @@ Docker アプリの端末から実行する。
 ```sh
 ssh <nas>
 cd <docker 共有>/kokuboke
-./scripts/deploy.sh
+sudo ./scripts/deploy.sh
 ```
 
 `scripts/deploy.sh` は、取り込み・ビルド・起動確認・古いイメージの片付けを
 まとめてある。`USERS` が空のままなら先に止まる。
+
+`sudo` を付けるのは、この NAS では一般ユーザーが `/var/run/docker.sock` に
+届かないため。付け忘れると取り込みまで進んでからビルドで止まる。
 
 `APP_UID` / `APP_GID` は `ls -n data` で確認した所有者に合わせる。
 ここがずれるとコンテナがログを書けない。
@@ -109,7 +112,7 @@ cd <docker 共有>/kokuboke
 
 ### 更新するとき
 
-SSH を開けて `./scripts/deploy.sh` を叩くだけでよい。スクリプトの中で
+SSH を開けて `sudo ./scripts/deploy.sh` を叩くだけでよい。スクリプトの中で
 取り込みからビルド、起動確認まで行う。
 
 ## 初回だけ必要なこと
@@ -119,8 +122,8 @@ SSH を開けて `./scripts/deploy.sh` を叩くだけでよい。スクリプ�
 会話は既定で Cursor、記憶の更新は Claude Code で走るので、どちらの認証も通しておく。
 
 ```sh
-docker exec -it kokuboke claude
-docker exec -it kokuboke cursor-agent login
+sudo docker exec -it kokuboke claude
+sudo docker exec -it kokuboke cursor-agent login
 ```
 
 表示された URL をブラウザで開いて認証する。認証情報は名前付きボリュームに残るので、

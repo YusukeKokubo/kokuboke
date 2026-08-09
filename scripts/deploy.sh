@@ -1,7 +1,8 @@
 #!/bin/sh
 # NAS 上で実行する。SSH を開けている間の作業を 1 コマンドにまとめたもの。
+# docker.sock に一般ユーザーでは届かないので sudo で叩く。
 #
-#   cd <docker 共有>/kokuboke && ./scripts/deploy.sh
+#   cd <docker 共有>/kokuboke && sudo ./scripts/deploy.sh
 #
 # origin から取り込めるならここで取り込む。取り込めなくても、置いてある
 # コードでそのまま進む。NAS に GitHub の認証情報を置いていない場合は、
@@ -73,5 +74,5 @@ echo "==> 古いイメージを片付ける"
 docker image prune -f >/dev/null
 
 echo "==> 完了"
-echo "   ログイン確認: docker exec -it kokuboke claude"
+echo "   ログイン確認: sudo docker exec -it kokuboke claude"
 echo "   公開:         tailscale serve --bg 3000"
