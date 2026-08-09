@@ -6,3 +6,4 @@ data
 *.tar
 *.log
 .DS_Store
+.claude.local.md

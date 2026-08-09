@@ -6,7 +6,8 @@
 
 - Node は mise 管理。`node` `npm` は PATH にない → `mise exec -- npm run ...`
 - Docker は colima。`docker compose`（プラグイン版）は解決されない → `docker-compose` を使う
-- colima の VM は aarch64 で buildx もない。NAS 向け（x86_64）のイメージはここでは作れない
+- colima の VM は aarch64 で buildx もない。NAS 向け（x86_64）のイメージはここでは作れない。
+  ただし手元の `docker-compose build` は通る。層の並びやマウント点の所有者の確認はこれで足りる
 
 ## よく使う
 
@@ -19,6 +20,8 @@
   → `summary` で SSE が流れる。CLI を起動する経路はこれでしか確かめられない
 - UI の確認は agent-browser。`agent-browser set viewport 390 844` でスマホ幅にし、
   URL は `http://` を明示する（省略すると https になって失敗する）
+- ドロップや貼り付けの確認は、ブラウザで `DragEvent` / `ClipboardEvent` を合成して流す。
+  OS から実際に引きずってくる経路そのものは踏めないので、最後は手で一度試す
 
 ## どこに何があるか
 
@@ -58,5 +61,7 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
   作り直すたびに再ログインになる。切り分けは `docker diff`（ボリュームの中身は出ない）
 - Claude Code の `~/.claude.json` はホーム直下に出る。`~/.claude` の中ではない。
   `CLAUDE_CONFIG_DIR` で寄せられる（2.1.226 で確認）
+- コンテナは `USER app` で動く。`docker exec` も `app` で入るので、
+  chown など root が要る作業は `-u 0` を付ける
 - NAS の管理画面が `docker-compose.yaml` を横に作ることがある。`.yml` と両方あると
   Compose がファイルを決められずに止まる
