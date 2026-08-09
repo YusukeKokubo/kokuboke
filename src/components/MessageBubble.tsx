@@ -1,6 +1,7 @@
 import type { Message } from '../../shared/types'
 import { cn } from '@/lib/utils'
 import { timeLabel } from '@/lib/format'
+import { Markdown } from '@/components/Markdown'
 
 interface Props {
   message: Message
@@ -32,13 +33,14 @@ export function MessageBubble({ message, streaming }: Props) {
         {(message.text || streaming) && (
           <div
             className={cn(
-              'rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap break-words',
+              'rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed break-words',
               mine
-                ? 'bg-primary text-primary-foreground rounded-br-md'
+                ? 'bg-primary text-primary-foreground rounded-br-md whitespace-pre-wrap'
                 : 'bg-card text-card-foreground rounded-bl-md border',
             )}
           >
-            {message.text}
+            {/* 自分の発言は打ったとおりに出す。相手の返答だけ Markdown として組む。 */}
+            {mine ? message.text : <Markdown text={message.text} />}
             {streaming && (
               <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-current align-middle" />
             )}
