@@ -37,14 +37,16 @@ export default function ChatPage() {
   const [memoryOpen, setMemoryOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
 
-  const bottom = useRef<HTMLDivElement>(null)
+  const content = useRef<HTMLElement>(null)
   const stick = useRef(true)
 
   // トップレベルは記憶の置き場。ここでは話さず、中への入口だけ見せる。
   const isGroup = !sub
 
+  // 入力欄は sticky で本文の上に重なる。目印の要素に寄せると入力欄の高さだけ足りないので、
+  // 画面そのものを下端まで動かす。
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    bottom.current?.scrollIntoView({ behavior, block: 'end' })
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior })
   }, [])
 
   useEffect(() => {
@@ -57,6 +59,7 @@ export default function ChatPage() {
         setMeta(topicMeta)
         setMessages(history)
         // 初回は履歴の一番下から始めたいので、アニメーションなしで飛ばす。
+        // ここで測れる高さはまだ仮のもので、この後も伸びる。追うのは下の監視の役。
         requestAnimationFrame(() => scrollToBottom('instant'))
       })
       .catch((cause: Error) => !cancelled && setNotice(cause.message))
@@ -78,6 +81,20 @@ export default function ChatPage() {
   useEffect(() => {
     if (stick.current) scrollToBottom()
   }, [messages, draft, scrollToBottom])
+
+  /**
+   * 画像や数式は描いた後から高さが決まる。飛んだ時点の一番下は本当の一番下ではないので、
+   * 本文が伸びるたびに追い直す。下に張り付いているときだけなのは追記と同じ扱い。
+   */
+  useEffect(() => {
+    const el = content.current
+    if (!el) return
+    const observer = new ResizeObserver(() => {
+      if (stick.current) scrollToBottom('instant')
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [scrollToBottom])
 
   /** 名前が変わるとフォルダも動く。経路を新しい slug に差し替える。 */
   const moveTo = useCallback(
@@ -201,7 +218,7 @@ export default function ChatPage() {
         </Button>
       </header>
 
-      <main className="flex flex-1 flex-col gap-3 px-3 py-4">
+      <main ref={content} className="flex flex-1 flex-col gap-3 px-3 py-4">
         {isGroup && (
           <div className="flex flex-col gap-2 py-6">
             <p className="text-muted-foreground text-center text-sm">
@@ -258,8 +275,6 @@ export default function ChatPage() {
             {notice}
           </p>
         )}
-
-        <div ref={bottom} />
       </main>
 
       {!isGroup && <Composer disabled={status !== 'idle'} onSend={handleSend} />}
