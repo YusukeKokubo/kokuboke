@@ -1,4 +1,11 @@
-import type { ChatEvent, Message, SummaryEvent, Topic, TopicTemplate } from '../../shared/types'
+import type {
+  ChatEvent,
+  EngineInfo,
+  Message,
+  SummaryEvent,
+  Topic,
+  TopicTemplate,
+} from '../../shared/types'
 
 async function unwrap<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(await errorMessage(res))
@@ -18,15 +25,27 @@ async function errorMessage(res: Response): Promise<string> {
 export const api = {
   templates: () => fetch('/api/templates').then((r) => unwrap<TopicTemplate[]>(r)),
 
+  engines: () => fetch('/api/engines').then((r) => unwrap<EngineInfo[]>(r)),
+
   listTopics: (user: string) =>
     fetch(`/api/users/${user}/topics`).then((r) => unwrap<Topic[]>(r)),
 
   getTopic: (user: string, topic: string) =>
     fetch(`/api/users/${user}/topics/${topic}`).then((r) => unwrap<Topic>(r)),
 
-  createTopic: (user: string, input: { name: string; emoji: string; template: string }) =>
+  createTopic: (
+    user: string,
+    input: { name: string; emoji: string; template: string; engine: string; model: string },
+  ) =>
     fetch(`/api/users/${user}/topics`, {
       method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    }).then((r) => unwrap<Topic>(r)),
+
+  updateTopic: (user: string, topic: string, input: { engine: string; model: string }) =>
+    fetch(`/api/users/${user}/topics/${topic}`, {
+      method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(input),
     }).then((r) => unwrap<Topic>(r)),

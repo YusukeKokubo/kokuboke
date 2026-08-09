@@ -12,11 +12,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { ModelPicker, type ModelSelection } from '@/components/ModelPicker'
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCreate: (input: { name: string; emoji: string; template: string }) => Promise<void>
+  onCreate: (input: {
+    name: string
+    emoji: string
+    template: string
+    engine: string
+    model: string
+  }) => Promise<void>
 }
 
 const EMOJI = ['💬', '📘', '🧴', '🍳', '🏃', '🎸', '🐾', '✏️']
@@ -26,6 +33,7 @@ export function NewTopicDialog({ open, onOpenChange, onCreate }: Props) {
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('💬')
   const [template, setTemplate] = useState('plain')
+  const [model, setModel] = useState<ModelSelection | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,7 +49,13 @@ export function NewTopicDialog({ open, onOpenChange, onCreate }: Props) {
     setBusy(true)
     setError(null)
     try {
-      await onCreate({ name: name.trim(), emoji, template })
+      await onCreate({
+        name: name.trim(),
+        emoji,
+        template,
+        engine: model?.engine ?? '',
+        model: model?.model ?? '',
+      })
       onOpenChange(false)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '作成できませんでした')
@@ -52,7 +66,7 @@ export function NewTopicDialog({ open, onOpenChange, onCreate }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>新しいトピック</DialogTitle>
           <DialogDescription>
@@ -104,6 +118,13 @@ export function NewTopicDialog({ open, onOpenChange, onCreate }: Props) {
                 <div className="text-muted-foreground text-xs">{item.description}</div>
               </button>
             ))}
+          </div>
+
+          <div className="border-t pt-4">
+            <ModelPicker value={model} onChange={setModel} />
+            <p className="text-muted-foreground mt-2 text-xs">
+              選ばなければ既定のモデルを使うよ。あとから変えられる。
+            </p>
           </div>
 
           {error && <p className="text-destructive text-sm">{error}</p>}

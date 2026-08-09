@@ -1,9 +1,10 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { HTTPException } from 'hono/http-exception'
-import type { Topic } from '../../shared/types'
+import type { EngineId, Topic } from '../../shared/types'
+import { resolveModel } from '../agent'
 import { topicClaudeMd, topicSummaryMd } from '../templates'
-import { imagesDir, isSlug, logsDir, toSlug, topicDir, topicsDir } from './paths'
+import { imagesDir, isSlug, logsDir, toSlug, topicDir, topicsDir, userDir } from './paths'
 import { readLastEntry } from './log'
 import { ensureUser } from './user'
 
@@ -12,13 +13,15 @@ interface TopicMeta {
   name: string
   emoji: string
   createdAt: string
+  engine?: EngineId
+  model?: string
 }
 
 function metaFile(user: string, topic: string): string {
   return path.join(topicDir(user, topic), 'topic.json')
 }
 
-export async function readTopicMeta(user: string, topic: string): Promise<TopicMeta> {
+async function readMeta(user: string, topic: string): Promise<TopicMeta> {
   try {
     const raw = await fs.readFile(metaFile(user, topic), 'utf8')
     const parsed = JSON.parse(raw) as Partial<TopicMeta>
@@ -27,6 +30,8 @@ export async function readTopicMeta(user: string, topic: string): Promise<TopicM
       name: parsed.name ?? topic,
       emoji: parsed.emoji ?? '💬',
       createdAt: parsed.createdAt ?? new Date().toISOString(),
+      engine: parsed.engine,
+      model: parsed.model,
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -34,6 +39,25 @@ export async function readTopicMeta(user: string, topic: string): Promise<TopicM
     }
     throw error
   }
+}
+
+function toTopic(meta: TopicMeta, last: { at: string; text: string } | null): Topic {
+  const choice = resolveModel(meta.engine, meta.model)
+  return {
+    slug: meta.slug,
+    name: meta.name,
+    emoji: meta.emoji,
+    createdAt: meta.createdAt,
+    engine: choice.engine,
+    model: choice.model,
+    modelLabel: choice.label,
+    lastMessageAt: last?.at ?? null,
+    preview: last ? last.text.replace(/\s+/g, ' ').slice(0, 60) : null,
+  }
+}
+
+export async function readTopic(user: string, topic: string): Promise<Topic> {
+  return toTopic(await readMeta(user, topic), await readLastEntry(user, topic))
 }
 
 export async function topicExists(user: string, topic: string): Promise<boolean> {
@@ -60,14 +84,7 @@ export async function listTopics(user: string): Promise<Topic[]> {
     // 手で置かれた不正な名前のフォルダは黙って無視する。
     if (!isSlug(name)) continue
     if (!(await topicExists(user, name))) continue
-
-    const meta = await readTopicMeta(user, name)
-    const last = await readLastEntry(user, name)
-    topics.push({
-      ...meta,
-      lastMessageAt: last?.at ?? null,
-      preview: last ? last.text.replace(/\s+/g, ' ').slice(0, 60) : null,
-    })
+    topics.push(await readTopic(user, name))
   }
 
   // 直近に話したものを上に。まだ話していないトピックは作成日で並べる。
@@ -80,7 +97,7 @@ export async function listTopics(user: string): Promise<Topic[]> {
 
 export async function createTopic(
   user: string,
-  input: { name: string; emoji?: string; template?: string; slug?: string },
+  input: { name: string; emoji?: string; template?: string; engine?: string; model?: string },
 ): Promise<Topic> {
   const name = input.name.trim()
   if (!name) {
@@ -92,7 +109,7 @@ export async function createTopic(
 
   await ensureUser(user)
 
-  const slug = input.slug && isSlug(input.slug) ? input.slug : toSlug(name)
+  const slug = toSlug(name)
   if (await topicExists(user, slug)) {
     throw new HTTPException(409, { message: '同じ名前のトピックがあります' })
   }
@@ -101,25 +118,59 @@ export async function createTopic(
   await fs.mkdir(logsDir(user, slug), { recursive: true })
   await fs.mkdir(imagesDir(user, slug), { recursive: true })
 
+  const choice = resolveModel(input.engine, input.model)
   const meta: TopicMeta = {
     slug,
     name,
     emoji: input.emoji || '💬',
     createdAt: new Date().toISOString(),
+    engine: choice.engine,
+    model: choice.model,
   }
 
   await fs.writeFile(metaFile(user, slug), JSON.stringify(meta, null, 2) + '\n')
   await fs.writeFile(path.join(dir, 'CLAUDE.md'), topicClaudeMd(input.template ?? 'plain', name))
   await fs.writeFile(path.join(dir, 'summary.md'), topicSummaryMd(name))
 
-  return { ...meta, lastMessageAt: null, preview: null }
+  return toTopic(meta, null)
 }
 
-export async function readSummary(user: string, topic: string): Promise<string> {
+/** いまのところ変えられるのはエンジンとモデルだけ。 */
+export async function updateTopic(
+  user: string,
+  topic: string,
+  input: { engine?: string; model?: string },
+): Promise<Topic> {
+  const meta = await readMeta(user, topic)
+  const choice = resolveModel(input.engine ?? meta.engine, input.model ?? meta.model)
+
+  const next: TopicMeta = { ...meta, engine: choice.engine, model: choice.model }
+  await fs.writeFile(metaFile(user, topic), JSON.stringify(next, null, 2) + '\n')
+
+  return toTopic(next, await readLastEntry(user, topic))
+}
+
+async function read(file: string): Promise<string> {
   try {
-    return await fs.readFile(path.join(topicDir(user, topic), 'summary.md'), 'utf8')
+    return await fs.readFile(file, 'utf8')
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''
     throw error
   }
+}
+
+export async function readSummary(user: string, topic: string): Promise<string> {
+  return read(path.join(topicDir(user, topic), 'summary.md'))
+}
+
+/**
+ * 人物とトピックの CLAUDE.md をつないだもの。
+ * Claude Code は自分で読むので使わないが、cursor-agent には本文で渡す必要がある。
+ */
+export async function readPersona(user: string, topic: string): Promise<string> {
+  const [person, role] = await Promise.all([
+    read(path.join(userDir(user), 'CLAUDE.md')),
+    read(path.join(topicDir(user, topic), 'CLAUDE.md')),
+  ])
+  return [person.trim(), role.trim()].filter(Boolean).join('\n\n---\n\n')
 }

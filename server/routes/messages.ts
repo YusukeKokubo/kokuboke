@@ -3,13 +3,13 @@ import { HTTPException } from 'hono/http-exception'
 import { streamSSE } from 'hono/streaming'
 import type { ChatEvent, Message } from '../../shared/types'
 import { config } from '../config'
-import { chatPrompt, chatSystemPrompt } from '../claude/prompt'
-import { limiter } from '../claude/queue'
-import { runClaude } from '../claude/runner'
+import { resolveModel, runAgent } from '../agent'
+import { chatPrompt, chatSystemPrompt } from '../agent/prompt'
+import { limiter } from '../agent/queue'
 import { appendMessage, readRecent } from '../store/log'
 import { assertTopicSlug, assertUser, topicDir } from '../store/paths'
 import { saveImage } from '../store/image'
-import { readSummary, readTopicMeta, topicExists } from '../store/topic'
+import { readPersona, readSummary, readTopic, topicExists } from '../store/topic'
 import { readProfile } from '../store/user'
 
 export const messages = new Hono()
@@ -51,12 +51,14 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
   // 解放はストリームを閉じるときに行う。
   const release = await limiter.acquire(user)
 
-  let saved: Awaited<ReturnType<typeof saveImage>>[] = []
   let userMessage: Message
   let prompt: string
   let systemPrompt: string
+  let persona: string
+  let choice: ReturnType<typeof resolveModel>
 
   try {
+    const saved = []
     for (const file of files) {
       saved.push(await saveImage(user, topic, file))
     }
@@ -72,9 +74,11 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
     // 返答が失敗しても発言そのものは残す。あとから読み返せる方が大事。
     await appendMessage(user, topic, userMessage)
 
-    const meta = await readTopicMeta(user, topic)
+    const meta = await readTopic(user, topic)
     const history = await readRecent(user, topic)
 
+    choice = resolveModel(meta.engine, meta.model)
+    persona = await readPersona(user, topic)
     systemPrompt = chatSystemPrompt({ user, topicName: meta.name })
     prompt = chatPrompt({
       profile: await readProfile(user),
@@ -96,11 +100,12 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
       await send({ type: 'accepted', message: userMessage })
 
       let answer = ''
-      const events = runClaude({
+      const events = runAgent(choice, {
         cwd: topicDir(user, topic),
         prompt,
-        appendSystemPrompt: systemPrompt,
-        allowedTools: ['Read'],
+        systemPrompt,
+        persona,
+        task: 'chat',
         signal: c.req.raw.signal,
       })
 

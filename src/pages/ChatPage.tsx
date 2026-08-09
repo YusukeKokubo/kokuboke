@@ -7,6 +7,14 @@ import { dayKey, dayLabel } from '@/lib/format'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
 import { MessageBubble } from '@/components/MessageBubble'
+import { ModelPicker } from '@/components/ModelPicker'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 type Status = 'idle' | 'sending' | 'summarizing'
 
@@ -18,6 +26,7 @@ export default function ChatPage() {
   const [draft, setDraft] = useState<Message | null>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [notice, setNotice] = useState<string | null>(null)
+  const [modelOpen, setModelOpen] = useState(false)
 
   const bottom = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
@@ -126,6 +135,15 @@ export default function ChatPage() {
           <h1 className="truncate text-[15px] font-semibold">
             {meta ? `${meta.emoji} ${meta.name}` : '…'}
           </h1>
+          {meta && (
+            <button
+              type="button"
+              onClick={() => setModelOpen(true)}
+              className="text-muted-foreground truncate text-[11px] underline-offset-2 hover:underline"
+            >
+              {meta.modelLabel}
+            </button>
+          )}
         </div>
 
         <Button
@@ -178,6 +196,29 @@ export default function ChatPage() {
       </main>
 
       <Composer disabled={status !== 'idle'} onSend={handleSend} />
+
+      <Dialog open={modelOpen} onOpenChange={setModelOpen}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>このトピックで使うモデル</DialogTitle>
+            <DialogDescription>
+              変えても、これまでの会話と記憶はそのまま引き継がれるよ。
+            </DialogDescription>
+          </DialogHeader>
+
+          <ModelPicker
+            value={meta ? { engine: meta.engine, model: meta.model } : null}
+            onChange={async (next) => {
+              try {
+                setMeta(await api.updateTopic(user, topic, next))
+                setModelOpen(false)
+              } catch (cause) {
+                setNotice(cause instanceof Error ? cause.message : 'モデルを変えられませんでした')
+              }
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

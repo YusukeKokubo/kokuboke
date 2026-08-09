@@ -17,7 +17,7 @@ FROM node:22-slim AS runtime
 # Claude Code が git を前提にする場面があるため入れておく。
 # ca-certificates はログイン時の HTTPS 通信に必要。
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates git \
+  && apt-get install -y --no-install-recommends ca-certificates curl git \
   && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g @anthropic-ai/claude-code \
@@ -48,6 +48,11 @@ RUN mkdir -p /data /home/app/.claude \
   && chown -R ${APP_UID}:${APP_GID} /data /home/app
 
 USER app
+
+# cursor-agent は ~/.local/bin に入る。不要なら --build-arg INSTALL_CURSOR=false で外す。
+ARG INSTALL_CURSOR=true
+ENV PATH=/home/app/.local/bin:$PATH
+RUN if [ "$INSTALL_CURSOR" = "true" ]; then curl -fsSL https://cursor.com/install | bash; fi
 
 EXPOSE 3000
 
