@@ -11,10 +11,12 @@
 set -eu
 cd "$(dirname "$0")/.."
 
+# NAS の管理画面が docker-compose.yaml を横に作ることがある。両方あると
+# Compose は名前を決められずに止まるので、読むファイルを指定しておく。
 if docker compose version >/dev/null 2>&1; then
-  DC="docker compose"
+  DC="docker compose -f docker-compose.yml"
 elif command -v docker-compose >/dev/null 2>&1; then
-  DC="docker-compose"
+  DC="docker-compose -f docker-compose.yml"
 else
   echo "docker compose が見つかりません" >&2
   exit 1
