@@ -15,8 +15,8 @@ services:
       - '127.0.0.1:3000:3000'
 
     volumes:
-      # NAS では /volume1/docker/kokuboke/data。手元で試すときは .env で ./data に向ける。
-      - ${DATA_PATH:-/volume1/docker/kokuboke/data}:/data
+      # compose ファイルからの相対で解決される。NAS の他のコンテナもこの書き方。
+      - ${DATA_PATH:-./data}:/data
       # サブスクリプションのログイン情報。消えると再ログインが要るので必ず永続化する。
       - claude-config:/home/app/.claude
 

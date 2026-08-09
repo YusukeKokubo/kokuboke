@@ -14,7 +14,7 @@
 
 ## データの置き場所
 
-NAS の `/volume1/docker/kokuboke/data` をコンテナの `/data` にマウントする。
+コンテナの `/data` に、compose ファイルの隣の `data/` をマウントする。
 
 ```
 /data
@@ -69,24 +69,38 @@ colima 環境では `docker compose`（プラグイン版）が解決されな�
 
 ## NAS へのデプロイ
 
-**NAS 上で直接ビルドする**のが素直。Mac は arm64、NAS は x86_64 なので、
-手元でビルドしたイメージはそのままでは動かない。クロスビルドには buildx と
-QEMU の用意が要るうえ、できあがる約 1GB のイメージを毎回転送することになる。
+置き場所は NAS の `docker` 共有の下。Mac からは SMB で `/Volumes/docker/kokuboke`
+として見える。
+
+**ビルドは NAS 上で行う**。Mac は arm64、NAS は x86_64 で、手元で作ったイメージは
+そのままでは動かない。クロスビルドには buildx と QEMU が要るうえ、約 1GB の
+イメージを毎回転送することになる。
+
+まず Mac 側で、追跡しているファイルだけを共有へ複製する。
+
+```sh
+git clone . /Volumes/docker/kokuboke
+cd /Volumes/docker/kokuboke
+cp .env.example .env    # USERS を家族の名前に
+mkdir -p data
+```
+
+続いて NAS 側でビルドして起動する。
 
 ```sh
 ssh nas
-git clone <このリポジトリ> /volume1/docker/kokuboke
-cd /volume1/docker/kokuboke
-cp .env.example .env    # USERS を家族の名前に、DATA_PATH は既定のまま
-mkdir -p data
+cd <docker 共有>/kokuboke
 docker-compose up -d --build
 ```
 
-`APP_UID` / `APP_GID` は `ls -n /volume1/docker/kokuboke/data` で確認した所有者に
-合わせる。ここがずれるとコンテナがログを書けない。
+`APP_UID` / `APP_GID` は `ls -n data` で確認した所有者に合わせる。
+ここがずれるとコンテナがログを書けない。
 
 ビルドは N100 で数分かかる。他のコンテナと重なるとメモリを取り合うので、
 込み合う時間帯は避けた方がよい。
+
+更新するときは Mac 側で `git pull` 相当の反映（`git -C /Volumes/docker/kokuboke pull`）を
+してから、NAS で `docker-compose up -d --build` をやり直す。
 
 ## 初回だけ必要なこと
 
@@ -109,8 +123,9 @@ Tailscale はホストネットワークで動いているので、ループバ�
 tailscale serve --bg 3000
 ```
 
-`https://<マシン名>.<tailnet>.ts.net` で届くようになる。正規の証明書が付くので、
-Android のブラウザから「ホーム画面に追加」すれば PWA として動く。
+`https://<マシン名>.<tailnet>.ts.net` で届くようになる。マシン名は Tailscale
+コンテナの `hostname` に設定したもの。正規の証明書が付くので、Android の
+ブラウザから「ホーム画面に追加」すれば PWA として動く。
 
 ## API
 
