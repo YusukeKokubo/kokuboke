@@ -7,33 +7,29 @@ import { resolveModel, runAgent } from '../agent'
 import { chatPrompt, chatSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { appendMessage, readRecent } from '../store/log'
-import { assertTopicName, assertUser, topicDir } from '../store/paths'
+import { topicDir } from '../store/paths'
 import { saveImage, withImageUrls } from '../store/image'
-import { readSummary, readTopic, topicExists } from '../store/topic'
+import { hasChildren, readParentSummary, readSummary, readTopic } from '../store/topic'
 import { readProfile } from '../store/user'
+import { requireTopic, topicPaths } from './target'
 
 export const messages = new Hono()
 
-async function requireTopic(user: string, topic: string): Promise<void> {
-  if (!(await topicExists(user, topic))) {
-    throw new HTTPException(404, { message: 'トピックが見つかりません' })
-  }
-}
-
-messages.get('/api/users/:user/topics/:topic/messages', async (c) => {
-  const user = assertUser(c.req.param('user'))
-  const topic = assertTopicName(c.req.param('topic'))
-  await requireTopic(user, topic)
+messages.on('GET', topicPaths('/messages'), async (c) => {
+  const { user, ref } = await requireTopic(c)
 
   const days = Number(c.req.query('days')) || config.contextDays
-  const history = await readRecent(user, topic, Math.min(Math.max(days, 1), 30))
-  return c.json(history.map((m) => withImageUrls(user, topic, m)))
+  const history = await readRecent(user, ref, Math.min(Math.max(days, 1), 30))
+  return c.json(history.map((m) => withImageUrls(user, ref, m)))
 })
 
-messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
-  const user = assertUser(c.req.param('user'))
-  const topic = assertTopicName(c.req.param('topic'))
-  await requireTopic(user, topic)
+messages.on('POST', topicPaths('/messages'), async (c) => {
+  const { user, ref } = await requireTopic(c)
+
+  // 中を分けているトピックは記憶の置き場なので、話しかける先は子の側になる。
+  if (!ref.sub && (await hasChildren(user, ref.topic))) {
+    throw new HTTPException(400, { message: 'このトピックの中から選んで話しかけてね' })
+  }
 
   const body = await c.req.parseBody({ all: true })
   const text = typeof body.text === 'string' ? body.text : ''
@@ -60,7 +56,7 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
   try {
     const saved = []
     for (const file of files) {
-      saved.push(await saveImage(user, topic, file))
+      saved.push(await saveImage(user, ref, file))
     }
 
     userMessage = {
@@ -73,16 +69,17 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
     }
 
     // 返答が失敗しても発言そのものは残す。あとから読み返せる方が大事。
-    await appendMessage(user, topic, userMessage)
+    await appendMessage(user, ref, userMessage)
 
-    const meta = await readTopic(user, topic)
-    const history = await readRecent(user, topic)
+    const meta = await readTopic(user, ref)
+    const history = await readRecent(user, ref)
 
     choice = resolveModel(meta.engine, meta.model)
     systemPrompt = chatSystemPrompt({ user, topicName: meta.name })
     prompt = chatPrompt({
       profile: await readProfile(user),
-      summary: await readSummary(user, topic),
+      groupSummary: await readParentSummary(user, ref),
+      summary: await readSummary(user, ref),
       // いま追記した分は current_message として別に渡すので履歴から外す。
       history: history.filter((m) => m.id !== userMessage.id),
       text: userMessage.text,
@@ -97,11 +94,11 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
     const send = (event: ChatEvent) => stream.writeSSE({ data: JSON.stringify(event) })
 
     try {
-      await send({ type: 'accepted', message: withImageUrls(user, topic, userMessage) })
+      await send({ type: 'accepted', message: withImageUrls(user, ref, userMessage) })
 
       let answer = ''
       const events = runAgent(choice, {
-        cwd: topicDir(user, topic),
+        cwd: topicDir(user, ref),
         prompt,
         systemPrompt,
         signal: c.req.raw.signal,
@@ -124,7 +121,7 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
         images: [],
         at: new Date().toISOString(),
       }
-      await appendMessage(user, topic, assistantMessage)
+      await appendMessage(user, ref, assistantMessage)
       await send({ type: 'done', message: assistantMessage })
     } catch (error) {
       console.error('[chat]', error)

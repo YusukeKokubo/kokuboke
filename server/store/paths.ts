@@ -1,6 +1,9 @@
 import path from 'node:path'
 import { HTTPException } from 'hono/http-exception'
+import type { TopicRef } from '../../shared/types'
 import { config } from '../config'
+
+export type { TopicRef }
 
 /**
  * トピックの名前はそのままフォルダ名になり、URL にも出る。日本語も通す。
@@ -65,16 +68,23 @@ export function topicsDir(user: string): string {
   return path.join(userDir(user), 'topics')
 }
 
-export function topicDir(user: string, topic: string): string {
-  return path.join(topicsDir(user), assertTopicName(topic))
+/** URL から届いた組を検査して ref にする。 */
+export function assertTopicRef(topic: string, sub?: string | null): TopicRef {
+  const parent = assertTopicName(topic)
+  return sub ? { topic: parent, sub: assertTopicName(sub) } : { topic: parent }
 }
 
-export function logsDir(user: string, topic: string): string {
-  return path.join(topicDir(user, topic), 'logs')
+export function topicDir(user: string, ref: TopicRef): string {
+  const dir = path.join(topicsDir(user), assertTopicName(ref.topic))
+  return ref.sub ? path.join(dir, assertTopicName(ref.sub)) : dir
 }
 
-export function imagesDir(user: string, topic: string): string {
-  return path.join(topicDir(user, topic), 'images')
+export function logsDir(user: string, ref: TopicRef): string {
+  return path.join(topicDir(user, ref), 'logs')
+}
+
+export function imagesDir(user: string, ref: TopicRef): string {
+  return path.join(topicDir(user, ref), 'images')
 }
 
 /**

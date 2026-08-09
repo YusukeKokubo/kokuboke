@@ -16,6 +16,8 @@ import { ModelPicker, type ModelSelection } from '@/components/ModelPicker'
 
 interface Props {
   open: boolean
+  /** この名前のトピックの中に作る。トップレベルに作るなら null。 */
+  parent?: string | null
   onOpenChange: (open: boolean) => void
   onCreate: (input: {
     name: string
@@ -28,7 +30,7 @@ interface Props {
 
 const EMOJI = ['💬', '📘', '🧴', '🍳', '🏃', '🎸', '🐾', '✏️']
 
-export function NewTopicDialog({ open, onOpenChange, onCreate }: Props) {
+export function NewTopicDialog({ open, parent = null, onOpenChange, onCreate }: Props) {
   const [templates, setTemplates] = useState<TopicTemplate[]>([])
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('💬')
@@ -68,9 +70,11 @@ export function NewTopicDialog({ open, onOpenChange, onCreate }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>新しいトピック</DialogTitle>
+          <DialogTitle>{parent ? `${parent} の中に作る` : '新しいトピック'}</DialogTitle>
           <DialogDescription>
-            話題ごとに分けておくと、記憶が混ざらずに済むよ。
+            {parent
+              ? '中で分けても、上に書いた記憶はどれにも効くよ。'
+              : '話題ごとに分けておくと、記憶が混ざらずに済むよ。'}
           </DialogDescription>
         </DialogHeader>
 

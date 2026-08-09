@@ -9,6 +9,7 @@ export default function App() {
       <Route path="/user" element={<UserPicker />} />
       <Route path="/user/:user" element={<TopicListPage />} />
       <Route path="/user/:user/:topic" element={<ChatPage />} />
+      <Route path="/user/:user/:topic/:sub" element={<ChatPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )

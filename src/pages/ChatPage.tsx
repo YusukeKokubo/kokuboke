@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, NotebookPen } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
 import { api, sendMessage } from '@/lib/api'
 import { dayKey, dayLabel } from '@/lib/format'
+import { topicHref } from '@/lib/route'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
 import { MemoryDialog } from '@/components/MemoryDialog'
@@ -20,7 +21,8 @@ import {
 type Status = 'idle' | 'sending'
 
 export default function ChatPage() {
-  const { user = '', topic = '' } = useParams()
+  const { user = '', topic = '', sub } = useParams()
+  const ref = useMemo(() => (sub ? { topic, sub } : { topic }), [topic, sub])
 
   const [meta, setMeta] = useState<Topic | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -33,13 +35,16 @@ export default function ChatPage() {
   const bottom = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
 
+  // 中で分けているトピックは記憶の置き場。ここでは話さず、子への入口だけ見せる。
+  const isGroup = (meta?.children.length ?? 0) > 0
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     bottom.current?.scrollIntoView({ behavior, block: 'end' })
   }, [])
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([api.getTopic(user, topic), api.listMessages(user, topic)])
+    Promise.all([api.getTopic(user, ref), api.listMessages(user, ref)])
       .then(([topicMeta, history]) => {
         if (cancelled) return
         setMeta(topicMeta)
@@ -51,7 +56,7 @@ export default function ChatPage() {
     return () => {
       cancelled = true
     }
-  }, [user, topic, scrollToBottom])
+  }, [user, ref, scrollToBottom])
 
   // 自分で上に遡っている最中は、追記のたびに引き戻さない。
   useEffect(() => {
@@ -73,7 +78,7 @@ export default function ChatPage() {
     stick.current = true
 
     try {
-      for await (const event of sendMessage(user, topic, input)) {
+      for await (const event of sendMessage(user, ref, input)) {
         switch (event.type) {
           case 'accepted':
             setMessages((prev) => [...prev, event.message])
@@ -118,6 +123,9 @@ export default function ChatPage() {
         </Link>
 
         <div className="min-w-0 flex-1">
+          {meta?.parent && (
+            <p className="text-muted-foreground truncate text-[11px]">{meta.parent}</p>
+          )}
           <h1 className="truncate text-[15px] font-semibold">
             {meta ? `${meta.emoji} ${meta.name}` : '…'}
           </h1>
@@ -145,7 +153,25 @@ export default function ChatPage() {
       </header>
 
       <main className="flex flex-1 flex-col gap-3 px-3 py-4">
-        {messages.length === 0 && !draft && (
+        {isGroup && (
+          <div className="flex flex-col gap-2 py-6">
+            <p className="text-muted-foreground text-center text-sm">
+              このトピックは中で分かれているよ。どれで話すか選んでね。
+            </p>
+            {meta?.children.map((child) => (
+              <Link
+                key={child.slug}
+                to={topicHref(user, { topic, sub: child.slug })}
+                className="hover:bg-accent flex items-center gap-3 rounded-xl border p-3"
+              >
+                <span className="text-xl">{child.emoji}</span>
+                <span className="truncate text-[15px] font-medium">{child.name}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {!isGroup && messages.length === 0 && !draft && (
           <p className="text-muted-foreground py-16 text-center text-sm">
             まだ会話がないよ。話しかけてみて。
           </p>
@@ -177,7 +203,7 @@ export default function ChatPage() {
         <div ref={bottom} />
       </main>
 
-      <Composer disabled={status !== 'idle'} onSend={handleSend} />
+      {!isGroup && <Composer disabled={status !== 'idle'} onSend={handleSend} />}
 
       <Dialog open={modelOpen} onOpenChange={setModelOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
@@ -192,7 +218,7 @@ export default function ChatPage() {
             value={meta ? { engine: meta.engine, model: meta.model } : null}
             onChange={async (next) => {
               try {
-                setMeta(await api.updateTopic(user, topic, next))
+                setMeta(await api.updateTopic(user, ref, next))
                 setModelOpen(false)
               } catch (cause) {
                 setNotice(cause instanceof Error ? cause.message : 'モデルを変えられませんでした')
@@ -202,7 +228,12 @@ export default function ChatPage() {
         </DialogContent>
       </Dialog>
 
-      <MemoryDialog user={user} topic={topic} open={memoryOpen} onOpenChange={setMemoryOpen} />
+      <MemoryDialog
+        user={user}
+        target={ref}
+        open={memoryOpen}
+        onOpenChange={setMemoryOpen}
+      />
     </div>
   )
 }

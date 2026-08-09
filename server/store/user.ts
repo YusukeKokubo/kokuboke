@@ -64,7 +64,25 @@ export async function ensureAllUsers(): Promise<void> {
     }
     for (const name of names) {
       if (!isTopicName(name)) continue
-      await ensureAgentsLink(path.join(topicsDir(user), name))
+      const dir = path.join(topicsDir(user), name)
+      await ensureAgentsLink(dir)
+
+      // 中で分けている子トピックにも同じリンクが要る。掘るのは一段だけ。
+      let children: string[] = []
+      try {
+        children = await fs.readdir(dir)
+      } catch {
+        continue
+      }
+      for (const child of children) {
+        if (!isTopicName(child)) continue
+        const sub = path.join(dir, child)
+        if (!(await fs.stat(sub).then((s) => s.isDirectory()).catch(() => false))) continue
+        if (!(await fs.stat(path.join(sub, 'topic.json')).then(() => true).catch(() => false))) {
+          continue
+        }
+        await ensureAgentsLink(sub)
+      }
     }
   }
 }

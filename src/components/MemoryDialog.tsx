@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
+import type { TopicRef } from '../../shared/types'
 import { api, draftSummary } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -14,7 +15,8 @@ import {
 
 interface Props {
   user: string
-  topic: string
+  /** どのトピックの記憶か。閉じている間は null になりうる。 */
+  target: TopicRef | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -24,7 +26,7 @@ type Status = 'loading' | 'idle' | 'drafting' | 'saving'
 /**
  * 記憶（summary.md）の確認と編集。AI に整理させても、保存を押すまでファイルは変わらない。
  */
-export function MemoryDialog({ user, topic, open, onOpenChange }: Props) {
+export function MemoryDialog({ user, target, open, onOpenChange }: Props) {
   const [saved, setSaved] = useState('')
   const [draft, setDraft] = useState('')
   const [status, setStatus] = useState<Status>('loading')
@@ -34,15 +36,20 @@ export function MemoryDialog({ user, topic, open, onOpenChange }: Props) {
 
   const abort = useRef<AbortController | null>(null)
 
+  // 依存に置くのは中身。親が毎回作り直したオブジェクトでも読み直さない。
+  const topic = target?.topic
+  const sub = target?.sub
+  const ref = useMemo(() => (topic ? { topic, sub } : null), [topic, sub])
+
   useEffect(() => {
-    if (!open) return
+    if (!open || !ref) return
 
     let cancelled = false
     setStatus('loading')
     setNotice(null)
 
     api
-      .getMemory(user, topic)
+      .getMemory(user, ref)
       .then((memory) => {
         if (cancelled) return
         setSaved(memory.summary)
@@ -59,13 +66,13 @@ export function MemoryDialog({ user, topic, open, onOpenChange }: Props) {
       cancelled = true
       abort.current?.abort()
     }
-  }, [open, user, topic])
+  }, [open, user, ref])
 
   const dirty = draft !== saved
   const busy = status === 'drafting' || status === 'saving'
 
   async function handleDraft() {
-    if (busy) return
+    if (busy || !ref) return
     setStatus('drafting')
     setNotice(null)
 
@@ -74,7 +81,7 @@ export function MemoryDialog({ user, topic, open, onOpenChange }: Props) {
 
     try {
       let text = ''
-      for await (const event of draftSummary(user, topic, choice, controller.signal)) {
+      for await (const event of draftSummary(user, ref, choice, controller.signal)) {
         if (event.type === 'delta') {
           text += event.text
           setDraft(text)
@@ -96,10 +103,10 @@ export function MemoryDialog({ user, topic, open, onOpenChange }: Props) {
   }
 
   async function handleSave() {
-    if (busy) return
+    if (busy || !ref) return
     setStatus('saving')
     try {
-      const memory = await api.saveMemory(user, topic, draft)
+      const memory = await api.saveMemory(user, ref, draft)
       setSaved(memory.summary)
       setDraft(memory.summary)
       onOpenChange(false)

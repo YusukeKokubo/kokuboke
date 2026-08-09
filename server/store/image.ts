@@ -4,7 +4,7 @@ import { HTTPException } from 'hono/http-exception'
 import sharp from 'sharp'
 import { config } from '../config'
 import type { Message } from '../../shared/types'
-import { imagesDir } from './paths'
+import { imagesDir, type TopicRef } from './paths'
 import { localDate } from './date'
 
 export interface SavedImage {
@@ -27,7 +27,7 @@ function filename(at: Date): string {
  * 受け取った画像を JPEG に正規化して保存する。
  * 原寸のまま渡すとトークンを無駄に食うので長辺を縮める。
  */
-export async function saveImage(user: string, topic: string, file: File): Promise<SavedImage> {
+export async function saveImage(user: string, ref: TopicRef, file: File): Promise<SavedImage> {
   if (file.size > config.uploadMaxBytes) {
     throw new HTTPException(413, { message: '画像が大きすぎます' })
   }
@@ -59,7 +59,7 @@ export async function saveImage(user: string, topic: string, file: File): Promis
     throw new HTTPException(400, { message: '画像を読み取れませんでした' })
   }
 
-  const dir = imagesDir(user, topic)
+  const dir = imagesDir(user, ref)
   await fs.mkdir(dir, { recursive: true })
 
   const name = filename(new Date())
@@ -81,20 +81,22 @@ export function imageName(stored: string): string {
  * ブラウザから参照する URL。保存はせず、返すときに組み立てる。
  * トピック名には日本語も `#` も入りうるので、区切りごとに符号化する。
  * 素で入れると `#` から先が断片として切り落とされる。
+ * 子トピックの分は、経路の途中に `sub` を挟んで親と区別する。
  */
-export function mediaUrl(user: string, topic: string, stored: string): string {
-  const segments = [user, topic, imageName(stored)].map(encodeURIComponent)
-  return `/media/${segments.join('/')}`
+export function mediaUrl(user: string, ref: TopicRef, stored: string): string {
+  const segments = ref.sub ? [user, ref.topic, 'sub', ref.sub] : [user, ref.topic]
+  segments.push(imageName(stored))
+  return `/media/${segments.map(encodeURIComponent).join('/')}`
 }
 
 /** API で返す形に直す。ログにはファイル名しか入っていない。 */
-export function withImageUrls(user: string, topic: string, message: Message): Message {
+export function withImageUrls(user: string, ref: TopicRef, message: Message): Message {
   if (message.images.length === 0) return message
-  return { ...message, images: message.images.map((name) => mediaUrl(user, topic, name)) }
+  return { ...message, images: message.images.map((name) => mediaUrl(user, ref, name)) }
 }
 
 /** 保存済み画像のファイル名から実ファイルの位置を割り出す。 */
-export function imageAbsPath(user: string, topic: string, name: string): string | null {
+export function imageAbsPath(user: string, ref: TopicRef, name: string): string | null {
   if (!/^[\w.-]+\.jpg$/.test(name)) return null
-  return path.join(imagesDir(user, topic), name)
+  return path.join(imagesDir(user, ref), name)
 }

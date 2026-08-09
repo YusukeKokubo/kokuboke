@@ -8,54 +8,42 @@ import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { readJson } from '../lib/body'
 import { readRecent } from '../store/log'
-import { assertTopicName, assertUser, topicDir } from '../store/paths'
-import { readSummary, readTopic, topicExists, writeSummary } from '../store/topic'
+import { topicDir } from '../store/paths'
+import { readParentSummary, readSummary, readTopic, writeSummary } from '../store/topic'
+import { requireTopic, topicPaths } from './target'
 
 export const summary = new Hono()
-
-async function assertTopic(user: string, topic: string): Promise<void> {
-  if (!(await topicExists(user, topic))) {
-    throw new HTTPException(404, { message: 'トピックが見つかりません' })
-  }
-}
 
 /**
  * 記憶そのものの読み書き。書き換えるのはここだけで、AI には触らせない。
  */
-summary.get('/api/users/:user/topics/:topic/memory', async (c) => {
-  const user = assertUser(c.req.param('user'))
-  const topic = assertTopicName(c.req.param('topic'))
-  await assertTopic(user, topic)
-
-  return c.json<Memory>({ summary: await readSummary(user, topic) })
+summary.on('GET', topicPaths('/memory'), async (c) => {
+  const { user, ref } = await requireTopic(c)
+  return c.json<Memory>({ summary: await readSummary(user, ref) })
 })
 
-summary.put('/api/users/:user/topics/:topic/memory', async (c) => {
-  const user = assertUser(c.req.param('user'))
-  const topic = assertTopicName(c.req.param('topic'))
-  await assertTopic(user, topic)
+summary.on('PUT', topicPaths('/memory'), async (c) => {
+  const { user, ref } = await requireTopic(c)
 
   const body = await readJson<{ summary?: string }>(c.req.raw)
   if (typeof body.summary !== 'string') {
     throw new HTTPException(400, { message: '保存する内容がありません' })
   }
 
-  await writeSummary(user, topic, body.summary)
-  return c.json<Memory>({ summary: await readSummary(user, topic) })
+  await writeSummary(user, ref, body.summary)
+  return c.json<Memory>({ summary: await readSummary(user, ref) })
 })
 
 /**
  * 記憶の下書きを作る。ファイルは書き換えず、新しい summary.md の全文を流すだけ。
  * 保存は画面で確かめたあと PUT で行う。
  */
-summary.post('/api/users/:user/topics/:topic/summary', async (c) => {
-  const user = assertUser(c.req.param('user'))
-  const topic = assertTopicName(c.req.param('topic'))
-  await assertTopic(user, topic)
+summary.on('POST', topicPaths('/summary'), async (c) => {
+  const { user, ref } = await requireTopic(c)
 
-  const meta = await readTopic(user, topic)
+  const meta = await readTopic(user, ref)
   // 要約は当日だけでなく、もう少し広めに読む。
-  const history = await readRecent(user, topic, Math.max(config.contextDays, 14))
+  const history = await readRecent(user, ref, Math.max(config.contextDays, 14))
 
   if (history.length === 0) {
     throw new HTTPException(400, { message: 'まだ記録がありません' })
@@ -76,11 +64,12 @@ summary.post('/api/users/:user/topics/:topic/summary', async (c) => {
 
     try {
       const events = runAgent(choice, {
-        cwd: topicDir(user, topic),
+        cwd: topicDir(user, ref),
         prompt: summaryPrompt({
           history,
           topicName: meta.name,
-          summary: await readSummary(user, topic),
+          summary: await readSummary(user, ref),
+          groupSummary: await readParentSummary(user, ref),
         }),
         systemPrompt: summarySystemPrompt({ user, topicName: meta.name }),
         signal: c.req.raw.signal,

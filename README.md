@@ -22,13 +22,28 @@
     ├── CLAUDE.md              人物の設定（手書き・全トピック共通）
     ├── profile.md             全トピック共通の覚え書き（手書き）
     └── topics/
-        └── 算数の宿題/
-            ├── topic.json     表示名・絵文字・作成日
-            ├── CLAUDE.md      このトピックでの振る舞い
-            ├── summary.md     このトピックの覚え書き（画面から読み書きする）
-            ├── logs/          YYYYMMDD.md（閲覧用） / YYYYMMDD.jsonl（読み戻し用）
-            └── images/        YYYYMMDD_HHMMSS.jpg
+        ├── 算数の宿題/
+        │   ├── topic.json     表示名・絵文字・作成日
+        │   ├── CLAUDE.md      このトピックでの振る舞い
+        │   ├── summary.md     このトピックの覚え書き（画面から読み書きする）
+        │   ├── logs/          YYYYMMDD.md（閲覧用） / YYYYMMDD.jsonl（読み戻し用）
+        │   └── images/        YYYYMMDD_HHMMSS.jpg
+        └── スキンケア/          中で分けたトピック
+            ├── topic.json
+            ├── CLAUDE.md      下のどれで話しても効く
+            ├── summary.md     共有の記憶
+            └── 肌の記録/        ここで話す。作りは上の「算数の宿題」と同じ
+                ├── topic.json
+                ├── CLAUDE.md
+                ├── summary.md
+                ├── logs/
+                └── images/
 ```
+
+トピックの中はもう一段だけ分けられる。中を分けたトピック自身では会話せず、
+`CLAUDE.md` と `summary.md` を置く器になる。共有したい前提を上に、その話に閉じた記憶を
+下に置くと、どの子で話しても上の記憶が一緒に読み込まれる。会話のあるトピックは
+分けられない。ログが画面から見えなくなるので、先に中身を移す必要がある。
 
 Claude Code は `CLAUDE.md` を、cursor-agent は `AGENTS.md` を、どちらも作業ディレクトリから
 親を遡って読む。そこで各フォルダに `AGENTS.md` → `CLAUDE.md` のシンボリックリンクを張ってある。
@@ -164,14 +179,19 @@ tailscale serve --bg 3000
 | GET | `/api/health` | 稼働確認と同時実行の状況 |
 | GET | `/api/templates` | トピック作成時に選べる雛形 |
 | GET | `/api/engines` | 選べるエンジンとモデルの一覧 |
-| GET | `/api/users/:user/topics` | トピック一覧（直近に話した順） |
+| GET | `/api/users/:user/topics` | トピック一覧（直近に話した順）。中で分けたぶんは `children` に入る |
 | POST | `/api/users/:user/topics` | トピック作成 |
+| POST | `/api/users/:user/topics/:topic/sub` | そのトピックの中に作る |
 | GET | `/api/users/:user/topics/:topic/messages` | 直近の会話（既定 3 日分） |
 | POST | `/api/users/:user/topics/:topic/messages` | 送信。SSE で返答を流す |
 | GET | `/api/users/:user/topics/:topic/memory` | 記憶（`summary.md`）を読む |
 | PUT | `/api/users/:user/topics/:topic/memory` | 記憶を保存する。書き換えはここだけ |
 | POST | `/api/users/:user/topics/:topic/summary` | 記憶の下書きを作らせる。SSE で流す（保存はしない） |
 | GET | `/media/:user/:topic/:file` | 保存済み画像 |
+
+トピックを指す経路はどれも、`:topic` のうしろに `/sub/:sub` を足すと中で分けたほうを指す。
+たとえば `/api/users/taro/topics/スキンケア/sub/肌の記録/messages`。画像も
+`/media/:user/:topic/sub/:sub/:file` になる。中を分けたトピック自身への送信は 400 を返す。
 
 送信は `multipart/form-data` で、本文が `text`、画像が `images`（4 枚まで）。
 

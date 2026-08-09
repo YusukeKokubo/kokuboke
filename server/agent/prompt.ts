@@ -38,6 +38,8 @@ export function chatSystemPrompt(input: { user: string; topicName: string }): st
 
 export function chatPrompt(input: {
   profile: string
+  /** 親トピックの記憶。中で分けているときだけ入る。 */
+  groupSummary: string
   summary: string
   history: Message[]
   text: string
@@ -47,6 +49,9 @@ export function chatPrompt(input: {
 
   if (input.profile.trim()) {
     parts.push(`<profile>\n${input.profile.trim()}\n</profile>`)
+  }
+  if (input.groupSummary.trim()) {
+    parts.push(`<group_memory>\n${input.groupSummary.trim()}\n</group_memory>`)
   }
   if (input.summary.trim()) {
     parts.push(`<topic_memory>\n${input.summary.trim()}\n</topic_memory>`)
@@ -79,9 +84,18 @@ export function summaryPrompt(input: {
   history: Message[]
   topicName: string
   summary: string
+  /** 親トピックの記憶。書き換える対象ではなく、重複を避けるための参考。 */
+  groupSummary: string
 }): string {
   const parts: string[] = []
 
+  if (input.groupSummary.trim()) {
+    parts.push(
+      `<group_memory>\n${input.groupSummary.trim()}\n</group_memory>`,
+      'これは一つ上のトピックの記憶です。書き換える対象ではありません。' +
+        'ここに既に書かれていることは繰り返さないでください。',
+    )
+  }
   if (input.summary.trim()) {
     parts.push(`<current_summary>\n${input.summary.trim()}\n</current_summary>`)
   }

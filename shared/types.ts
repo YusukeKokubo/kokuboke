@@ -12,8 +12,19 @@ export interface Message {
 
 export type EngineId = 'claude' | 'cursor'
 
+/**
+ * トピックの位置。`sub` があれば、そのトピックの中の子トピックを指す。
+ * 入れ子は一段までで、それ以上は掘らない。
+ */
+export interface TopicRef {
+  topic: string
+  sub?: string
+}
+
 export interface Topic {
   slug: string
+  /** 子トピックなら親のフォルダ名。トップレベルなら null。 */
+  parent: string | null
   name: string
   emoji: string
   createdAt: string
@@ -25,6 +36,11 @@ export interface Topic {
   lastMessageAt: string | null
   /** 一覧に出すための直近の発言の抜粋。 */
   preview: string | null
+  /**
+   * 中で分けている子トピック。一つでもあれば、そのトピック自身では会話せず、
+   * 記憶の置き場として扱う。子トピックの側では常に空。
+   */
+  children: Topic[]
 }
 
 export interface EngineInfo {

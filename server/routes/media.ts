@@ -2,16 +2,16 @@ import fs from 'node:fs/promises'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { imageAbsPath } from '../store/image'
-import { assertInsideDataDir, assertTopicName, assertUser } from '../store/paths'
+import { assertInsideDataDir, assertTopicRef, assertUser } from '../store/paths'
 
 export const media = new Hono()
 
 /** 保存済みの画像を返す。データディレクトリの外は絶対に読ませない。 */
-media.get('/media/:user/:topic/:file', async (c) => {
+media.on('GET', ['/media/:user/:topic/:file', '/media/:user/:topic/sub/:sub/:file'], async (c) => {
   const user = assertUser(c.req.param('user'))
-  const topic = assertTopicName(c.req.param('topic'))
+  const ref = assertTopicRef(c.req.param('topic'), c.req.param('sub'))
 
-  const target = imageAbsPath(user, topic, c.req.param('file'))
+  const target = imageAbsPath(user, ref, c.req.param('file'))
   if (!target) {
     throw new HTTPException(400, { message: 'ファイル名が不正です' })
   }

@@ -5,6 +5,7 @@ import type {
   Message,
   SummaryEvent,
   Topic,
+  TopicRef,
   TopicTemplate,
 } from '../../shared/types'
 
@@ -28,6 +29,20 @@ function path(segment: string): string {
   return encodeURIComponent(segment)
 }
 
+/** 子トピックは経路の途中に sub を挟んで親と区別する。 */
+function topicUrl(user: string, ref: TopicRef, suffix = ''): string {
+  const base = `/api/users/${path(user)}/topics/${path(ref.topic)}`
+  return (ref.sub ? `${base}/sub/${path(ref.sub)}` : base) + suffix
+}
+
+interface NewTopic {
+  name: string
+  emoji: string
+  template: string
+  engine: string
+  model: string
+}
+
 export const api = {
   templates: () => fetch('/api/templates').then((r) => unwrap<TopicTemplate[]>(r)),
 
@@ -36,36 +51,38 @@ export const api = {
   listTopics: (user: string) =>
     fetch(`/api/users/${path(user)}/topics`).then((r) => unwrap<Topic[]>(r)),
 
-  getTopic: (user: string, topic: string) =>
-    fetch(`/api/users/${path(user)}/topics/${path(topic)}`).then((r) => unwrap<Topic>(r)),
+  getTopic: (user: string, ref: TopicRef) => fetch(topicUrl(user, ref)).then((r) => unwrap<Topic>(r)),
 
-  createTopic: (
-    user: string,
-    input: { name: string; emoji: string; template: string; engine: string; model: string },
-  ) =>
+  createTopic: (user: string, input: NewTopic) =>
     fetch(`/api/users/${path(user)}/topics`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(input),
     }).then((r) => unwrap<Topic>(r)),
 
-  updateTopic: (user: string, topic: string, input: { engine: string; model: string }) =>
-    fetch(`/api/users/${path(user)}/topics/${path(topic)}`, {
+  /** トピックの中をさらに分ける。 */
+  createChild: (user: string, topic: string, input: NewTopic) =>
+    fetch(`/api/users/${path(user)}/topics/${path(topic)}/sub`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    }).then((r) => unwrap<Topic>(r)),
+
+  updateTopic: (user: string, ref: TopicRef, input: { engine: string; model: string }) =>
+    fetch(topicUrl(user, ref), {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(input),
     }).then((r) => unwrap<Topic>(r)),
 
-  listMessages: (user: string, topic: string, days = 3) =>
-    fetch(`/api/users/${path(user)}/topics/${path(topic)}/messages?days=${days}`).then((r) =>
-      unwrap<Message[]>(r),
-    ),
+  listMessages: (user: string, ref: TopicRef, days = 3) =>
+    fetch(topicUrl(user, ref, `/messages?days=${days}`)).then((r) => unwrap<Message[]>(r)),
 
-  getMemory: (user: string, topic: string) =>
-    fetch(`/api/users/${path(user)}/topics/${path(topic)}/memory`).then((r) => unwrap<Memory>(r)),
+  getMemory: (user: string, ref: TopicRef) =>
+    fetch(topicUrl(user, ref, '/memory')).then((r) => unwrap<Memory>(r)),
 
-  saveMemory: (user: string, topic: string, summary: string) =>
-    fetch(`/api/users/${path(user)}/topics/${path(topic)}/memory`, {
+  saveMemory: (user: string, ref: TopicRef, summary: string) =>
+    fetch(topicUrl(user, ref, '/memory'), {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ summary }),
@@ -108,7 +125,7 @@ async function* readSSE<T>(res: Response): AsyncGenerator<T> {
 
 export async function* sendMessage(
   user: string,
-  topic: string,
+  ref: TopicRef,
   input: { text: string; images: File[] },
   signal?: AbortSignal,
 ): AsyncGenerator<ChatEvent> {
@@ -116,7 +133,7 @@ export async function* sendMessage(
   form.set('text', input.text)
   for (const image of input.images) form.append('images', image)
 
-  const res = await fetch(`/api/users/${path(user)}/topics/${path(topic)}/messages`, {
+  const res = await fetch(topicUrl(user, ref, '/messages'), {
     method: 'POST',
     body: form,
     signal,
@@ -130,11 +147,11 @@ export async function* sendMessage(
  */
 export async function* draftSummary(
   user: string,
-  topic: string,
+  ref: TopicRef,
   choice: { engine: string; model: string } | null,
   signal?: AbortSignal,
 ): AsyncGenerator<SummaryEvent> {
-  const res = await fetch(`/api/users/${path(user)}/topics/${path(topic)}/summary`, {
+  const res = await fetch(topicUrl(user, ref, '/summary'), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(choice ?? {}),
