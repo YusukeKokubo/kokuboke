@@ -9,7 +9,7 @@ import { limiter } from '../agent/queue'
 import { appendMessage, readRecent } from '../store/log'
 import { topicDir } from '../store/paths'
 import { saveImage, withImageUrls } from '../store/image'
-import { hasChildren, readParentSummary, readSummary, readTopic } from '../store/topic'
+import { readParentSummary, readSummary, readTopic } from '../store/topic'
 import { readProfile } from '../store/user'
 import { requireTopic, topicPaths } from './target'
 
@@ -26,8 +26,8 @@ messages.on('GET', topicPaths('/messages'), async (c) => {
 messages.on('POST', topicPaths('/messages'), async (c) => {
   const { user, ref } = await requireTopic(c)
 
-  // 中を分けているトピックは記憶の置き場なので、話しかける先は子の側になる。
-  if (!ref.sub && (await hasChildren(user, ref.topic))) {
+  // トップレベルは記憶の置き場なので、話しかける先は必ずその中のトピックになる。
+  if (!ref.sub) {
     throw new HTTPException(400, { message: 'このトピックの中から選んで話しかけてね' })
   }
 

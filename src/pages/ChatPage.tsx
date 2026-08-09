@@ -36,8 +36,8 @@ export default function ChatPage() {
   const bottom = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
 
-  // 中で分けているトピックは記憶の置き場。ここでは話さず、子への入口だけ見せる。
-  const isGroup = (meta?.children.length ?? 0) > 0
+  // トップレベルは記憶の置き場。ここでは話さず、中への入口だけ見せる。
+  const isGroup = !sub
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     bottom.current?.scrollIntoView({ behavior, block: 'end' })
@@ -45,7 +45,8 @@ export default function ChatPage() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([api.getTopic(user, ref), api.listMessages(user, ref)])
+    // 器には会話がないので、履歴は中のトピックのときだけ読む。
+    Promise.all([api.getTopic(user, ref), sub ? api.listMessages(user, ref) : []])
       .then(([topicMeta, history]) => {
         if (cancelled) return
         rememberUser(user)
@@ -58,7 +59,7 @@ export default function ChatPage() {
     return () => {
       cancelled = true
     }
-  }, [user, ref, scrollToBottom])
+  }, [user, ref, sub, scrollToBottom])
 
   // 自分で上に遡っている最中は、追記のたびに引き戻さない。
   useEffect(() => {
@@ -131,7 +132,7 @@ export default function ChatPage() {
           <h1 className="truncate text-[15px] font-semibold">
             {meta ? `${meta.emoji} ${meta.name}` : '…'}
           </h1>
-          {meta && (
+          {meta && !isGroup && (
             <button
               type="button"
               onClick={() => setModelOpen(true)}
@@ -158,7 +159,9 @@ export default function ChatPage() {
         {isGroup && (
           <div className="flex flex-col gap-2 py-6">
             <p className="text-muted-foreground text-center text-sm">
-              このトピックは中で分かれているよ。どれで話すか選んでね。
+              {meta && meta.children.length === 0
+                ? 'まだ中に何もないよ。一覧から中のトピックを作ってね。'
+                : 'このトピックの中から、どれで話すか選んでね。'}
             </p>
             {meta?.children.map((child) => (
               <Link
@@ -179,20 +182,21 @@ export default function ChatPage() {
           </p>
         )}
 
-        {messages.map((message, index) => {
-          const previous = messages[index - 1]
-          const newDay = !previous || dayKey(previous.at) !== dayKey(message.at)
-          return (
-            <div key={message.id} className="flex flex-col gap-3">
-              {newDay && (
-                <div className="text-muted-foreground py-1 text-center text-[11px]">
-                  {dayLabel(message.at)}
-                </div>
-              )}
-              <MessageBubble message={message} />
-            </div>
-          )
-        })}
+        {!isGroup &&
+          messages.map((message, index) => {
+            const previous = messages[index - 1]
+            const newDay = !previous || dayKey(previous.at) !== dayKey(message.at)
+            return (
+              <div key={message.id} className="flex flex-col gap-3">
+                {newDay && (
+                  <div className="text-muted-foreground py-1 text-center text-[11px]">
+                    {dayLabel(message.at)}
+                  </div>
+                )}
+                <MessageBubble message={message} />
+              </div>
+            )
+          })}
 
         {draft && <MessageBubble message={draft} streaming />}
 

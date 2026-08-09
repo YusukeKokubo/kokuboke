@@ -72,7 +72,9 @@ function toTopic(
 }
 
 export async function readTopic(user: string, ref: TopicRef): Promise<Topic> {
-  return toTopic(await readMeta(user, ref), ref, await readLastEntry(user, ref))
+  // トップレベルは器なので自分では話さない。読むログもない。
+  const last = ref.sub ? await readLastEntry(user, ref) : null
+  return toTopic(await readMeta(user, ref), ref, last)
 }
 
 export async function topicExists(user: string, ref: TopicRef): Promise<boolean> {
@@ -116,11 +118,6 @@ export async function listChildren(user: string, topic: string): Promise<Topic[]
   return children.sort(byRecency)
 }
 
-/** 子を持つトピックでは会話しない。記憶を置く器として扱う。 */
-export async function hasChildren(user: string, topic: string): Promise<boolean> {
-  return (await childNames(user, topic)).length > 0
-}
-
 export async function listTopics(user: string): Promise<Topic[]> {
   await ensureUser(user)
 
@@ -140,9 +137,9 @@ export async function listTopics(user: string): Promise<Topic[]> {
     const topic = await readTopic(user, { topic: name })
     topic.children = await listChildren(user, name)
 
-    // 器になっているトピック自身は話さないので、一覧に出す時刻は子から借りる。
-    if (topic.children.length > 0 && !topic.lastMessageAt) {
-      const newest = topic.children[0]!
+    // 器自身は話さないので、一覧に出す時刻と抜粋は一番新しい子から借りる。
+    const newest = topic.children[0]
+    if (newest) {
       topic.lastMessageAt = newest.lastMessageAt
       topic.preview = newest.preview
     }
@@ -152,15 +149,10 @@ export async function listTopics(user: string): Promise<Topic[]> {
   return topics.sort(byRecency)
 }
 
-/** ログのファイルが一つでもあるか。器にしてよいかの判断に使う。 */
-async function hasLogs(user: string, ref: TopicRef): Promise<boolean> {
-  try {
-    return (await fs.readdir(logsDir(user, ref))).some((name) => name.endsWith('.jsonl'))
-  } catch {
-    return false
-  }
-}
-
+/**
+ * トップレベルは常に記憶を置く器で、会話は必ずその中に作る。
+ * 親に会話がありえないので、器に変えられるかどうかを気にする必要もない。
+ */
 export async function createTopic(
   user: string,
   input: { name: string; emoji?: string; template?: string; engine?: string; model?: string },
@@ -176,17 +168,8 @@ export async function createTopic(
 
   await ensureUser(user)
 
-  if (parent) {
-    if (!(await topicExists(user, { topic: parent }))) {
-      throw new HTTPException(404, { message: 'トピックが見つかりません' })
-    }
-    // 会話のあるトピックを器に変えると、その会話が画面から消えてしまう。
-    // 先にログを子へ移してもらう。
-    if (await hasLogs(user, { topic: parent })) {
-      throw new HTTPException(409, {
-        message: 'このトピックには会話があるので、中を分けられません',
-      })
-    }
+  if (parent && !(await topicExists(user, { topic: parent }))) {
+    throw new HTTPException(404, { message: 'トピックが見つかりません' })
   }
 
   const slug = toTopicName(name)
@@ -196,8 +179,13 @@ export async function createTopic(
   }
 
   const dir = topicDir(user, ref)
-  await fs.mkdir(logsDir(user, ref), { recursive: true })
-  await fs.mkdir(imagesDir(user, ref), { recursive: true })
+  if (parent) {
+    await fs.mkdir(logsDir(user, ref), { recursive: true })
+    await fs.mkdir(imagesDir(user, ref), { recursive: true })
+  } else {
+    // 器では話さないので、ログと画像の置き場は作らない。
+    await fs.mkdir(dir, { recursive: true })
+  }
 
   const choice = resolveModel(input.engine, input.model)
   const meta: TopicMeta = {

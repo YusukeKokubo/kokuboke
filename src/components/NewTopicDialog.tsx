@@ -74,7 +74,7 @@ export function NewTopicDialog({ open, parent = null, onOpenChange, onCreate }: 
           <DialogDescription>
             {parent
               ? '中で分けても、上に書いた記憶はどれにも効くよ。'
-              : '話題ごとに分けておくと、記憶が混ざらずに済むよ。'}
+              : 'ここは記憶の置き場だよ。話しかけるのは、この中に作ったトピック。'}
           </DialogDescription>
         </DialogHeader>
 
@@ -124,12 +124,15 @@ export function NewTopicDialog({ open, parent = null, onOpenChange, onCreate }: 
             ))}
           </div>
 
-          <div className="border-t pt-4">
-            <ModelPicker value={model} onChange={setModel} />
-            <p className="text-muted-foreground mt-2 text-xs">
-              選ばなければ既定のモデルを使うよ。あとから変えられる。
-            </p>
-          </div>
+          {/* 器では話さないので、モデルを選ぶのは中のトピックのときだけ。 */}
+          {parent && (
+            <div className="border-t pt-4">
+              <ModelPicker value={model} onChange={setModel} />
+              <p className="text-muted-foreground mt-2 text-xs">
+                選ばなければ既定のモデルを使うよ。あとから変えられる。
+              </p>
+            </div>
+          )}
 
           {error && <p className="text-destructive text-sm">{error}</p>}
         </div>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { FolderPlus, NotebookPen, Plus } from 'lucide-react'
+import { NotebookPen, Plus } from 'lucide-react'
 import type { Topic, TopicRef } from '../../shared/types'
 import { api } from '@/lib/api'
 import { relativeLabel } from '@/lib/format'
@@ -63,28 +63,30 @@ export default function TopicListPage() {
         )}
 
         <ul className="flex flex-col gap-1.5">
-          {topics?.map((topic) =>
-            topic.children.length > 0 ? (
-              <li key={topic.slug} className="pt-1">
-                <div className="flex items-center gap-2 px-1 pb-1.5">
-                  <span className="text-base">{topic.emoji}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                    {topic.name}
-                  </span>
-                  <IconButton
-                    label={`${topic.name} の記憶`}
-                    onClick={() => setMemoryFor({ topic: topic.slug })}
-                  >
-                    <NotebookPen className="size-4" />
-                  </IconButton>
-                  <IconButton
-                    label={`${topic.name} の中に作る`}
-                    onClick={() => setCreating(topic.slug)}
-                  >
-                    <Plus className="size-4" />
-                  </IconButton>
-                </div>
+          {topics?.map((topic) => (
+            <li key={topic.slug} className="pt-1">
+              <div className="flex items-center gap-2 px-1 pb-1.5">
+                <span className="text-base">{topic.emoji}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">{topic.name}</span>
+                <IconButton
+                  label={`${topic.name} の記憶`}
+                  onClick={() => setMemoryFor({ topic: topic.slug })}
+                >
+                  <NotebookPen className="size-4" />
+                </IconButton>
+                <IconButton
+                  label={`${topic.name} の中に作る`}
+                  onClick={() => setCreating(topic.slug)}
+                >
+                  <Plus className="size-4" />
+                </IconButton>
+              </div>
 
+              {topic.children.length === 0 ? (
+                <p className="text-muted-foreground ml-3 border-l pl-3 text-xs">
+                  まだ中に何もないよ。＋で作ってね。
+                </p>
+              ) : (
                 <ul className="ml-3 flex flex-col gap-1.5 border-l pl-3">
                   {topic.children.map((child) => (
                     <TopicCard
@@ -94,16 +96,9 @@ export default function TopicListPage() {
                     />
                   ))}
                 </ul>
-              </li>
-            ) : (
-              <TopicCard
-                key={topic.slug}
-                topic={topic}
-                href={topicHref(user, { topic: topic.slug })}
-                onSplit={() => setCreating(topic.slug)}
-              />
-            ),
-          )}
+              )}
+            </li>
+          ))}
         </ul>
       </main>
 
@@ -151,15 +146,7 @@ function IconButton({
   )
 }
 
-function TopicCard({
-  topic,
-  href,
-  onSplit,
-}: {
-  topic: Topic
-  href: string
-  onSplit?: () => void
-}) {
+function TopicCard({ topic, href }: { topic: Topic; href: string }) {
   return (
     <li className="flex items-center gap-1">
       <Link
@@ -181,12 +168,6 @@ function TopicCard({
           </span>
         </span>
       </Link>
-
-      {onSplit && (
-        <IconButton label={`${topic.name} の中を分ける`} onClick={onSplit}>
-          <FolderPlus className="size-4" />
-        </IconButton>
-      )}
     </li>
   )
 }
