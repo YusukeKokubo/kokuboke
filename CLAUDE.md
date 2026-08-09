@@ -25,7 +25,11 @@
 - `server/agent/` — CLI をヘッドレスで起動して SSE に流す部分。エンジンごとに
   `claude-code.ts` と `cursor.ts`、共通の実行と待ち行列が `process.ts` `queue.ts`
 - `server/routes/` — API。`server/store/` — data 配下の読み書き。パスの検査は `store/paths.ts` に集約
+- `server/config.ts` — 環境変数と既定値はここに集約。増やすときもここ
 - `shared/types.ts` — フロントとサーバーで共有する型
+- `src/pages/` — 画面は 2 つだけ。`src/lib/api.ts` が API 呼び出しと SSE の受けの入口
+- `src/components/markdown/` — Markdown と数式の描画。`src/components/ui/` は shadcn だが
+  style が `base-nova` で中身は `@base-ui/react`。Radix 前提の書き方は通らない
 
 データの構造・デプロイ・API 一覧は README.md にある。
 
@@ -35,6 +39,8 @@
 - 各フォルダの `AGENTS.md` は `CLAUDE.md` へのシンボリックリンク（cursor-agent 用）
 - 手元の `data/` は実際の会話が入る。動作確認で作ったトピックは消しておく
 - フロントの経路は `/user/:user` と `/user/:user/:topic`。`/:user` は 404 になる
+- `DATA_DIR` と `DATA_PATH` は別物。前者は手元で直接動かすときの保存先、
+  後者は compose がマウント元に使う。`.env` に両方あるで取り違えやすい
 
 ## 進め方
 

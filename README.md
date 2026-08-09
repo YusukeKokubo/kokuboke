@@ -145,6 +145,7 @@ tailscale serve --bg 3000
 | --- | --- | --- |
 | GET | `/api/health` | 稼働確認と同時実行の状況 |
 | GET | `/api/templates` | トピック作成時に選べる雛形 |
+| GET | `/api/engines` | 選べるエンジンとモデルの一覧 |
 | GET | `/api/users/:user/topics` | トピック一覧（直近に話した順） |
 | POST | `/api/users/:user/topics` | トピック作成 |
 | GET | `/api/users/:user/topics/:topic/messages` | 直近の会話（既定 3 日分） |
