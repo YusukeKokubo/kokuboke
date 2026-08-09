@@ -7,7 +7,9 @@
 - Node は mise 管理。`node` `npm` は PATH にない → `mise exec -- npm run ...`
 - Docker は colima。`docker compose`（プラグイン版）は解決されない → `docker-compose` を使う
 - colima の VM は aarch64 で buildx もない。NAS 向け（x86_64）のイメージはここでは作れない。
-  ただし手元の `docker-compose build` は通る。層の並びやマウント点の所有者の確認はこれで足りる
+  ただし手元の `docker-compose build` は通る。層の並びやマウント点の所有者の確認はこれで足りる。
+  逆に BuildKit 前提の書き方（`RUN --mount=type=cache` など）は入れない。
+  NAS では通るが手元のビルドが丸ごと落ちて、確認の手段がなくなる
 
 ## よく使う
 
@@ -72,5 +74,13 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
   `CLAUDE_CONFIG_DIR` で寄せられる（2.1.226 で確認）
 - コンテナは `USER app` で動く。`docker exec` も `app` で入るので、
   chown など root が要る作業は `-u 0` を付ける
+- `deploy.sh` は NAS が origin から取り込む。手元でコミットしただけでは何も変わらず、
+  同じイメージを作り直して終わる。デプロイしてもらう前に push する
+- Dockerfile の runtime は、CLI のインストールより下に依存とビルド成果物を置く。
+  依存を上に置くと `package.json` を触るたびに cursor が入り直し、そのとき版が
+  上がってログインが切れる。実行時の依存は deps ステージで揃えて持ってくる。
+  build ステージで `npm prune` すると、コードを一行直すたびに走って無駄になる
+- 層のどこが崩れるかは頭で予想せず、ビルドログの CACHED を見て確かめる。
+  Dockerfile を直したとき、崩れる範囲は思ったより狭いことが多い
 - NAS の管理画面が `docker-compose.yaml` を横に作ることがある。`.yml` と両方あると
   Compose がファイルを決められずに止まる
