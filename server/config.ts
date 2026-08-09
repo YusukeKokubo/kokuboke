@@ -44,7 +44,7 @@ export const config = {
   uploadMaxBytes: num(process.env.UPLOAD_MAX_BYTES, 20 * 1024 * 1024),
 
   /** トピックに指定が無いときに使うエンジン。claude | cursor */
-  defaultEngine: process.env.DEFAULT_ENGINE === 'cursor' ? ('cursor' as const) : ('claude' as const),
+  defaultEngine: process.env.DEFAULT_ENGINE === 'claude' ? ('claude' as const) : ('cursor' as const),
 
   /** 各 CLI の実行ファイル名。PATH 上にあるものを使う。 */
   claudeBin: process.env.CLAUDE_BIN ?? 'claude',
@@ -54,7 +54,13 @@ export const config = {
   claudeModel: process.env.CLAUDE_MODEL ?? 'claude-opus-5',
 
   /** cursor-agent 側の既定モデル。 */
-  cursorModel: process.env.CURSOR_MODEL ?? 'composer-2.5',
+  cursorModel: process.env.CURSOR_MODEL ?? 'auto',
+
+  /**
+   * 記憶の更新に使うエンジン。会話と違ってファイルを書き換えるので、
+   * ツール単位で権限を絞れる Claude Code を既定にしている。
+   */
+  summaryEngine: process.env.SUMMARY_ENGINE === 'cursor' ? ('cursor' as const) : ('claude' as const),
 
   /** 要約は素早く安く済ませたいので、別に指定できるようにする。 */
   summaryModel: process.env.SUMMARY_MODEL ?? 'sonnet',

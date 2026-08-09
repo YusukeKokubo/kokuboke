@@ -135,16 +135,20 @@ Android のブラウザから「ホーム画面に追加」すれば PWA とし�
 | | Claude Code | cursor-agent |
 | --- | --- | --- |
 | 選べるモデル | Opus 5 / Sonnet 5 / Haiku 4.5 | GPT-5.x、Grok、Composer、Claude 各種 |
-| 既定のモデル | Opus 5 | Composer 2.5 |
+| 既定のモデル | Opus 5 | おまかせ（auto） |
 | 人格の定義 | `CLAUDE.md` を親まで遡って読む | `AGENTS.md` を親まで遡って読む |
 | 役割の指示 | `--append-system-prompt` | 本文の先頭に積む |
 | 会話中の権限 | ツール単位の許可リストで `Read` だけ | `--mode ask`（読み取り専用) |
 | 記憶の更新時 | `Read` `Write` `Edit` だけ許可 | `--force`。ツール単位では絞れない |
 
-権限の粒度は Claude Code の方が細かい。だで記憶の更新は、トピックが cursor を選んで
-いない限り Claude Code 側で走らせる。
+新しいトピックの既定は **Cursor のおまかせ**。`DEFAULT_ENGINE` と `CURSOR_MODEL` で変えられる。
 
-`DEFAULT_ENGINE` で既定を変えられる。cursor-agent はイメージにも入れてあるが、
+権限の粒度は Claude Code の方が細かい。だで**記憶の更新だけは、会話にどのモデルを
+選んでいても Claude Code で走らせる**。会話は読み取りだけで済むが、記憶の更新は
+ファイルを書き換えるので、絞れる方に寄せておきたい。`SUMMARY_ENGINE=cursor` で
+変えられるが、そのときは `--force` になる。
+
+cursor-agent はイメージにも入れてあるが、
 `docker exec -it kokuboke cursor-agent login` を一度通す必要がある。
 不要なら `--build-arg INSTALL_CURSOR=false` で外せる。
 

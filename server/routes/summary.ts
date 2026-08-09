@@ -32,11 +32,11 @@ summary.post('/api/users/:user/topics/:topic/summary', async (c) => {
     throw new HTTPException(400, { message: 'まだ記録がありません' })
   }
 
-  // 要約は書き換えを伴うので、権限を細かく絞れる方を既定にする。
-  // トピックが cursor を選んでいる場合だけそちらを使う。
+  // 会話にどのモデルを選んでいても、書き換えを伴うここだけは
+  // ツール単位で権限を絞れる Claude Code で走らせる（SUMMARY_ENGINE で変更可）。
   const choice =
-    meta.engine === 'cursor'
-      ? resolveModel('cursor', meta.model)
+    config.summaryEngine === 'cursor'
+      ? resolveModel('cursor', config.cursorModel)
       : resolveModel('claude', config.summaryModel)
 
   const release = await limiter.acquire(user)
