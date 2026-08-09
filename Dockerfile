@@ -11,6 +11,10 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
+# 実行時に要るものだけ残す。runtime でもう一度 npm ci を走らせるより、
+# ここで削ったものを持っていくほうが速いし、取り違えも起きない。
+RUN npm prune --omit=dev
+
 # ---- runtime --------------------------------------------------------------
 FROM node:22-slim AS runtime
 
@@ -20,6 +24,8 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl git \
   && rm -rf /var/lib/apt/lists/*
 
+# npm のキャッシュはここで捨てる。--mount=type=cache は BuildKit が要り、
+# buildx の無い機械（手元の colima）でビルドできなくなる。
 RUN npm install -g @anthropic-ai/claude-code \
   && npm cache clean --force
 
@@ -34,9 +40,6 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV HOME=/home/app
-
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev && npm cache clean --force
 
 # /app は読めれば足りるので所有者を変えない。
 # ここで chown すると同じ内容のレイヤーがもう一つ増えてイメージが太る。
@@ -55,6 +58,11 @@ ENV PATH=/home/app/.local/bin:$PATH
 RUN if [ "$INSTALL_CURSOR" = "true" ]; then curl -fsSL https://cursor.com/install | bash; fi
 
 # 毎回変わるものはいちばん下に置く。ここから下だけが作り直される。
+# 依存もここに置く。cursor より上に置くと、依存を足しただけで cursor が
+# 入り直し、そのとき版が上がってログインが切れることがある。
+# package.json は type=module の宣言のために要る（dist は ESM）。
+COPY --from=build /app/node_modules ./node_modules
+COPY package.json ./
 COPY --from=build /app/dist ./dist
 
 EXPOSE 3000

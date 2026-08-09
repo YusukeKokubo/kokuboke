@@ -48,6 +48,9 @@
 - フロントの経路は `/user/:user` と `/user/:user/:topic`。`/:user` は 404 になる
 - トピック名はそのままフォルダ名で、日本語が入る。URL に埋めるときは
   `encodeURIComponent` を通す。比較と保存の前に `normalizeTopicName` で NFC に寄せる
+- `package.json` の `dependencies` はサーバーが実行時に読むものだけ（hono / sharp /
+  heic-convert）。画面側は vite が `dist` に畳み込むので `devDependencies` に置く。
+  新しく入れるときは、どちら側で使うかで置き場所を決める
 - `DATA_DIR` と `DATA_PATH` は別物。前者は手元で直接動かすときの保存先、
   後者は compose がマウント元に使う。`.env` に両方あるで取り違えやすい
 

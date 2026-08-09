@@ -6,3 +6,13 @@ data
 *.tar
 *.log
 .DS_Store
+
+# 文書とデプロイ用の道具はイメージの中身に関わらない。
+# ここに残すと、README を直しただけでビルド層のキャッシュが外れる。
+docs
+scripts
+README.md
+CLAUDE.md
+AGENTS.md
+.claude
+.claude.local.md
