@@ -10,9 +10,6 @@ services:
         INSTALL_CURSOR: ${INSTALL_CURSOR:-true}
     image: kokuboke:latest
     container_name: kokuboke
-    # 既定ではコンテナ ID がそのままホスト名になり、作り直すたびに変わる。
-    # CLI のログインが機械の識別子に紐づく場合に切れるので、固定しておく。
-    hostname: kokuboke
     restart: unless-stopped
 
     # Tailscale がホストネットワークで動いているので、ループバックにだけ出す。
@@ -24,10 +21,13 @@ services:
       # compose ファイルからの相対で解決される。NAS の他のコンテナもこの書き方。
       - ${DATA_PATH:-./data}:/data
       # サブスクリプションのログイン情報。消えると再ログインが要るので必ず永続化する。
-      # cursor は ~/.cursor/cli-config.json に持つ。ホームごと被せると
-      # ~/.local/bin の cursor-agent 本体が隠れるので、設定の場所だけを渡す。
+      # ホームごと被せると ~/.local/bin の cursor-agent 本体が隠れるので、
+      # 置き場所だけを個別に渡す。
       - claude-config:/home/app/.claude
+      # cursor は二か所に分かれる。~/.cursor は設定と履歴で、
+      # トークン本体は ~/.config/cursor/auth.json。後者が無いと作り直すたび再ログイン。
       - cursor-config:/home/app/.cursor
+      - cursor-auth:/home/app/.config/cursor
 
     environment:
       TZ: Asia/Tokyo
@@ -55,3 +55,4 @@ services:
 volumes:
   claude-config:
   cursor-config:
+  cursor-auth:

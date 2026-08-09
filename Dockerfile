@@ -44,7 +44,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 # ここで chown すると同じ内容のレイヤーがもう一つ増えてイメージが太る。
 # ボリュームを載せる場所はここで作っておく。イメージに無いパスに載せると
 # Docker が root 持ちで作ってしまい、app ユーザーが書けなくなる。
-RUN mkdir -p /data /home/app/.claude /home/app/.cursor \
+RUN mkdir -p /data /home/app/.claude /home/app/.cursor /home/app/.config/cursor \
   && chown -R ${APP_UID}:${APP_GID} /data /home/app
 
 USER app

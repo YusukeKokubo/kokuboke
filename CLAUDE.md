@@ -53,7 +53,8 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
 - cursor は `--force` を付けると `--sandbox` が無効になる
 - remark-math が独立した式として扱うのは `$$` が行頭と行末に来た形だけ
 - `node:22-slim` には UID 1000 の `node` ユーザーが既にいる
-- 認証情報は Claude Code が `~/.claude`、cursor が `~/.cursor/cli-config.json`。
-  compose で両方ボリュームにしないと作り直すたび再ログイン
+- cursor の認証は二か所に分かれる。`~/.cursor/cli-config.json` にあるのは素性の情報で、
+  トークン本体は `~/.config/cursor/auth.json`。前者だけ永続化してもコンテナを
+  作り直すたびに再ログインになる。切り分けは `docker diff`（ボリュームの中身は出ない）
 - NAS の管理画面が `docker-compose.yaml` を横に作ることがある。`.yml` と両方あると
   Compose がファイルを決められずに止まる

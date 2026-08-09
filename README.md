@@ -123,9 +123,11 @@ docker exec -it kokuboke claude
 docker exec -it kokuboke cursor-agent login
 ```
 
-表示された URL をブラウザで開いて認証する。認証情報はそれぞれ名前付きボリューム
-`claude-config`（`~/.claude`）と `cursor-config`（`~/.cursor`）に残るので、
+表示された URL をブラウザで開いて認証する。認証情報は名前付きボリュームに残るので、
 コンテナを作り直しても再ログインは要らない。ボリュームごと消した場合はやり直し。
+
+cursor は置き場所が二つに分かれていて、`~/.cursor` に設定と履歴、
+`~/.config/cursor/auth.json` にトークン本体が入る。両方をボリュームにしてある。
 
 ### Tailscale で公開する
 
