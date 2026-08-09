@@ -79,7 +79,7 @@ colima 環境では `docker compose`（プラグイン版）が解決されな�
 まず Mac 側で共有へ複製し、`.env` を用意する。
 
 ```sh
-git clone git@github.com:YusukeKokubo/kokuboke.git /Volumes/docker/kokuboke
+git clone https://github.com/YusukeKokubo/kokuboke.git /Volumes/docker/kokuboke
 cd /Volumes/docker/kokuboke
 cp .env.example .env    # USERS を家族の名前に
 mkdir -p data
@@ -104,14 +104,13 @@ cd <docker 共有>/kokuboke
 ビルドは N100 で数分かかる。他のコンテナと重なるとメモリを取り合うので、
 込み合う時間帯は避けた方がよい。
 
+リポジトリは公開なので、NAS 側に GitHub の認証情報を置かなくても取り込める。
+接続は HTTPS を使う（NAS に SSH 鍵を置かずに済む）。
+
 ### 更新するとき
 
-NAS に GitHub の認証情報を置いていれば、SSH を開けて `./scripts/deploy.sh`
-を叩くだけでよい。置いていない場合は、先に Mac 側から取り込んでおく。
-
-```sh
-git -C /Volumes/docker/kokuboke pull    # Mac の認証情報で取り込む
-```
+SSH を開けて `./scripts/deploy.sh` を叩くだけでよい。スクリプトの中で
+取り込みからビルド、起動確認まで行う。
 
 ## 初回だけ必要なこと
 
