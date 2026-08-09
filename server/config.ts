@@ -39,6 +39,15 @@ export const config = {
   /** Claude Code の実行ファイル名。PATH 上にあるものを使う。 */
   claudeBin: process.env.CLAUDE_BIN ?? 'claude',
 
+  /** 会話に使うモデル。エイリアス（opus / sonnet）でもフル名でも可。 */
+  claudeModel: process.env.CLAUDE_MODEL ?? 'claude-opus-5',
+
+  /** 要約は素早く安く済ませたいので、別に指定できるようにする。 */
+  summaryModel: process.env.SUMMARY_MODEL ?? 'sonnet',
+
+  /** low | medium | high | xhigh | max。未指定なら CLI の既定に任せる。 */
+  claudeEffort: process.env.CLAUDE_EFFORT ?? '',
+
   isProduction: process.env.NODE_ENV === 'production',
 } as const
 

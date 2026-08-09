@@ -100,9 +100,38 @@ tailscale serve --bg 3000
 `https://<マシン名>.<tailnet>.ts.net` で届くようになる。正規の証明書が付くので、
 Android のブラウザから「ホーム画面に追加」すれば PWA として動く。
 
+## API
+
+| メソッド | パス | 内容 |
+| --- | --- | --- |
+| GET | `/api/health` | 稼働確認と同時実行の状況 |
+| GET | `/api/templates` | トピック作成時に選べる雛形 |
+| GET | `/api/users/:user/topics` | トピック一覧（直近に話した順） |
+| POST | `/api/users/:user/topics` | トピック作成 |
+| GET | `/api/users/:user/topics/:topic/messages` | 直近の会話（既定 3 日分） |
+| POST | `/api/users/:user/topics/:topic/messages` | 送信。SSE で返答を流す |
+| POST | `/api/users/:user/topics/:topic/summary` | 記憶の更新。SSE で経過を流す |
+| GET | `/media/:user/:topic/:file` | 保存済み画像 |
+
+送信は `multipart/form-data` で、本文が `text`、画像が `images`（4 枚まで）。
+
+## 安全側に倒してあるところ
+
+- 会話中に許可するツールは `Read` だけ。`Bash` などは許可リストとは別に明示的に禁止している。
+- 書き込みが要るのは記憶の更新のときだけで、そのときも触れる範囲をユーザーのフォルダに限る。
+- ユーザー名は `USERS` に列挙したものだけ、トピック名は英数字とハイフンだけを受け付ける。
+  組み立てたパスがデータディレクトリの外に出ていないかを最後にもう一度確かめる。
+- 同じ人からの多重送信は待たせずに 409 で返す。全体の同時実行数は `MAX_CONCURRENT` で頭打ちにする。
+
+## 開発時の注意
+
+Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/CLAUDE.md` も読み込む。
+`/data` 側の設定だけを効かせたい場合は、その内容が混ざっていないか確認すること。
+コンテナでは `HOME=/home/app` になるのでこの混入は起きない。
+
 ## 実装の進み具合
 
 - [x] Step 1 構成・ディレクトリ・Docker の設計
 - [x] Step 2 パッケージと基本セットアップ
-- [ ] Step 3 ファイルベースの読み書きと Claude Code 実行
+- [x] Step 3 ファイルベースの読み書きと Claude Code 実行
 - [ ] Step 4 チャット UI
