@@ -1,16 +1,183 @@
-import { useParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { ChevronLeft, Loader2, NotebookPen } from 'lucide-react'
+import type { Message, Topic } from '../../shared/types'
+import { api, sendMessage, updateSummary } from '@/lib/api'
+import { dayKey, dayLabel } from '@/lib/format'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Composer } from '@/components/Composer'
+import { MessageBubble } from '@/components/MessageBubble'
 
-// Step 4 で実装する。
+type Status = 'idle' | 'sending' | 'summarizing'
+
 export default function ChatPage() {
-  const { user, topic } = useParams()
+  const { user = '', topic = '' } = useParams()
+
+  const [meta, setMeta] = useState<Topic | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [draft, setDraft] = useState<Message | null>(null)
+  const [status, setStatus] = useState<Status>('idle')
+  const [notice, setNotice] = useState<string | null>(null)
+
+  const bottom = useRef<HTMLDivElement>(null)
+  const stick = useRef(true)
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    bottom.current?.scrollIntoView({ behavior, block: 'end' })
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([api.getTopic(user, topic), api.listMessages(user, topic)])
+      .then(([topicMeta, history]) => {
+        if (cancelled) return
+        setMeta(topicMeta)
+        setMessages(history)
+        // 初回は履歴の一番下から始めたいので、アニメーションなしで飛ばす。
+        requestAnimationFrame(() => scrollToBottom('instant'))
+      })
+      .catch((cause: Error) => !cancelled && setNotice(cause.message))
+    return () => {
+      cancelled = true
+    }
+  }, [user, topic, scrollToBottom])
+
+  // 自分で上に遡っている最中は、追記のたびに引き戻さない。
+  useEffect(() => {
+    const onScroll = () => {
+      const gap = document.documentElement.scrollHeight - window.scrollY - window.innerHeight
+      stick.current = gap < 120
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    if (stick.current) scrollToBottom()
+  }, [messages, draft, scrollToBottom])
+
+  async function handleSend(input: { text: string; images: File[] }) {
+    setStatus('sending')
+    setNotice(null)
+    stick.current = true
+
+    try {
+      for await (const event of sendMessage(user, topic, input)) {
+        switch (event.type) {
+          case 'accepted':
+            setMessages((prev) => [...prev, event.message])
+            setDraft({
+              id: 'draft',
+              role: 'assistant',
+              text: '',
+              images: [],
+              at: new Date().toISOString(),
+            })
+            break
+          case 'delta':
+            setDraft((prev) => (prev ? { ...prev, text: prev.text + event.text } : prev))
+            break
+          case 'done':
+            setDraft(null)
+            setMessages((prev) => [...prev, event.message])
+            break
+          case 'error':
+            setDraft(null)
+            setNotice(event.message)
+            break
+        }
+      }
+    } catch (cause) {
+      setDraft(null)
+      setNotice(cause instanceof Error ? cause.message : '送信できませんでした')
+    } finally {
+      setStatus('idle')
+    }
+  }
+
+  async function handleSummary() {
+    if (status !== 'idle') return
+    setStatus('summarizing')
+    setNotice(null)
+    try {
+      for await (const event of updateSummary(user, topic)) {
+        if (event.type === 'error') setNotice(event.message)
+        if (event.type === 'done') setNotice('記憶を更新したよ')
+      }
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : '記憶を更新できませんでした')
+    } finally {
+      setStatus('idle')
+    }
+  }
 
   return (
-    <main className="flex min-h-dvh flex-col p-4">
-      <header className="pb-4">
-        <h1 className="text-lg font-semibold">{topic}</h1>
-        <p className="text-muted text-xs">{user}</p>
+    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
+      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center gap-2 border-b px-2 py-2 backdrop-blur">
+        <Link
+          to={`/user/${user}`}
+          aria-label="トピック一覧に戻る"
+          className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'size-9 shrink-0' })}
+        >
+          <ChevronLeft className="size-5" />
+        </Link>
+
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[15px] font-semibold">
+            {meta ? `${meta.emoji} ${meta.name}` : '…'}
+          </h1>
+        </div>
+
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleSummary}
+          disabled={status !== 'idle'}
+          className="shrink-0"
+        >
+          {status === 'summarizing' ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <NotebookPen className="size-4" />
+          )}
+          記憶を更新
+        </Button>
       </header>
-      <p className="text-muted text-sm">（Step 4 で作る）</p>
-    </main>
+
+      <main className="flex flex-1 flex-col gap-3 px-3 py-4">
+        {messages.length === 0 && !draft && (
+          <p className="text-muted-foreground py-16 text-center text-sm">
+            まだ会話がないよ。話しかけてみて。
+          </p>
+        )}
+
+        {messages.map((message, index) => {
+          const previous = messages[index - 1]
+          const newDay = !previous || dayKey(previous.at) !== dayKey(message.at)
+          return (
+            <div key={message.id} className="flex flex-col gap-3">
+              {newDay && (
+                <div className="text-muted-foreground py-1 text-center text-[11px]">
+                  {dayLabel(message.at)}
+                </div>
+              )}
+              <MessageBubble message={message} />
+            </div>
+          )
+        })}
+
+        {draft && <MessageBubble message={draft} streaming />}
+
+        {notice && (
+          <p className="text-muted-foreground bg-secondary mx-auto rounded-full px-3 py-1.5 text-center text-xs">
+            {notice}
+          </p>
+        )}
+
+        <div ref={bottom} />
+      </main>
+
+      <Composer disabled={status !== 'idle'} onSend={handleSend} />
+    </div>
   )
 }

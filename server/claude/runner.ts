@@ -80,7 +80,7 @@ class EventQueue<T> {
  * 起動したときに紛れ込む入れ子用の変数だけは落としておく。
  */
 function childEnv(): NodeJS.ProcessEnv {
-  const env = { ...process.env, LANG: process.env.LANG ?? 'C.UTF-8' }
+  const env: NodeJS.ProcessEnv = { ...process.env, LANG: process.env.LANG ?? 'C.UTF-8' }
   for (const key of Object.keys(env)) {
     if (key === 'CLAUDECODE' || key.startsWith('CLAUDE_CODE_') || key === 'CLAUDE_PID') {
       delete env[key]
