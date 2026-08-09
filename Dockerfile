@@ -1,5 +1,16 @@
 # syntax=docker/dockerfile:1
 
+# ---- deps -----------------------------------------------------------------
+# 実行時に要る依存だけをここで揃える。ソースを見ないステージにしておくと、
+# コードを直しただけのビルドではまるごとキャッシュに当たる。
+# build ステージの npm ci とは同時に走るので、待ち時間は増えない。
+FROM node:22-slim AS deps
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev && npm cache clean --force
+
 # ---- build ----------------------------------------------------------------
 FROM node:22-slim AS build
 
@@ -10,10 +21,6 @@ RUN npm ci
 
 COPY . .
 RUN npm run build
-
-# 実行時に要るものだけ残す。runtime でもう一度 npm ci を走らせるより、
-# ここで削ったものを持っていくほうが速いし、取り違えも起きない。
-RUN npm prune --omit=dev
 
 # ---- runtime --------------------------------------------------------------
 FROM node:22-slim AS runtime
@@ -61,7 +68,7 @@ RUN if [ "$INSTALL_CURSOR" = "true" ]; then curl -fsSL https://cursor.com/instal
 # 依存もここに置く。cursor より上に置くと、依存を足しただけで cursor が
 # 入り直し、そのとき版が上がってログインが切れることがある。
 # package.json は type=module の宣言のために要る（dist は ESM）。
-COPY --from=build /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY --from=build /app/dist ./dist
 
