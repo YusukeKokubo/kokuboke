@@ -27,8 +27,10 @@ RUN npm install -g @anthropic-ai/claude-code \
 ARG APP_UID=1000
 ARG APP_GID=1000
 
-RUN groupadd -g ${APP_GID} app 2>/dev/null || true \
-  && useradd -u ${APP_UID} -g ${APP_GID} -m -d /home/app -s /bin/bash app 2>/dev/null || true
+# node イメージには UID 1000 の node ユーザーが既にいるので、先にどかしてから作る。
+RUN userdel -r node 2>/dev/null || true; \
+  groupadd -g ${APP_GID} app 2>/dev/null || true; \
+  useradd -u ${APP_UID} -g ${APP_GID} -m -d /home/app -s /bin/bash app
 
 WORKDIR /app
 
@@ -40,8 +42,10 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
 
+# /app は読めれば足りるので所有者を変えない。
+# ここで chown すると同じ内容のレイヤーがもう一つ増えてイメージが太る。
 RUN mkdir -p /data /home/app/.claude \
-  && chown -R ${APP_UID}:${APP_GID} /app /data /home/app
+  && chown -R ${APP_UID}:${APP_GID} /data /home/app
 
 USER app
 

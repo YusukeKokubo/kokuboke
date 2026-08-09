@@ -52,29 +52,38 @@ npm start             # ビルド済みを本番モードで起動
 node scripts/generate-icons.mjs   # public/favicon.svg から PWA アイコンを再生成
 ```
 
-## NAS へのデプロイ
-
-N100 でのビルドは遅く、同居コンテナとメモリを取り合うので、**Mac 側でビルドして
-イメージを送り込む**。
+## 手元で Docker として動かす
 
 ```sh
-# 1. amd64 向けにビルド
-docker buildx build --platform linux/amd64 -t kokuboke:latest --load .
-
-# 2. 固めて NAS に送る
-docker save kokuboke:latest | gzip > kokuboke.tar.gz
-scp kokuboke.tar.gz nas:/volume1/docker/kokuboke/
-
-# 3. NAS 側で読み込んで起動
-ssh nas
-cd /volume1/docker/kokuboke
-gunzip -c kokuboke.tar.gz | docker load
-docker compose up -d --no-build
+cp .env.example .env    # DATA_PATH=./data、CPUS と MEM_LIMIT を手元の値に
+docker-compose build
+docker-compose up -d
+curl localhost:3000/api/health
 ```
 
-`.env` は NAS 側の `/volume1/docker/kokuboke/.env` に置く。`APP_UID` / `APP_GID` は
-`ls -n /volume1/docker/kokuboke/data` で確認した所有者に合わせる。ここがずれると
-コンテナがログを書けない。
+colima 環境では `docker compose`（プラグイン版）が解決されないことがある。
+その場合は `docker-compose` を使う。
+
+## NAS へのデプロイ
+
+**NAS 上で直接ビルドする**のが素直。Mac は arm64、NAS は x86_64 なので、
+手元でビルドしたイメージはそのままでは動かない。クロスビルドには buildx と
+QEMU の用意が要るうえ、できあがる約 1GB のイメージを毎回転送することになる。
+
+```sh
+ssh nas
+git clone <このリポジトリ> /volume1/docker/kokuboke
+cd /volume1/docker/kokuboke
+cp .env.example .env    # USERS を家族の名前に、DATA_PATH は既定のまま
+mkdir -p data
+docker-compose up -d --build
+```
+
+`APP_UID` / `APP_GID` は `ls -n /volume1/docker/kokuboke/data` で確認した所有者に
+合わせる。ここがずれるとコンテナがログを書けない。
+
+ビルドは N100 で数分かかる。他のコンテナと重なるとメモリを取り合うので、
+込み合う時間帯は避けた方がよい。
 
 ## 初回だけ必要なこと
 

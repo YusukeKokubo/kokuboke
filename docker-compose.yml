@@ -15,7 +15,8 @@ services:
       - '127.0.0.1:3000:3000'
 
     volumes:
-      - /volume1/docker/kokuboke/data:/data
+      # NAS では /volume1/docker/kokuboke/data。手元で試すときは .env で ./data に向ける。
+      - ${DATA_PATH:-/volume1/docker/kokuboke/data}:/data
       # サブスクリプションのログイン情報。消えると再ログインが要るので必ず永続化する。
       - claude-config:/home/app/.claude
 
@@ -31,8 +32,9 @@ services:
       MAX_CONCURRENT: '3'
       IMAGE_MAX_EDGE: '1568'
 
-    mem_limit: 2500m
-    cpus: 3.0
+    # NAS の実機（N100 / 4 コア）向けの既定値。手元で試すときは .env で下げる。
+    mem_limit: ${MEM_LIMIT:-2500m}
+    cpus: ${CPUS:-3.0}
 
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
