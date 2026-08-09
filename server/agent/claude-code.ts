@@ -34,10 +34,7 @@ function args(request: RunRequest): string[] {
   return list
 }
 
-/**
- * Claude Code は作業ディレクトリの CLAUDE.md を親まで遡って自分で読むので、
- * persona は渡さない。
- */
+/** CLAUDE.md は作業ディレクトリから親まで遡って CLI 側が自分で読む。 */
 export const claudeCode: Engine = {
   id: 'claude',
 

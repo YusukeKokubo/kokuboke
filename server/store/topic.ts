@@ -4,9 +4,9 @@ import { HTTPException } from 'hono/http-exception'
 import type { EngineId, Topic } from '../../shared/types'
 import { resolveModel } from '../agent'
 import { topicClaudeMd, topicSummaryMd } from '../templates'
-import { imagesDir, isSlug, logsDir, toSlug, topicDir, topicsDir, userDir } from './paths'
+import { imagesDir, isSlug, logsDir, toSlug, topicDir, topicsDir } from './paths'
 import { readLastEntry } from './log'
-import { ensureUser } from './user'
+import { ensureAgentsLink, ensureUser } from './user'
 
 interface TopicMeta {
   slug: string
@@ -131,6 +131,7 @@ export async function createTopic(
   await fs.writeFile(metaFile(user, slug), JSON.stringify(meta, null, 2) + '\n')
   await fs.writeFile(path.join(dir, 'CLAUDE.md'), topicClaudeMd(input.template ?? 'plain', name))
   await fs.writeFile(path.join(dir, 'summary.md'), topicSummaryMd(name))
+  await ensureAgentsLink(dir)
 
   return toTopic(meta, null)
 }
@@ -161,16 +162,4 @@ async function read(file: string): Promise<string> {
 
 export async function readSummary(user: string, topic: string): Promise<string> {
   return read(path.join(topicDir(user, topic), 'summary.md'))
-}
-
-/**
- * 人物とトピックの CLAUDE.md をつないだもの。
- * Claude Code は自分で読むので使わないが、cursor-agent には本文で渡す必要がある。
- */
-export async function readPersona(user: string, topic: string): Promise<string> {
-  const [person, role] = await Promise.all([
-    read(path.join(userDir(user), 'CLAUDE.md')),
-    read(path.join(topicDir(user, topic), 'CLAUDE.md')),
-  ])
-  return [person.trim(), role.trim()].filter(Boolean).join('\n\n---\n\n')
 }

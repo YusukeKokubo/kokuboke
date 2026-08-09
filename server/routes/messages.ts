@@ -9,7 +9,7 @@ import { limiter } from '../agent/queue'
 import { appendMessage, readRecent } from '../store/log'
 import { assertTopicSlug, assertUser, topicDir } from '../store/paths'
 import { saveImage } from '../store/image'
-import { readPersona, readSummary, readTopic, topicExists } from '../store/topic'
+import { readSummary, readTopic, topicExists } from '../store/topic'
 import { readProfile } from '../store/user'
 
 export const messages = new Hono()
@@ -54,7 +54,6 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
   let userMessage: Message
   let prompt: string
   let systemPrompt: string
-  let persona: string
   let choice: ReturnType<typeof resolveModel>
 
   try {
@@ -78,7 +77,6 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
     const history = await readRecent(user, topic)
 
     choice = resolveModel(meta.engine, meta.model)
-    persona = await readPersona(user, topic)
     systemPrompt = chatSystemPrompt({ user, topicName: meta.name })
     prompt = chatPrompt({
       profile: await readProfile(user),
@@ -104,7 +102,6 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
         cwd: topicDir(user, topic),
         prompt,
         systemPrompt,
-        persona,
         task: 'chat',
         signal: c.req.raw.signal,
       })

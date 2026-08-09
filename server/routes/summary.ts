@@ -8,7 +8,7 @@ import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { readRecent } from '../store/log'
 import { assertTopicSlug, assertUser, topicDir, userDir } from '../store/paths'
-import { readPersona, readTopic, topicExists } from '../store/topic'
+import { readTopic, topicExists } from '../store/topic'
 
 export const summary = new Hono()
 
@@ -39,7 +39,6 @@ summary.post('/api/users/:user/topics/:topic/summary', async (c) => {
       ? resolveModel('cursor', meta.model)
       : resolveModel('claude', config.summaryModel)
 
-  const persona = await readPersona(user, topic)
   const release = await limiter.acquire(user)
 
   return streamSSE(c, async (stream) => {
@@ -50,7 +49,6 @@ summary.post('/api/users/:user/topics/:topic/summary', async (c) => {
         cwd: topicDir(user, topic),
         prompt: summaryPrompt({ history, topicName: meta.name }),
         systemPrompt: summarySystemPrompt({ user, topicName: meta.name }),
-        persona,
         task: 'summary',
         // profile.md は 2 つ上の階層にあるので、ユーザーフォルダごと許可する。
         addDirs: [userDir(user)],

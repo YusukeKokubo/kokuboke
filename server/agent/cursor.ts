@@ -33,16 +33,11 @@ function args(request: RunRequest): string[] {
 }
 
 /**
- * cursor-agent には --append-system-prompt が無く、CLAUDE.md も読まない。
- * 役割の指示と人物設定は本文の先頭に積んで渡す。
+ * cursor-agent には --append-system-prompt が無いので、役割の指示は本文の先頭に積む。
+ * 人格の定義は AGENTS.md（CLAUDE.md へのリンク）を親まで遡って自分で読む。
  */
 function buildPrompt(request: RunRequest): string {
-  const parts = [`<instructions>\n${request.systemPrompt}\n</instructions>`]
-  if (request.persona.trim()) {
-    parts.push(`<persona>\n${request.persona.trim()}\n</persona>`)
-  }
-  parts.push(request.prompt)
-  return parts.join('\n\n')
+  return `<instructions>\n${request.systemPrompt}\n</instructions>\n\n${request.prompt}`
 }
 
 export const cursorAgent: Engine = {

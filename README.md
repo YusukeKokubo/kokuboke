@@ -30,8 +30,12 @@ NAS の `/volume1/docker/kokuboke/data` をコンテナの `/data` にマウン�
             └── images/        YYYYMMDD_HHMMSS.jpg
 ```
 
-Claude Code は作業ディレクトリの `CLAUDE.md` を読むとき親ディレクトリも遡るので、
-トピックのフォルダを cwd にするだけで人物の設定とトピックの設定が合成される。
+Claude Code は `CLAUDE.md` を、cursor-agent は `AGENTS.md` を、どちらも作業ディレクトリから
+親を遡って読む。そこで各フォルダに `AGENTS.md` → `CLAUDE.md` のシンボリックリンクを張ってある。
+人格の定義は `CLAUDE.md` 1 か所に置いたまま、どちらのエンジンでも同じ振る舞いになる。
+Claude Code は `AGENTS.md` を読まないので二重に読み込まれることはない。
+
+トピックのフォルダを cwd にするだけで、人物の設定とトピックの設定が合成される。
 
 ## 開発
 
@@ -131,7 +135,8 @@ Android のブラウザから「ホーム画面に追加」すれば PWA とし�
 | | Claude Code | cursor-agent |
 | --- | --- | --- |
 | 選べるモデル | Opus 5 / Sonnet 5 / Haiku 4.5 | GPT-5.x、Grok、Composer、Claude 各種 |
-| `CLAUDE.md` | 親を遡って自分で読む | 読まないので、こちらで本文に混ぜて渡す |
+| 既定のモデル | Opus 5 | Composer 2.5 |
+| 人格の定義 | `CLAUDE.md` を親まで遡って読む | `AGENTS.md` を親まで遡って読む |
 | 役割の指示 | `--append-system-prompt` | 本文の先頭に積む |
 | 会話中の権限 | ツール単位の許可リストで `Read` だけ | `--mode ask`（読み取り専用) |
 | 記憶の更新時 | `Read` `Write` `Edit` だけ許可 | `--force`。ツール単位では絞れない |

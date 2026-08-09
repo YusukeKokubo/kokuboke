@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { config } from '../config'
 import { userClaudeMd, userProfileMd } from '../templates'
-import { topicsDir, userDir } from './paths'
+import { isSlug, topicsDir, userDir } from './paths'
 
 async function writeIfMissing(file: string, content: string): Promise<void> {
   try {
@@ -12,28 +12,66 @@ async function writeIfMissing(file: string, content: string): Promise<void> {
   }
 }
 
+/**
+ * CLAUDE.md への AGENTS.md リンクを張る。
+ *
+ * Claude Code は CLAUDE.md を、cursor-agent は AGENTS.md を、どちらも親を
+ * 遡って読む。同じ実体を指しておけば、人格の定義を 1 か所に保ったまま
+ * 両方のエンジンで同じ振る舞いになる。Claude Code は AGENTS.md を読まないので
+ * 二重に読み込まれることはない。
+ */
+export async function ensureAgentsLink(dir: string): Promise<void> {
+  const link = path.join(dir, 'AGENTS.md')
+  try {
+    // 手で置かれた実ファイルがあれば尊重する。
+    await fs.lstat(link)
+    return
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+
+  try {
+    await fs.symlink('CLAUDE.md', link)
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'EEXIST') return
+    // リンクを張れない環境でも会話は続けられる。cursor 側で人格が効かなくなるだけ。
+    console.warn(`[store] AGENTS.md のリンクを作れませんでした: ${dir}`, error)
+  }
+}
+
 /** ユーザーのフォルダと雛形を用意する。既にあるファイルは触らない。 */
 export async function ensureUser(user: string): Promise<void> {
   const dir = userDir(user)
   await fs.mkdir(topicsDir(user), { recursive: true })
   await writeIfMissing(path.join(dir, 'CLAUDE.md'), userClaudeMd(user))
   await writeIfMissing(path.join(dir, 'profile.md'), userProfileMd(user))
+  await ensureAgentsLink(dir)
 }
 
 export async function ensureAllUsers(): Promise<void> {
   await fs.mkdir(config.dataDir, { recursive: true })
+
   for (const user of config.users) {
     await ensureUser(user)
+
+    // 先に作られていたトピックにも後からリンクを足す。
+    let names: string[] = []
+    try {
+      names = await fs.readdir(topicsDir(user))
+    } catch {
+      continue
+    }
+    for (const name of names) {
+      if (!isSlug(name)) continue
+      await ensureAgentsLink(path.join(topicsDir(user), name))
+    }
   }
 }
 
 export async function readProfile(user: string): Promise<string> {
-  return read(path.join(userDir(user), 'profile.md'))
-}
-
-async function read(file: string): Promise<string> {
   try {
-    return await fs.readFile(file, 'utf8')
+    return await fs.readFile(path.join(userDir(user), 'profile.md'), 'utf8')
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''
     throw error

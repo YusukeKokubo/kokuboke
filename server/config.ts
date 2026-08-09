@@ -54,7 +54,7 @@ export const config = {
   claudeModel: process.env.CLAUDE_MODEL ?? 'claude-opus-5',
 
   /** cursor-agent 側の既定モデル。 */
-  cursorModel: process.env.CURSOR_MODEL ?? 'auto',
+  cursorModel: process.env.CURSOR_MODEL ?? 'composer-2.5',
 
   /** 要約は素早く安く済ませたいので、別に指定できるようにする。 */
   summaryModel: process.env.SUMMARY_MODEL ?? 'sonnet',

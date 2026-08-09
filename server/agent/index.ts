@@ -39,12 +39,12 @@ export const ENGINES: EngineInfo[] = [
     label: 'Cursor',
     note: 'GPT や Grok も選べる。権限の絞り込みは粗い。',
     models: [
-      { id: 'auto', label: 'おまかせ' },
+      { id: 'composer-2.5', label: 'Composer 2.5' },
       { id: 'claude-opus-5-thinking-high', label: 'Opus 5 Thinking' },
       { id: 'gpt-5.2', label: 'GPT-5.2' },
       { id: 'gpt-5.3-codex', label: 'Codex 5.3' },
       { id: 'cursor-grok-4.5-high', label: 'Grok 4.5' },
-      { id: 'composer-2.5', label: 'Composer 2.5' },
+      { id: 'auto', label: 'おまかせ' },
     ],
   },
 ]

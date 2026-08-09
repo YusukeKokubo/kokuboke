@@ -11,11 +11,6 @@ export interface RunRequest {
   prompt: string
   /** 役割の指示。エンジンによって渡し方が違う。 */
   systemPrompt: string
-  /**
-   * 人物とトピックの CLAUDE.md をつないだもの。
-   * Claude Code は自分で読むので使わないが、cursor-agent には本文に混ぜて渡す。
-   */
-  persona: string
   /** chat は読み取りのみ。summary はファイルの書き換えを伴う。 */
   task: 'chat' | 'summary'
   model: string
