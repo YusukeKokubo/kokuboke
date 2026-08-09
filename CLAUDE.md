@@ -15,6 +15,8 @@
 - `mise exec -- npm run dev` — Vite 5173 + API 3000。`.env` を読む（`USERS` は必須）
 - `mise exec -- npm run typecheck` / `... npm run build`
 - テストは無い。変更の確認は typecheck と build、あとは実際に動かして見る
+- 端から端までの確認は API を直に叩く。トピック作成 → `messages`（multipart の `text`）
+  → `summary` で SSE が流れる。CLI を起動する経路はこれでしか確かめられない
 - UI の確認は agent-browser。`agent-browser set viewport 390 844` でスマホ幅にし、
   URL は `http://` を明示する（省略すると https になって失敗する）
 
@@ -32,6 +34,7 @@
 - `data/**/CLAUDE.md` はアプリが読むユーザー人格ファイル。プロジェクトへの指示ではない
 - 各フォルダの `AGENTS.md` は `CLAUDE.md` へのシンボリックリンク（cursor-agent 用）
 - 手元の `data/` は実際の会話が入る。動作確認で作ったトピックは消しておく
+- フロントの経路は `/user/:user` と `/user/:user/:topic`。`/:user` は 404 になる
 
 ## 進め方
 
@@ -44,3 +47,7 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
 - cursor は `--force` を付けると `--sandbox` が無効になる
 - remark-math が独立した式として扱うのは `$$` が行頭と行末に来た形だけ
 - `node:22-slim` には UID 1000 の `node` ユーザーが既にいる
+- 認証情報は Claude Code が `~/.claude`、cursor が `~/.cursor/cli-config.json`。
+  compose で両方ボリュームにしないと作り直すたび再ログイン
+- NAS の管理画面が `docker-compose.yaml` を横に作ることがある。`.yml` と両方あると
+  Compose がファイルを決められずに止まる
