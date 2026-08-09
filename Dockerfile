@@ -44,7 +44,9 @@ COPY --from=build /app/dist ./dist
 
 # /app は読めれば足りるので所有者を変えない。
 # ここで chown すると同じ内容のレイヤーがもう一つ増えてイメージが太る。
-RUN mkdir -p /data /home/app/.claude \
+# ボリュームを載せる場所はここで作っておく。イメージに無いパスに載せると
+# Docker が root 持ちで作ってしまい、app ユーザーが書けなくなる。
+RUN mkdir -p /data /home/app/.claude /home/app/.cursor \
   && chown -R ${APP_UID}:${APP_GID} /data /home/app
 
 USER app

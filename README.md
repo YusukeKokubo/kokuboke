@@ -114,16 +114,18 @@ SSH を開けて `./scripts/deploy.sh` を叩くだけでよい。スクリプ�
 
 ## 初回だけ必要なこと
 
-### Claude Code のログイン
+### 二つのログイン
 
-サブスクリプションの認証情報は名前付きボリューム `claude-config` に残るので、一度だけ通せばよい。
+会話は既定で Cursor、記憶の更新は Claude Code で走るので、どちらの認証も通しておく。
 
 ```sh
 docker exec -it kokuboke claude
+docker exec -it kokuboke cursor-agent login
 ```
 
-表示された URL をブラウザで開いて認証する。以降はコンテナを作り直しても再ログインは要らない。
-ボリュームごと消した場合はやり直し。
+表示された URL をブラウザで開いて認証する。認証情報はそれぞれ名前付きボリューム
+`claude-config`（`~/.claude`）と `cursor-config`（`~/.cursor`）に残るので、
+コンテナを作り直しても再ログインは要らない。ボリュームごと消した場合はやり直し。
 
 ### Tailscale で公開する
 
@@ -173,9 +175,9 @@ tailscale serve --bg 3000
 ファイルを書き換えるので、絞れる方に寄せておきたい。`SUMMARY_ENGINE=cursor` で
 変えられるが、そのときは `--force` になる。
 
-cursor-agent はイメージにも入れてあるが、
-`docker exec -it kokuboke cursor-agent login` を一度通す必要がある。
-不要なら `--build-arg INSTALL_CURSOR=false` で外せる。
+cursor-agent はイメージにも入れてあるが、`cursor-agent login` を一度通す必要がある。
+ビルド中の導入で転ぶときや、そもそも要らないときは `.env` に `INSTALL_CURSOR=false`
+を書いて deploy.sh を叩き直せば外れる。その場合エンジンは Claude Code だけになる。
 
 ## 安全側に倒してあるところ
 

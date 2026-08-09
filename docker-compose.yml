@@ -5,6 +5,9 @@ services:
       args:
         APP_UID: ${APP_UID:-1000}
         APP_GID: ${APP_GID:-1000}
+        # イメージのビルド中に cursor-agent が入らないときは
+        # .env に INSTALL_CURSOR=false を書いて外す。
+        INSTALL_CURSOR: ${INSTALL_CURSOR:-true}
     image: kokuboke:latest
     container_name: kokuboke
     restart: unless-stopped
@@ -18,7 +21,10 @@ services:
       # compose ファイルからの相対で解決される。NAS の他のコンテナもこの書き方。
       - ${DATA_PATH:-./data}:/data
       # サブスクリプションのログイン情報。消えると再ログインが要るので必ず永続化する。
+      # cursor は ~/.cursor/cli-config.json に持つ。ホームごと被せると
+      # ~/.local/bin の cursor-agent 本体が隠れるので、設定の場所だけを渡す。
       - claude-config:/home/app/.claude
+      - cursor-config:/home/app/.cursor
 
     environment:
       TZ: Asia/Tokyo
@@ -45,3 +51,4 @@ services:
 
 volumes:
   claude-config:
+  cursor-config:
