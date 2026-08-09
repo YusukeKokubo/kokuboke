@@ -61,6 +61,28 @@ export async function readRecent(
   return all
 }
 
+/**
+ * このトピックで本人が話した回数。名前を付ける頃合いの判断に使う。
+ * 日付をまたいでも数えたいので、直近何日ではなくログを全部見る。
+ */
+export async function countUserMessages(user: string, ref: TopicRef): Promise<number> {
+  let files: string[]
+  try {
+    files = await fs.readdir(logsDir(user, ref))
+  } catch {
+    return 0
+  }
+
+  let count = 0
+  for (const file of files) {
+    if (!file.endsWith('.jsonl')) continue
+    for (const message of await readJsonl(path.join(logsDir(user, ref), file))) {
+      if (message.role === 'user') count++
+    }
+  }
+  return count
+}
+
 export async function readLastEntry(user: string, ref: TopicRef): Promise<Message | null> {
   // 直近 30 日だけ遡る。それ以上前だと一覧では「まだ話していない」扱いでよい。
   for (const date of recentDates(30)) {

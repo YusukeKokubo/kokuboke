@@ -68,12 +68,32 @@ export const api = {
       body: JSON.stringify(input),
     }).then((r) => unwrap<Topic>(r)),
 
+  /** 名前も雛形も決めずに始める。フォルダ名は仮のもので、あとから付け直される。 */
+  startChild: (user: string, topic: string) =>
+    fetch(`/api/users/${path(user)}/topics/${path(topic)}/sub`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    }).then((r) => unwrap<Topic>(r)),
+
   updateTopic: (user: string, ref: TopicRef, input: { engine: string; model: string }) =>
     fetch(topicUrl(user, ref), {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(input),
     }).then((r) => unwrap<Topic>(r)),
+
+  /** 名前を付け直す。フォルダごと動くので、返ってきた slug で経路を差し替える。 */
+  renameTopic: (user: string, ref: TopicRef, input: { name: string; emoji?: string }) =>
+    fetch(topicUrl(user, ref), {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    }).then((r) => unwrap<Topic>(r)),
+
+  /** 会話を読んで名前を付けてもらう。こちらも slug が変わる。 */
+  autoName: (user: string, ref: TopicRef) =>
+    fetch(topicUrl(user, ref, '/name'), { method: 'POST' }).then((r) => unwrap<Topic>(r)),
 
   listMessages: (user: string, ref: TopicRef, days = 3) =>
     fetch(topicUrl(user, ref, `/messages?days=${days}`)).then((r) => unwrap<Message[]>(r)),

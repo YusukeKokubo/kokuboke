@@ -23,9 +23,14 @@ function renderHistory(messages: Message[]): string {
 }
 
 export function chatSystemPrompt(input: { user: string; topicName: string }): string {
+  // 名前なしで始めたトピックでは、まだ見出しが決まっていない。
+  const where = input.topicName
+    ? `いまのトピックは「${input.topicName}」です。`
+    : 'いまのトピックにはまだ名前が付いていません。'
+
   return `あなたは家族向けのチャットアプリの中で応答しています。
 
-- 話し相手は「${input.user}」さん。いまのトピックは「${input.topicName}」です。
+- 話し相手は「${input.user}」さん。${where}
 - 返答はスマートフォンのチャットの吹き出しに表示されます。話し言葉で簡潔に書いてください。
 - Markdown として整形されます。強調、箇条書き、表、コードブロックは使えます。
   ただし画面が狭いので、見出しや入り組んだ表は控えめに。
@@ -69,6 +74,30 @@ export function chatPrompt(input: {
   parts.push('上のメッセージに対する返答だけを書いてください。')
 
   return parts.join('\n\n')
+}
+
+export function nameSystemPrompt(): string {
+  return `あなたは会話に短い見出しを付ける係です。
+
+- ファイルは読み書きしません。見出しを決めるところまでが仕事です。
+- 前置き・説明・報告は書かないでください。返すのは指定された JSON 一つだけです。`
+}
+
+export function namePrompt(input: { history: Message[]; groupName: string }): string {
+  return `<conversation>
+${renderHistory(input.history)}
+</conversation>
+
+この会話に名前を付けてください。「${input.groupName}」の中に並ぶ見出しになります。
+
+- 何の話かがひと目で分かる、12 文字くらいまでの短い名前にします。
+- 「${input.groupName}」自体の言い換えは避け、この会話に固有の中身を拾ってください。
+- 「〜について」「〜の話」のような言い回しは付けません。
+- 記号や引用符は使わず、そのままフォルダ名にできる言葉にします。
+- 内容に合う絵文字を一つ選びます。
+
+次の形の JSON だけを返してください。
+{"name": "見出し", "emoji": "🍳"}`
 }
 
 export function summarySystemPrompt(input: { user: string; topicName: string }): string {

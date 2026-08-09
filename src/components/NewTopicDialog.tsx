@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { TopicTemplate } from '../../shared/types'
 import { api } from '@/lib/api'
+import { EMOJI } from '@/lib/emoji'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,8 +28,6 @@ interface Props {
     model: string
   }) => Promise<void>
 }
-
-const EMOJI = ['💬', '📘', '🧴', '🍳', '🏃', '🎸', '🐾', '✏️']
 
 export function NewTopicDialog({ open, parent = null, onOpenChange, onCreate }: Props) {
   const [templates, setTemplates] = useState<TopicTemplate[]>([])

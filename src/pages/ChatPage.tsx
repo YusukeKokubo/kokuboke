@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ChevronLeft, NotebookPen } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ChevronLeft, NotebookPen, Pencil } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
 import { api, sendMessage } from '@/lib/api'
-import { dayKey, dayLabel } from '@/lib/format'
+import { dayKey, dayLabel, topicLabel } from '@/lib/format'
 import { rememberUser } from '@/lib/remember'
 import { topicHref } from '@/lib/route'
+import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
 import { MemoryDialog } from '@/components/MemoryDialog'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
+import { RenameDialog } from '@/components/RenameDialog'
 import {
   Dialog,
   DialogContent,
@@ -23,6 +25,7 @@ type Status = 'idle' | 'sending'
 
 export default function ChatPage() {
   const { user = '', topic = '', sub } = useParams()
+  const navigate = useNavigate()
   const ref = useMemo(() => (sub ? { topic, sub } : { topic }), [topic, sub])
 
   const [meta, setMeta] = useState<Topic | null>(null)
@@ -32,6 +35,7 @@ export default function ChatPage() {
   const [notice, setNotice] = useState<string | null>(null)
   const [modelOpen, setModelOpen] = useState(false)
   const [memoryOpen, setMemoryOpen] = useState(false)
+  const [renameOpen, setRenameOpen] = useState(false)
 
   const bottom = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
@@ -75,6 +79,29 @@ export default function ChatPage() {
     if (stick.current) scrollToBottom()
   }, [messages, draft, scrollToBottom])
 
+  /** 名前が変わるとフォルダも動く。経路を新しい slug に差し替える。 */
+  const moveTo = useCallback(
+    (next: Topic) => {
+      setMeta(next)
+      if (next.slug !== sub) {
+        navigate(topicHref(user, { topic, sub: next.slug }), { replace: true })
+      }
+    },
+    [navigate, sub, topic, user],
+  )
+
+  /**
+   * 会話を読んで名前を付けてもらう。時間はかかるが返事を待たせるものではないので、
+   * 失敗しても画面には出さず、名前なしのままにしておく。
+   */
+  const putName = useCallback(async () => {
+    try {
+      moveTo(await api.autoName(user, ref))
+    } catch (cause) {
+      console.warn('[name]', cause)
+    }
+  }, [moveTo, ref, user])
+
   async function handleSend(input: { text: string; images: File[] }) {
     setStatus('sending')
     setNotice(null)
@@ -99,6 +126,7 @@ export default function ChatPage() {
           case 'done':
             setDraft(null)
             setMessages((prev) => [...prev, event.message])
+            if (event.shouldName) void putName()
             break
           case 'error':
             setDraft(null)
@@ -129,9 +157,27 @@ export default function ChatPage() {
           {meta?.parent && (
             <p className="text-muted-foreground truncate text-[11px]">{meta.parent}</p>
           )}
-          <h1 className="truncate text-[15px] font-semibold">
-            {meta ? `${meta.emoji} ${meta.name}` : '…'}
-          </h1>
+          {isGroup ? (
+            <h1 className="truncate text-[15px] font-semibold">
+              {meta ? `${meta.emoji} ${meta.name}` : '…'}
+            </h1>
+          ) : (
+            <button
+              type="button"
+              onClick={() => meta && setRenameOpen(true)}
+              className="flex max-w-full items-center gap-1"
+            >
+              <h1
+                className={cn(
+                  'truncate text-[15px] font-semibold',
+                  meta && !meta.name && 'text-muted-foreground',
+                )}
+              >
+                {meta ? `${meta.emoji} ${topicLabel(meta)}` : '…'}
+              </h1>
+              <Pencil className="text-muted-foreground size-3 shrink-0" />
+            </button>
+          )}
           {meta && !isGroup && (
             <button
               type="button"
@@ -170,7 +216,14 @@ export default function ChatPage() {
                 className="hover:bg-accent flex items-center gap-3 rounded-xl border p-3"
               >
                 <span className="text-xl">{child.emoji}</span>
-                <span className="truncate text-[15px] font-medium">{child.name}</span>
+                <span
+                  className={cn(
+                    'truncate text-[15px] font-medium',
+                    child.name || 'text-muted-foreground',
+                  )}
+                >
+                  {topicLabel(child)}
+                </span>
               </Link>
             ))}
           </div>
@@ -239,6 +292,15 @@ export default function ChatPage() {
         target={ref}
         open={memoryOpen}
         onOpenChange={setMemoryOpen}
+      />
+
+      <RenameDialog
+        user={user}
+        target={ref}
+        topic={meta}
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        onRenamed={moveTo}
       />
     </div>
   )

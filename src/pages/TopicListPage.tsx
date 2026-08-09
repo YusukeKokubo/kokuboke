@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { NotebookPen, Plus } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { FilePlus2, NotebookPen, Plus } from 'lucide-react'
 import type { Topic, TopicRef } from '../../shared/types'
 import { api } from '@/lib/api'
-import { relativeLabel } from '@/lib/format'
+import { relativeLabel, topicLabel } from '@/lib/format'
 import { rememberUser } from '@/lib/remember'
 import { topicHref } from '@/lib/route'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { MemoryDialog } from '@/components/MemoryDialog'
 import { NewTopicDialog } from '@/components/NewTopicDialog'
 
 export default function TopicListPage() {
   const { user = '' } = useParams()
+  const navigate = useNavigate()
   const [topics, setTopics] = useState<Topic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   /** 新規作成の相手。null ならトップレベル、文字列ならそのトピックの中。 */
@@ -31,6 +33,16 @@ export default function TopicListPage() {
   }, [user])
 
   useEffect(load, [load])
+
+  /** 名前を決めずに始める。作ってそのままチャットへ移る。 */
+  async function start(topic: string) {
+    try {
+      const child = await api.startChild(user, topic)
+      navigate(topicHref(user, { topic, sub: child.slug }))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '始められませんでした')
+    }
+  }
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
@@ -75,8 +87,14 @@ export default function TopicListPage() {
                   <NotebookPen className="size-4" />
                 </IconButton>
                 <IconButton
-                  label={`${topic.name} の中に作る`}
+                  label={`${topic.name} の中に、名前を決めて作る`}
                   onClick={() => setCreating(topic.slug)}
+                >
+                  <FilePlus2 className="size-4" />
+                </IconButton>
+                <IconButton
+                  label={`${topic.name} の中で新しく話す`}
+                  onClick={() => start(topic.slug)}
                 >
                   <Plus className="size-4" />
                 </IconButton>
@@ -84,7 +102,7 @@ export default function TopicListPage() {
 
               {topic.children.length === 0 ? (
                 <p className="text-muted-foreground ml-3 border-l pl-3 text-xs">
-                  まだ中に何もないよ。＋で作ってね。
+                  まだ中に何もないよ。＋を押すとすぐ話し始められる。
                 </p>
               ) : (
                 <ul className="ml-3 flex flex-col gap-1.5 border-l pl-3">
@@ -158,7 +176,14 @@ function TopicCard({ topic, href }: { topic: Topic; href: string }) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-2">
-            <span className="truncate text-[15px] font-medium">{topic.name}</span>
+            <span
+              className={cn(
+                'truncate text-[15px] font-medium',
+                topic.name || 'text-muted-foreground',
+              )}
+            >
+              {topicLabel(topic)}
+            </span>
             <span className="text-muted-foreground shrink-0 text-[11px]">
               {relativeLabel(topic.lastMessageAt)}
             </span>

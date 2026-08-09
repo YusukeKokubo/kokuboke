@@ -25,6 +25,7 @@ export interface Topic {
   slug: string
   /** 子トピックなら親のフォルダ名。トップレベルなら null。 */
   parent: string | null
+  /** まだ名前を付けていないサブトピックでは空文字。画面側で仮の見出しを出す。 */
   name: string
   emoji: string
   createdAt: string
@@ -61,7 +62,8 @@ export interface TopicTemplate {
 export type ChatEvent =
   | { type: 'accepted'; message: Message }
   | { type: 'delta'; text: string }
-  | { type: 'done'; message: Message }
+  /** shouldName が立っていたら、画面から名前付けを頼む頃合い。 */
+  | { type: 'done'; message: Message; shouldName?: boolean }
   | { type: 'error'; message: string }
 
 /**

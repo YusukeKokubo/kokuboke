@@ -9,7 +9,7 @@ import { limiter } from '../agent/queue'
 import { appendMessage, readRecent } from '../store/log'
 import { topicDir } from '../store/paths'
 import { saveImage, withImageUrls } from '../store/image'
-import { readParentSummary, readSummary, readTopic } from '../store/topic'
+import { readParentSummary, readSummary, readTopic, shouldAutoName } from '../store/topic'
 import { readProfile } from '../store/user'
 import { requireTopic, topicPaths } from './target'
 
@@ -122,7 +122,12 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
         at: new Date().toISOString(),
       }
       await appendMessage(user, ref, assistantMessage)
-      await send({ type: 'done', message: assistantMessage })
+      // 名前なしで始めたトピックは、何往復かしたところで画面から名前付けを頼む。
+      await send({
+        type: 'done',
+        message: assistantMessage,
+        shouldName: await shouldAutoName(user, ref),
+      })
     } catch (error) {
       console.error('[chat]', error)
       await send({

@@ -8,25 +8,60 @@ import {
   imagesDir,
   isTopicName,
   logsDir,
+  normalizeTopicName,
   toTopicName,
   topicDir,
   topicsDir,
   type TopicRef,
 } from './paths'
-import { readLastEntry } from './log'
+import { localDate, localTime, stamp } from './date'
+import { countUserMessages, readLastEntry } from './log'
 import { ensureAgentsLink, ensureUser } from './user'
 
 interface TopicMeta {
   slug: string
+  /** 名前をまだ付けていないサブトピックでは空文字。 */
   name: string
   emoji: string
   createdAt: string
   engine?: EngineId
   model?: string
+  /** 自動で名前を付けにいったかどうか。失敗しても二度は試さない。 */
+  nameTried?: boolean
 }
+
+/** 本人がこれだけ話したら、会話を読んで名前を付けにいく。 */
+const AUTO_NAME_AFTER = 3
+
+/** 名前が付くまでのあいだ、画面と雛形の見出しに使う呼び名。 */
+const NO_NAME = '名前のない話'
 
 function metaFile(user: string, ref: TopicRef): string {
   return path.join(topicDir(user, ref), 'topic.json')
+}
+
+async function writeMeta(user: string, ref: TopicRef, meta: TopicMeta): Promise<void> {
+  await fs.writeFile(metaFile(user, ref), JSON.stringify(meta, null, 2) + '\n')
+}
+
+/** 同じ並びの中で slug だけ差し替えた ref を作る。 */
+function withSlug(ref: TopicRef, slug: string): TopicRef {
+  return ref.sub === undefined ? { topic: slug } : { topic: ref.topic, sub: slug }
+}
+
+/** 空いている名前になるまで、末尾の数字を増やしていく。 */
+async function uniqueSlug(user: string, ref: TopicRef, base: string): Promise<string> {
+  let candidate = base
+  for (let i = 2; await topicExists(user, withSlug(ref, candidate)); i++) {
+    candidate = `${base}-${i}`
+  }
+  return candidate
+}
+
+/** 名前なしで始めたときのフォルダ名。NAS を覗いたときに順番が分かるよう日付を入れる。 */
+function placeholderSlug(): string {
+  const now = new Date()
+  return `untitled-${stamp(localDate(now))}-${localTime(now).replace(':', '')}`
 }
 
 async function readMeta(user: string, ref: TopicRef): Promise<TopicMeta> {
@@ -41,6 +76,7 @@ async function readMeta(user: string, ref: TopicRef): Promise<TopicMeta> {
       createdAt: parsed.createdAt ?? new Date().toISOString(),
       engine: parsed.engine,
       model: parsed.model,
+      nameTried: parsed.nameTried,
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -155,11 +191,12 @@ export async function listTopics(user: string): Promise<Topic[]> {
  */
 export async function createTopic(
   user: string,
-  input: { name: string; emoji?: string; template?: string; engine?: string; model?: string },
+  input: { name?: string; emoji?: string; template?: string; engine?: string; model?: string },
   parent?: string,
 ): Promise<Topic> {
-  const name = input.name.trim()
-  if (!name) {
+  const name = (input.name ?? '').trim()
+  // 名前なしで始められるのはサブトピックだけ。器は人が名前を付けて作る。
+  if (!name && !parent) {
     throw new HTTPException(400, { message: 'トピック名を入力してください' })
   }
   if (name.length > 40) {
@@ -172,11 +209,18 @@ export async function createTopic(
     throw new HTTPException(404, { message: 'トピックが見つかりません' })
   }
 
-  const slug = toTopicName(name)
-  const ref: TopicRef = parent ? { topic: parent, sub: slug } : { topic: slug }
-  if (await topicExists(user, ref)) {
-    throw new HTTPException(409, { message: '同じ名前のトピックがあります' })
+  const base: TopicRef = parent ? { topic: parent, sub: '' } : { topic: '' }
+  let ref: TopicRef
+  if (name) {
+    ref = withSlug(base, toTopicName(name))
+    if (await topicExists(user, ref)) {
+      throw new HTTPException(409, { message: '同じ名前のトピックがあります' })
+    }
+  } else {
+    // 仮の名前は同じ分に二つ作られうるので、空いているものを探す。
+    ref = withSlug(base, await uniqueSlug(user, base, placeholderSlug()))
   }
+  const slug = ref.sub ?? ref.topic
 
   const dir = topicDir(user, ref)
   if (parent) {
@@ -197,15 +241,17 @@ export async function createTopic(
     model: choice.model,
   }
 
-  await fs.writeFile(metaFile(user, ref), JSON.stringify(meta, null, 2) + '\n')
-  await fs.writeFile(path.join(dir, 'CLAUDE.md'), topicClaudeMd(input.template ?? 'plain', name))
-  await fs.writeFile(path.join(dir, 'summary.md'), topicSummaryMd(name))
+  // 名前がまだ無いときは、雛形の見出しに仮の呼び名を入れておく。
+  const label = name || NO_NAME
+  await writeMeta(user, ref, meta)
+  await fs.writeFile(path.join(dir, 'CLAUDE.md'), topicClaudeMd(input.template ?? 'plain', label))
+  await fs.writeFile(path.join(dir, 'summary.md'), topicSummaryMd(label))
   await ensureAgentsLink(dir)
 
   return toTopic(meta, ref, null)
 }
 
-/** いまのところ変えられるのはエンジンとモデルだけ。 */
+/** エンジンとモデルだけを差し替える。名前を変えるのは renameTopic。 */
 export async function updateTopic(
   user: string,
   ref: TopicRef,
@@ -215,9 +261,65 @@ export async function updateTopic(
   const choice = resolveModel(input.engine ?? meta.engine, input.model ?? meta.model)
 
   const next: TopicMeta = { ...meta, engine: choice.engine, model: choice.model }
-  await fs.writeFile(metaFile(user, ref), JSON.stringify(next, null, 2) + '\n')
+  await writeMeta(user, ref, next)
 
   return toTopic(next, ref, await readLastEntry(user, ref))
+}
+
+/**
+ * 名前を付け直す。フォルダ名がそのまま名前なので、フォルダごと動かす。
+ * 中の logs / images / summary.md は一緒に付いてくる。AGENTS.md のリンクは
+ * CLAUDE.md への相対なので、動かしても切れない。
+ */
+export async function renameTopic(
+  user: string,
+  ref: TopicRef,
+  input: { name: string; emoji?: string },
+): Promise<Topic> {
+  const name = normalizeTopicName(input.name)
+  if (!name) {
+    throw new HTTPException(400, { message: 'トピック名を入力してください' })
+  }
+  if (name.length > 40) {
+    throw new HTTPException(400, { message: 'トピック名が長すぎます' })
+  }
+
+  const meta = await readMeta(user, ref)
+  const emoji = input.emoji?.trim() || meta.emoji
+
+  let next = ref
+  const desired = toTopicName(name)
+  if (desired !== meta.slug) {
+    // 同じ器の中で名前がぶつかったら、末尾に数字を足して避ける。
+    const slug = await uniqueSlug(user, ref, desired)
+    next = withSlug(ref, slug)
+    await fs.rename(topicDir(user, ref), topicDir(user, next))
+  }
+
+  const slug = next.sub ?? next.topic
+  const meta2: TopicMeta = { ...meta, slug, name, emoji, nameTried: true }
+  await writeMeta(user, next, meta2)
+
+  return toTopic(meta2, next, await readLastEntry(user, next))
+}
+
+/**
+ * 会話を読んで名前を付ける頃合いかどうか。名前が付いた後や、
+ * 一度試して失敗した後には二度と立たない。
+ */
+export async function shouldAutoName(user: string, ref: TopicRef): Promise<boolean> {
+  if (!ref.sub) return false
+
+  const meta = await readMeta(user, ref)
+  if (meta.name || meta.nameTried) return false
+
+  return (await countUserMessages(user, ref)) >= AUTO_NAME_AFTER
+}
+
+/** 名前が付かなかったときも、試したことだけは残す。 */
+export async function markNameTried(user: string, ref: TopicRef): Promise<void> {
+  const meta = await readMeta(user, ref)
+  await writeMeta(user, ref, { ...meta, nameTried: true })
 }
 
 async function read(file: string): Promise<string> {

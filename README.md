@@ -39,6 +39,20 @@
 中のどれで話しても上の記憶が一緒に読み込まれる。器では話さないので、
 `logs/` と `images/` も作らない。
 
+## 名前は後から付く
+
+器の「＋」から始めたトピックには名前がない。`topic.json` の `name` は空で、
+フォルダは `untitled-20260809-2242` のような仮の名前になる。本人が三回話したところで
+会話を読ませ、短い名前と絵文字を付けてフォルダごと改名する。同じ器の中で名前が
+ぶつかったら、末尾に `-2` を足して避ける。
+
+命名に使うのは記憶と同じエンジン・モデル（`SUMMARY_ENGINE` / `SUMMARY_MODEL`）。
+一度走らせたら `topic.json` に `nameTried` が立ち、名前が付かなくても二度は試さない。
+気に入らなければ、チャット画面のタイトルを押していつでも変えられる。
+
+改名するとフォルダ名が変わり、URL と画像の経路もそこに乗っているので変わる。
+画面は返ってきた `slug` で経路を差し替える。
+
 Claude Code は `CLAUDE.md` を、cursor-agent は `AGENTS.md` を、どちらも作業ディレクトリから
 親を遡って読む。そこで各フォルダに `AGENTS.md` → `CLAUDE.md` のシンボリックリンクを張ってある。
 人格の定義は `CLAUDE.md` 1 か所に置いたまま、どちらのエンジンでも同じ振る舞いになる。
@@ -183,7 +197,9 @@ tailscale serve --bg 3000
 | GET | `/api/engines` | 選べるエンジンとモデルの一覧 |
 | GET | `/api/users/:user/topics` | トピック一覧（直近に話した順）。中のトピックは `children` に入る |
 | POST | `/api/users/:user/topics` | トップレベル（器）の作成 |
-| POST | `/api/users/:user/topics/:topic/sub` | そのトピックの中に作る。話せるのはこちら |
+| POST | `/api/users/:user/topics/:topic/sub` | そのトピックの中に作る。話せるのはこちら。`name` は省略できる |
+| PATCH | `/api/users/:user/topics/:topic` | エンジンとモデル、または名前と絵文字を変える |
+| POST | `/api/users/:user/topics/:topic/name` | 会話を読ませて名前を付ける。付いた名前で改名まで行う |
 | GET | `/api/users/:user/topics/:topic/messages` | 直近の会話（既定 3 日分） |
 | POST | `/api/users/:user/topics/:topic/messages` | 送信。SSE で返答を流す |
 | GET | `/api/users/:user/topics/:topic/memory` | 記憶（`summary.md`）を読む |
