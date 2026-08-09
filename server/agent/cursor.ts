@@ -17,9 +17,10 @@ function args(request: RunRequest): string[] {
   ]
 
   if (summary) {
-    // cursor-agent には Claude Code のようなツール単位の許可リストがない。
-    // 書き換えを伴う要約では --force で通すしかなく、粒度はこちらの方が粗い。
-    list.push('--force')
+    // cursor-agent にはツール単位の許可リストがない。書き換えを通すには
+    // サンドボックスに入れるしかない。通信は止まるが、シェルは動くし
+    // 書き込み先も cwd の外に出られる。--force と併用すると無効になるので使わない。
+    list.push('--sandbox', 'enabled')
   } else {
     // ask モードは読み取り専用。ファイル作成もシェル実行も拒否される。
     list.push('--mode', 'ask')
