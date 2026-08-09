@@ -4,6 +4,7 @@ import { FolderPlus, NotebookPen, Plus } from 'lucide-react'
 import type { Topic, TopicRef } from '../../shared/types'
 import { api } from '@/lib/api'
 import { relativeLabel } from '@/lib/format'
+import { rememberUser } from '@/lib/remember'
 import { topicHref } from '@/lib/route'
 import { Button } from '@/components/ui/button'
 import { MemoryDialog } from '@/components/MemoryDialog'
@@ -21,6 +22,8 @@ export default function TopicListPage() {
     api
       .listTopics(user)
       .then((list) => {
+        // ここまで来た名前だけを端末に残す。存在しない名前は 404 で弾かれる。
+        rememberUser(user)
         setTopics(list)
         setError(null)
       })

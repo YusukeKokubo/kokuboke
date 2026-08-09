@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { rememberedUser } from '@/lib/remember'
 import TopicListPage from './pages/TopicListPage'
 import ChatPage from './pages/ChatPage'
 
@@ -15,7 +16,16 @@ export default function App() {
   )
 }
 
+/**
+ * 名前の入っていない入口。この端末で一度でも開けた名前があればそこへ送る。
+ * 誰がいるかは尋ねられないので、覚えが無ければ URL を開いてもらうしかない。
+ */
 function UserPicker() {
+  const remembered = rememberedUser()
+  if (remembered) {
+    return <Navigate to={`/user/${encodeURIComponent(remembered)}`} replace />
+  }
+
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
       <h1 className="text-xl font-semibold">kokuboke</h1>

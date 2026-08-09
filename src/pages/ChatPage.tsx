@@ -4,6 +4,7 @@ import { ChevronLeft, NotebookPen } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
 import { api, sendMessage } from '@/lib/api'
 import { dayKey, dayLabel } from '@/lib/format'
+import { rememberUser } from '@/lib/remember'
 import { topicHref } from '@/lib/route'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
@@ -47,6 +48,7 @@ export default function ChatPage() {
     Promise.all([api.getTopic(user, ref), api.listMessages(user, ref)])
       .then(([topicMeta, history]) => {
         if (cancelled) return
+        rememberUser(user)
         setMeta(topicMeta)
         setMessages(history)
         // 初回は履歴の一番下から始めたいので、アニメーションなしで飛ばす。
