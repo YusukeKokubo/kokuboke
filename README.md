@@ -85,10 +85,12 @@ cp .env.example .env    # USERS を家族の名前に
 mkdir -p data
 ```
 
-続いて NAS 側でビルドして起動する。
+続いて NAS 側でビルドして起動する。ここは Mac からは実行できない。
+初期状態では SSH が閉じている（ポート 22 が拒否される）ので、UGREEN の設定で
+SSH を有効にするか、Docker アプリの端末から実行する。
 
 ```sh
-ssh nas
+ssh <nas>
 cd <docker 共有>/kokuboke
 docker-compose up -d --build
 ```

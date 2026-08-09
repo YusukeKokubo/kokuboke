@@ -10,10 +10,22 @@
 
 ## よく使う
 
-- `npm run dev` — Vite 5173 + API 3000。`.env` を読む（`USERS` は必須）
-- `npm run typecheck` / `npm run build`
+すべて `mise exec --` を頭に付けて実行する。
+
+- `mise exec -- npm run dev` — Vite 5173 + API 3000。`.env` を読む（`USERS` は必須）
+- `mise exec -- npm run typecheck` / `... npm run build`
+- テストは無い。変更の確認は typecheck と build、あとは実際に動かして見る
 - UI の確認は agent-browser。`agent-browser set viewport 390 844` でスマホ幅にし、
   URL は `http://` を明示する（省略すると https になって失敗する）
+
+## どこに何があるか
+
+- `server/agent/` — CLI をヘッドレスで起動して SSE に流す部分。エンジンごとに
+  `claude-code.ts` と `cursor.ts`、共通の実行と待ち行列が `process.ts` `queue.ts`
+- `server/routes/` — API。`server/store/` — data 配下の読み書き。パスの検査は `store/paths.ts` に集約
+- `shared/types.ts` — フロントとサーバーで共有する型
+
+データの構造・デプロイ・API 一覧は README.md にある。
 
 ## 間違えやすいところ
 
