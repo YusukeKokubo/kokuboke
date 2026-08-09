@@ -1,5 +1,5 @@
 import type { Message } from '../../shared/types'
-import { localTime } from '../store/log'
+import { localTime } from '../store/date'
 
 const MAX_HISTORY_CHARS = 20_000
 

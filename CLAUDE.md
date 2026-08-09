@@ -14,8 +14,11 @@
 すべて `mise exec --` を頭に付けて実行する。
 
 - `mise exec -- npm run dev` — Vite 5173 + API 3000。`.env` を読む（`USERS` は必須）
-- `mise exec -- npm run typecheck` / `... npm run build`
-- テストは無い。変更の確認は typecheck と build、あとは実際に動かして見る
+- `mise exec -- npm run typecheck` / `... npm test` / `... npm run build`
+- テストは `server/store/` だけ。`node --test` を tsx 経由で走らせる。
+  それ以外の確認は typecheck と build、あとは実際に動かして見る
+- テストは環境変数を差し込んでから `await import` する。`config` は読み込んだ時点で
+  環境変数を見るため。`process.loadEnvFile` は既にある値を上書きしないので `.env` には負けない
 - 端から端までの確認は API を直に叩く。トピック作成 → `messages`（multipart の `text`）
   → `summary` で SSE が流れる。CLI を起動する経路はこれでしか確かめられない
 - UI の確認は agent-browser。`agent-browser set viewport 390 844` でスマホ幅にし、
@@ -29,7 +32,8 @@
   `claude-code.ts` と `cursor.ts`、共通の実行と待ち行列が `process.ts` `queue.ts`
 - `server/routes/` — API。`server/store/` — data 配下の読み書き。パスの検査は `store/paths.ts` に集約
 - `server/config.ts` — 環境変数と既定値はここに集約。増やすときもここ
-- `shared/types.ts` — フロントとサーバーで共有する型
+- `shared/types.ts` — フロントとサーバーで共有する型。`Message.images` に入るのは
+  ファイル名だけ。URL は返すときに `withImageUrls` で組み立てる（保存しない）
 - `src/pages/` — 画面は 2 つだけ。`src/lib/api.ts` が API 呼び出しと SSE の受けの入口
 - `src/components/markdown/` — Markdown と数式の描画。`src/components/ui/` は shadcn だが
   style が `base-nova` で中身は `@base-ui/react`。Radix 前提の書き方は通らない

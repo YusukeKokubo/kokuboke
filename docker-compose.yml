@@ -3,8 +3,6 @@ services:
     build:
       context: .
       args:
-        APP_UID: ${APP_UID:-1000}
-        APP_GID: ${APP_GID:-1000}
         # イメージのビルド中に cursor-agent が入らないときは
         # .env に INSTALL_CURSOR=false を書いて外す。
         INSTALL_CURSOR: ${INSTALL_CURSOR:-true}

@@ -8,7 +8,7 @@ import { chatPrompt, chatSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { appendMessage, readRecent } from '../store/log'
 import { assertTopicSlug, assertUser, topicDir } from '../store/paths'
-import { saveImage } from '../store/image'
+import { saveImage, withImageUrls } from '../store/image'
 import { readSummary, readTopic, topicExists } from '../store/topic'
 import { readProfile } from '../store/user'
 
@@ -26,7 +26,8 @@ messages.get('/api/users/:user/topics/:topic/messages', async (c) => {
   await requireTopic(user, topic)
 
   const days = Number(c.req.query('days')) || config.contextDays
-  return c.json(await readRecent(user, topic, Math.min(Math.max(days, 1), 30)))
+  const history = await readRecent(user, topic, Math.min(Math.max(days, 1), 30))
+  return c.json(history.map((m) => withImageUrls(user, topic, m)))
 })
 
 messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
@@ -66,7 +67,8 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
       id: crypto.randomUUID(),
       role: 'user',
       text: text.trim(),
-      images: saved.map((s) => s.url),
+      // ログに残すのはファイル名だけ。URL は返すときに組み立てる。
+      images: saved.map((s) => s.name),
       at: new Date().toISOString(),
     }
 
@@ -95,7 +97,7 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
     const send = (event: ChatEvent) => stream.writeSSE({ data: JSON.stringify(event) })
 
     try {
-      await send({ type: 'accepted', message: userMessage })
+      await send({ type: 'accepted', message: withImageUrls(user, topic, userMessage) })
 
       let answer = ''
       const events = runAgent(choice, {

@@ -50,6 +50,7 @@ npm run dev           # http://localhost:5173（API は 3000 で並走）
 
 ```sh
 npm run typecheck
+npm test              # server/store/ の読み書きとパスの検査
 npm run build         # dist/client と dist/server を吐く
 npm start             # ビルド済みを本番モードで起動
 node scripts/generate-icons.mjs   # public/favicon.svg から PWA アイコンを再生成
@@ -64,7 +65,7 @@ docker-compose up -d
 curl localhost:3000/api/health
 ```
 
-`.env` はコンテナにそのまま渡している。機械ごとの値（`APP_UID` `CPUS` `MEM_LIMIT`
+`.env` はコンテナにそのまま渡している。機械ごとの値（`CPUS` `MEM_LIMIT`
 `MAX_CONCURRENT` `BIND_ADDR`）は雛形の後半にまとめてあり、前半はアプリの設定。
 コンテナでの置き場所など、`.env` で上書きされては困るものは compose 側で押さえてある。
 
@@ -105,8 +106,10 @@ sudo ./scripts/deploy.sh
 `sudo` を付けるのは、この NAS では一般ユーザーが `/var/run/docker.sock` に
 届かないため。付け忘れると取り込みまで進んでからビルドで止まる。
 
-`APP_UID` / `APP_GID` は `ls -n data` で確認した所有者に合わせる。
-ここがずれるとコンテナがログを書けない。
+コンテナは UID 1000 で動く。`ls -n data` の所有者がそれと違うとログを書けないので、
+ずれていたら `sudo chown -R 1000:1000 data` で合わせる。
+イメージ側は固定にしてある。機械ごとの値を焼き込むと、同じイメージを別の機械へ
+持っていけなくなるため。
 
 ビルドは N100 で数分かかる。他のコンテナと重なるとメモリを取り合うので、
 込み合う時間帯は避けた方がよい。

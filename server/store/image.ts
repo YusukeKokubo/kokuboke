@@ -3,13 +3,14 @@ import path from 'node:path'
 import { HTTPException } from 'hono/http-exception'
 import sharp from 'sharp'
 import { config } from '../config'
+import type { Message } from '../../shared/types'
 import { imagesDir } from './paths'
-import { localDate } from './log'
+import { localDate } from './date'
 
 export interface SavedImage {
-  /** ブラウザから参照する URL。 */
-  url: string
-  /** Claude Code に渡す絶対パス。 */
+  /** ログに残すファイル名。トピックのフォルダの中で一意。 */
+  name: string
+  /** CLI に渡す絶対パス。 */
   absPath: string
 }
 
@@ -65,12 +66,30 @@ export async function saveImage(user: string, topic: string, file: File): Promis
   const absPath = path.join(dir, name)
   await fs.writeFile(absPath, output)
 
-  return { url: `/media/${user}/${topic}/${name}`, absPath }
+  return { name, absPath }
 }
 
-/** 保存済み画像の URL から実ファイルの位置を割り出す。 */
-export function imageAbsPath(user: string, topic: string, url: string): string | null {
-  const name = url.split('/').pop()
-  if (!name || !/^[\w.-]+\.jpg$/.test(name)) return null
+/**
+ * ログに残っている値からファイル名を取り出す。
+ * 以前は `/media/...` の URL を保存していたので、古いログはそのまま入っている。
+ */
+export function imageName(stored: string): string {
+  return stored.split('/').pop() ?? stored
+}
+
+/** ブラウザから参照する URL。保存はせず、返すときに組み立てる。 */
+export function mediaUrl(user: string, topic: string, stored: string): string {
+  return `/media/${user}/${topic}/${imageName(stored)}`
+}
+
+/** API で返す形に直す。ログにはファイル名しか入っていない。 */
+export function withImageUrls(user: string, topic: string, message: Message): Message {
+  if (message.images.length === 0) return message
+  return { ...message, images: message.images.map((name) => mediaUrl(user, topic, name)) }
+}
+
+/** 保存済み画像のファイル名から実ファイルの位置を割り出す。 */
+export function imageAbsPath(user: string, topic: string, name: string): string | null {
+  if (!/^[\w.-]+\.jpg$/.test(name)) return null
   return path.join(imagesDir(user, topic), name)
 }

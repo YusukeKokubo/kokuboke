@@ -1,0 +1,129 @@
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import fsp from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { after, beforeEach, describe, it } from 'node:test'
+import type { Message } from '../../shared/types'
+
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kokuboke-test-'))
+process.env.DATA_DIR = dataDir
+process.env.USERS = 'taro'
+process.env.TZ = 'Asia/Tokyo'
+
+const { appendMessage, readLastEntry, readRecent } = await import('./log')
+const { localDate } = await import('./date')
+const { logsDir } = await import('./paths')
+
+after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
+
+const USER = 'taro'
+const TOPIC = 'math'
+
+function message(text: string, at: Date, images: string[] = []): Message {
+  return { id: crypto.randomUUID(), role: 'user', text, images, at: at.toISOString() }
+}
+
+function daysAgo(n: number): Date {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return d
+}
+
+beforeEach(async () => {
+  await fsp.rm(logsDir(USER, TOPIC), { recursive: true, force: true })
+})
+
+describe('appendMessage と readRecent', () => {
+  it('書いたものを同じ順で読み戻せる', async () => {
+    await appendMessage(USER, TOPIC, message('ひとつめ', new Date()))
+    await appendMessage(USER, TOPIC, message('ふたつめ', new Date()))
+
+    const read = await readRecent(USER, TOPIC, 1)
+    assert.deepEqual(
+      read.map((m) => m.text),
+      ['ひとつめ', 'ふたつめ'],
+    )
+  })
+
+  it('日をまたいだものを古い順に並べる', async () => {
+    await appendMessage(USER, TOPIC, message('きのう', daysAgo(1)))
+    await appendMessage(USER, TOPIC, message('きょう', new Date()))
+
+    const read = await readRecent(USER, TOPIC, 3)
+    assert.deepEqual(
+      read.map((m) => m.text),
+      ['きのう', 'きょう'],
+    )
+  })
+
+  it('days の外に出たものは読まない', async () => {
+    await appendMessage(USER, TOPIC, message('むかし', daysAgo(5)))
+    await appendMessage(USER, TOPIC, message('きょう', new Date()))
+
+    const read = await readRecent(USER, TOPIC, 2)
+    assert.deepEqual(
+      read.map((m) => m.text),
+      ['きょう'],
+    )
+  })
+
+  it('ログが無いトピックは空を返す', async () => {
+    assert.deepEqual(await readRecent(USER, 'not-yet', 3), [])
+  })
+
+  it('壊れた行は捨てて残りを読む', async () => {
+    await appendMessage(USER, TOPIC, message('無事', new Date()))
+    const file = path.join(logsDir(USER, TOPIC), `${localDate().replaceAll('-', '')}.jsonl`)
+    await fsp.appendFile(file, '{壊れた行\n')
+    await appendMessage(USER, TOPIC, message('こっちも無事', new Date()))
+
+    const read = await readRecent(USER, TOPIC, 1)
+    assert.deepEqual(
+      read.map((m) => m.text),
+      ['無事', 'こっちも無事'],
+    )
+  })
+})
+
+describe('readLastEntry', () => {
+  it('いちばん新しい発言を返す', async () => {
+    await appendMessage(USER, TOPIC, message('きのう', daysAgo(1)))
+    await appendMessage(USER, TOPIC, message('さいご', new Date()))
+
+    assert.equal((await readLastEntry(USER, TOPIC))?.text, 'さいご')
+  })
+
+  it('まだ話していないトピックは null', async () => {
+    assert.equal(await readLastEntry(USER, 'not-yet'), null)
+  })
+})
+
+describe('人が読む md', () => {
+  it('日付の見出しは一日に一度だけ置く', async () => {
+    await appendMessage(USER, TOPIC, message('ひとつめ', new Date()))
+    await appendMessage(USER, TOPIC, message('ふたつめ', new Date()))
+
+    const today = localDate()
+    const md = await fsp.readFile(
+      path.join(logsDir(USER, TOPIC), `${today.replaceAll('-', '')}.md`),
+      'utf8',
+    )
+    assert.equal(md.match(new RegExp(`^# ${today}$`, 'gm'))?.length, 1)
+    assert.ok(md.includes('ひとつめ'))
+    assert.ok(md.includes('ふたつめ'))
+  })
+
+  it('画像は md の隣を指す相対パスで書く', async () => {
+    await appendMessage(USER, TOPIC, message('写真', new Date(), ['20260809_120000_ab12.jpg']))
+
+    const md = await fsp.readFile(
+      path.join(logsDir(USER, TOPIC), `${localDate().replaceAll('-', '')}.md`),
+      'utf8',
+    )
+    assert.ok(
+      md.includes('![](images/20260809_120000_ab12.jpg)'),
+      `md の中身が想定と違う:\n${md}`,
+    )
+  })
+})

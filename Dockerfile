@@ -23,14 +23,12 @@ RUN apt-get update \
 RUN npm install -g @anthropic-ai/claude-code \
   && npm cache clean --force
 
-# NAS のバインドマウントに書けるよう UID を合わせられるようにしておく。
-ARG APP_UID=1000
-ARG APP_GID=1000
-
+# 実行ユーザーは 1000 に固定する。機械ごとの値をイメージに焼き込むと、
+# 所有者の違う機械へ同じイメージを持っていけなくなる。合わせるのは data 側。
 # node イメージには UID 1000 の node ユーザーが既にいるので、先にどかしてから作る。
 RUN userdel -r node 2>/dev/null || true; \
-  groupadd -g ${APP_GID} app 2>/dev/null || true; \
-  useradd -u ${APP_UID} -g ${APP_GID} -m -d /home/app -s /bin/bash app
+  groupadd -g 1000 app 2>/dev/null || true; \
+  useradd -u 1000 -g 1000 -m -d /home/app -s /bin/bash app
 
 WORKDIR /app
 
@@ -45,7 +43,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 # ボリュームを載せる場所はここで作っておく。イメージに無いパスに載せると
 # Docker が root 持ちで作ってしまい、app ユーザーが書けなくなる。
 RUN mkdir -p /data /home/app/.claude /home/app/.cursor /home/app/.config/cursor \
-  && chown -R ${APP_UID}:${APP_GID} /data /home/app
+  && chown -R 1000:1000 /data /home/app
 
 USER app
 

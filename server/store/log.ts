@@ -2,20 +2,9 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { Message } from '../../shared/types'
 import { config } from '../config'
+import { localDate, localTime, stamp } from './date'
+import { imageName } from './image'
 import { logsDir } from './paths'
-
-/** TZ 環境変数に従った YYYY-MM-DD。sv-SE ロケールがこの形を返す。 */
-export function localDate(at: Date = new Date()): string {
-  return at.toLocaleDateString('sv-SE')
-}
-
-export function localTime(at: Date): string {
-  return at.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
-}
-
-function stamp(date: string): string {
-  return date.replaceAll('-', '')
-}
 
 /** その日から n 日前までの日付を新しい順に並べる。 */
 function recentDates(days: number): string[] {
@@ -87,9 +76,9 @@ function renderMarkdown(message: Message): string {
 
   const lines = [`## ${time} ${who}`, '']
   if (message.text.trim()) lines.push(message.text.trim(), '')
-  for (const url of message.images) {
+  for (const stored of message.images) {
     // md から見て images/ は隣なので相対で置く。
-    lines.push(`![](${url.replace(/^.*\/media\/[^/]+\/[^/]+\//, 'images/')})`, '')
+    lines.push(`![](images/${imageName(stored)})`, '')
   }
   return lines.join('\n')
 }
