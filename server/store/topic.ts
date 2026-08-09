@@ -163,3 +163,12 @@ async function read(file: string): Promise<string> {
 export async function readSummary(user: string, topic: string): Promise<string> {
   return read(path.join(topicDir(user, topic), 'summary.md'))
 }
+
+/**
+ * summary.md を差し替える。書き換えるのはここだけで、AI 側には書かせない。
+ * 末尾の改行を揃えるのは、手で編集した版と AI が返した版で差が出ないようにするため。
+ */
+export async function writeSummary(user: string, topic: string, text: string): Promise<void> {
+  const body = text.trim()
+  await fs.writeFile(path.join(topicDir(user, topic), 'summary.md'), body ? body + '\n' : '')
+}

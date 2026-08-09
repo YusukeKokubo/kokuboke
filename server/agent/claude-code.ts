@@ -6,8 +6,8 @@ import type { AgentEvent, Engine, RunRequest } from './types'
 const ALWAYS_DENIED = ['Bash', 'Task', 'WebFetch', 'WebSearch', 'NotebookEdit', 'KillShell', 'BashOutput']
 
 function args(request: RunRequest): string[] {
-  const summary = request.task === 'summary'
-
+  // 会話も記憶の整理も読み取りだけで足りる。記憶は AI に書かせず、
+  // 返ってきた全文を人が確かめてからサーバーが保存する。
   const list = [
     '--print',
     '--output-format',
@@ -17,18 +17,17 @@ function args(request: RunRequest): string[] {
     // 履歴はこちらの jsonl で持つので、CLI 側のセッションは残さない。
     '--no-session-persistence',
     '--permission-mode',
-    summary ? 'acceptEdits' : 'dontAsk',
+    'dontAsk',
     '--model',
     request.model,
     '--append-system-prompt',
     request.systemPrompt,
     '--allowed-tools',
-    summary ? 'Read,Write,Edit' : 'Read',
+    'Read',
     '--disallowed-tools',
     ALWAYS_DENIED.join(','),
   ]
 
-  if (request.addDirs?.length) list.push('--add-dir', ...request.addDirs)
   if (config.claudeEffort) list.push('--effort', config.claudeEffort)
 
   return list

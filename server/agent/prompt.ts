@@ -70,23 +70,31 @@ export function summarySystemPrompt(input: { user: string; topicName: string }):
   return `あなたは会話の記録を整理する係です。
 
 - 対象は「${input.user}」さんの「${input.topicName}」トピックです。
-- 作業対象は summary.md と、一つ上の階層にある profile.md の 2 つだけです。
-  それ以外のファイルは変更しないでください。
-- 作業が終わったら、何を書き足したかを 2〜3 行で報告してください。`
+- ファイルは書き換えません。新しい summary.md の全文を返すところまでが仕事です。
+  保存するかどうかは人が決めます。
+- 前置き・説明・報告は書かないでください。返すのは summary.md の中身だけです。`
 }
 
-export function summaryPrompt(input: { history: Message[]; topicName: string }): string {
-  return `<conversation>
-${renderHistory(input.history)}
-</conversation>
+export function summaryPrompt(input: {
+  history: Message[]
+  topicName: string
+  summary: string
+}): string {
+  const parts: string[] = []
 
-上の会話を踏まえて、次の 2 つのファイルを更新してください。
+  if (input.summary.trim()) {
+    parts.push(`<current_summary>\n${input.summary.trim()}\n</current_summary>`)
+  }
 
-1. summary.md — この「${input.topicName}」トピックで積み重なった内容の要約。
-   会話のたびに読み込まれるので、簡潔に保ってください。すでに書かれている内容は
-   消さずに、更新が必要なところだけ書き換え、新しく分かったことを足します。
-   個々のやりとりを列挙するのではなく、続けて話すために必要な事実と経緯を残します。
+  parts.push(`<conversation>\n${renderHistory(input.history)}\n</conversation>`)
 
-2. ../../profile.md — トピックに関係なく覚えておくべき人物像だけを足します。
-   このトピック限りの話は書かないでください。足すことが無ければ触らなくて構いません。`
+  parts.push(`上の会話を踏まえて、「${input.topicName}」トピックの summary.md を書き直してください。
+
+- すでに書かれている内容は消さずに、変わったところだけ直し、新しく分かったことを足します。
+- 個々のやりとりを列挙するのではなく、続けて話すために必要な事実と経緯を残します。
+- 会話のたびに読み込まれるので、簡潔に保ってください。
+- そのままファイルに保存できる形で、本文だけを返します。全体をコードブロックで
+  囲まないでください。`)
+
+  return parts.join('\n\n')
 }

@@ -11,11 +11,7 @@ export interface RunRequest {
   prompt: string
   /** 役割の指示。エンジンによって渡し方が違う。 */
   systemPrompt: string
-  /** chat は読み取りのみ。summary はファイルの書き換えを伴う。 */
-  task: 'chat' | 'summary'
   model: string
-  /** cwd の外にも触らせたいときに渡す。 */
-  addDirs?: string[]
   signal?: AbortSignal
 }
 

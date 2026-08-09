@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils'
 export interface ModelSelection {
   engine: EngineId
   model: string
+  /** 「Cursor / GPT-5.2」のような表示用の名前。選んだときだけ付く。 */
+  label?: string
 }
 
 interface Props {
@@ -36,7 +38,13 @@ export function ModelPicker({ value, onChange }: Props) {
                 <button
                   key={model.id}
                   type="button"
-                  onClick={() => onChange({ engine: engine.id, model: model.id })}
+                  onClick={() =>
+                    onChange({
+                      engine: engine.id,
+                      model: model.id,
+                      label: `${engine.label} / ${model.label}`,
+                    })
+                  }
                   className={cn(
                     'rounded-full border px-3 py-1.5 text-xs',
                     active ? 'border-primary bg-primary text-primary-foreground' : 'bg-secondary',

@@ -1,6 +1,7 @@
 import type {
   ChatEvent,
   EngineInfo,
+  Memory,
   Message,
   SummaryEvent,
   Topic,
@@ -59,6 +60,16 @@ export const api = {
     fetch(`/api/users/${path(user)}/topics/${path(topic)}/messages?days=${days}`).then((r) =>
       unwrap<Message[]>(r),
     ),
+
+  getMemory: (user: string, topic: string) =>
+    fetch(`/api/users/${path(user)}/topics/${path(topic)}/memory`).then((r) => unwrap<Memory>(r)),
+
+  saveMemory: (user: string, topic: string, summary: string) =>
+    fetch(`/api/users/${path(user)}/topics/${path(topic)}/memory`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ summary }),
+    }).then((r) => unwrap<Memory>(r)),
 }
 
 /** fetch のボディから SSE の data 行だけを取り出す。 */
@@ -113,13 +124,20 @@ export async function* sendMessage(
   yield* readSSE<ChatEvent>(res)
 }
 
-export async function* updateSummary(
+/**
+ * 記憶の下書きを作らせる。ここではファイルは変わらない。
+ * 保存するのは api.saveMemory を呼んだとき。
+ */
+export async function* draftSummary(
   user: string,
   topic: string,
+  choice: { engine: string; model: string } | null,
   signal?: AbortSignal,
 ): AsyncGenerator<SummaryEvent> {
   const res = await fetch(`/api/users/${path(user)}/topics/${path(topic)}/summary`, {
     method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(choice ?? {}),
     signal,
   })
   yield* readSSE<SummaryEvent>(res)

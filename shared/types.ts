@@ -48,7 +48,16 @@ export type ChatEvent =
   | { type: 'done'; message: Message }
   | { type: 'error'; message: string }
 
+/**
+ * 記憶の下書き。AI はファイルを書き換えず、summary.md の新しい全文を返すだけ。
+ * 保存するかどうかは画面で決める。
+ */
 export type SummaryEvent =
   | { type: 'delta'; text: string }
-  | { type: 'done' }
+  | { type: 'done'; text: string; modelLabel: string }
   | { type: 'error'; message: string }
+
+export interface Memory {
+  /** summary.md の中身。無ければ空文字。 */
+  summary: string
+}

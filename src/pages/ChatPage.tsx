@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronLeft, Loader2, NotebookPen } from 'lucide-react'
+import { ChevronLeft, NotebookPen } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
-import { api, sendMessage, updateSummary } from '@/lib/api'
+import { api, sendMessage } from '@/lib/api'
 import { dayKey, dayLabel } from '@/lib/format'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
+import { MemoryDialog } from '@/components/MemoryDialog'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
 import {
@@ -16,7 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-type Status = 'idle' | 'sending' | 'summarizing'
+type Status = 'idle' | 'sending'
 
 export default function ChatPage() {
   const { user = '', topic = '' } = useParams()
@@ -27,6 +28,7 @@ export default function ChatPage() {
   const [status, setStatus] = useState<Status>('idle')
   const [notice, setNotice] = useState<string | null>(null)
   const [modelOpen, setModelOpen] = useState(false)
+  const [memoryOpen, setMemoryOpen] = useState(false)
 
   const bottom = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
@@ -104,22 +106,6 @@ export default function ChatPage() {
     }
   }
 
-  async function handleSummary() {
-    if (status !== 'idle') return
-    setStatus('summarizing')
-    setNotice(null)
-    try {
-      for await (const event of updateSummary(user, topic)) {
-        if (event.type === 'error') setNotice(event.message)
-        if (event.type === 'done') setNotice('記憶を更新したよ')
-      }
-    } catch (cause) {
-      setNotice(cause instanceof Error ? cause.message : '記憶を更新できませんでした')
-    } finally {
-      setStatus('idle')
-    }
-  }
-
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
       <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center gap-2 border-b px-2 py-2 backdrop-blur">
@@ -149,16 +135,12 @@ export default function ChatPage() {
         <Button
           size="sm"
           variant="ghost"
-          onClick={handleSummary}
+          onClick={() => setMemoryOpen(true)}
           disabled={status !== 'idle'}
           className="shrink-0"
         >
-          {status === 'summarizing' ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <NotebookPen className="size-4" />
-          )}
-          記憶を更新
+          <NotebookPen className="size-4" />
+          記憶
         </Button>
       </header>
 
@@ -219,6 +201,8 @@ export default function ChatPage() {
           />
         </DialogContent>
       </Dialog>
+
+      <MemoryDialog user={user} topic={topic} open={memoryOpen} onOpenChange={setMemoryOpen} />
     </div>
   )
 }

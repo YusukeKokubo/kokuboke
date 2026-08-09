@@ -27,7 +27,7 @@ export const ENGINES: EngineInfo[] = [
   {
     id: 'claude',
     label: 'Claude Code',
-    note: 'CLAUDE.md をそのまま読む。ツール単位で権限を絞れる。',
+    note: 'CLAUDE.md をそのまま読む。',
     models: [
       { id: 'claude-opus-5', label: 'Opus 5' },
       { id: 'claude-sonnet-5', label: 'Sonnet 5' },
@@ -37,7 +37,7 @@ export const ENGINES: EngineInfo[] = [
   {
     id: 'cursor',
     label: 'Cursor',
-    note: 'GPT や Grok も選べる。権限の絞り込みは粗い。',
+    note: 'GPT や Grok も選べる。',
     models: [
       { id: 'auto', label: 'おまかせ' },
       { id: 'composer-2.5', label: 'Composer 2.5' },

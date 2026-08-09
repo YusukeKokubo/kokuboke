@@ -104,7 +104,6 @@ messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
         cwd: topicDir(user, topic),
         prompt,
         systemPrompt,
-        task: 'chat',
         signal: c.req.raw.signal,
       })
 

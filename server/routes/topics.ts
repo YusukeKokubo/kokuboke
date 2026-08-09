@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { ENGINES } from '../agent'
+import { readJson } from '../lib/body'
 import { TOPIC_TEMPLATES } from '../templates'
 import { assertTopicName, assertUser } from '../store/paths'
 import { createTopic, listTopics, readTopic, topicExists, updateTopic } from '../store/topic'
@@ -57,11 +58,3 @@ topics.patch('/api/users/:user/topics/:topic', async (c) => {
   const body = await readJson<{ engine?: string; model?: string }>(c.req.raw)
   return c.json(await updateTopic(user, topic, body))
 })
-
-async function readJson<T>(request: Request): Promise<T> {
-  try {
-    return (await request.json()) as T
-  } catch {
-    throw new HTTPException(400, { message: 'リクエストの形式が不正です' })
-  }
-}

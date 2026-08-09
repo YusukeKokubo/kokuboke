@@ -3,34 +3,22 @@ import { runProcess } from './process'
 import type { AgentEvent, Engine, RunRequest } from './types'
 
 function args(request: RunRequest): string[] {
-  const summary = request.task === 'summary'
-
-  const list = [
+  // ask モードは読み取り専用。ファイル作成もシェル実行も拒否される。
+  // cursor-agent にはツール単位の許可リストが無いので、書き換えを通そうとすると
+  // サンドボックスに頼ることになる。記憶の整理も読み取りだけで済ませることで、
+  // そこに触れずに済ませている。
+  return [
     '--print',
     '--output-format',
     'stream-json',
     '--stream-partial-output',
     // 作業ディレクトリはこちらが用意したものなので、確認を求められても困る。
     '--trust',
+    '--mode',
+    'ask',
     '--model',
     request.model,
   ]
-
-  if (summary) {
-    // cursor-agent にはツール単位の許可リストがない。書き換えを通すには
-    // サンドボックスに入れるしかない。通信は止まるが、シェルは動くし
-    // 書き込み先も cwd の外に出られる。--force と併用すると無効になるので使わない。
-    list.push('--sandbox', 'enabled')
-  } else {
-    // ask モードは読み取り専用。ファイル作成もシェル実行も拒否される。
-    list.push('--mode', 'ask')
-  }
-
-  if (request.addDirs?.length) {
-    for (const dir of request.addDirs) list.push('--add-dir', dir)
-  }
-
-  return list
 }
 
 /**

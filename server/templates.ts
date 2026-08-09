@@ -22,12 +22,12 @@ export function userClaudeMd(user: string): string {
 `
 }
 
-/** 全トピックから参照される要約。要約ボタンを押したときに追記される。 */
+/** 全トピックから参照される人物像。手で書くもので、AI は書き換えない。 */
 export function userProfileMd(user: string): string {
   return `# ${user} のプロフィール
 
-会話から分かった、どのトピックでも覚えておくべきことをここに貯める。
-「記憶を更新」を押したときに追記される。手で直してもよい。
+どのトピックでも覚えておいてほしいことをここに書く。
+会話のたびに読み込まれる。書き換えるのは人の側だけ。
 `
 }
 
@@ -115,6 +115,7 @@ export function topicClaudeMd(templateId: string, name: string): string {
 export function topicSummaryMd(name: string): string {
   return `# ${name} の記憶
 
-このトピックで積み重なった内容の要約。「記憶を更新」を押すと書き換わる。
+このトピックで積み重なった内容の覚え書き。ヘッダの「記憶」から読み書きできる。
+AI に整理させることもできるが、保存するかどうかは自分で決める。
 `
 }

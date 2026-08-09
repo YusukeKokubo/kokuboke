@@ -20,12 +20,12 @@
 /data
 └── taro/
     ├── CLAUDE.md              人物の設定（手書き・全トピック共通）
-    ├── profile.md             全トピック共通の要約（自動追記）
+    ├── profile.md             全トピック共通の覚え書き（手書き）
     └── topics/
         └── 算数の宿題/
             ├── topic.json     表示名・絵文字・作成日
             ├── CLAUDE.md      このトピックでの振る舞い
-            ├── summary.md     このトピックの要約
+            ├── summary.md     このトピックの覚え書き（画面から読み書きする）
             ├── logs/          YYYYMMDD.md（閲覧用） / YYYYMMDD.jsonl（読み戻し用）
             └── images/        YYYYMMDD_HHMMSS.jpg
 ```
@@ -168,7 +168,9 @@ tailscale serve --bg 3000
 | POST | `/api/users/:user/topics` | トピック作成 |
 | GET | `/api/users/:user/topics/:topic/messages` | 直近の会話（既定 3 日分） |
 | POST | `/api/users/:user/topics/:topic/messages` | 送信。SSE で返答を流す |
-| POST | `/api/users/:user/topics/:topic/summary` | 記憶の更新。SSE で経過を流す |
+| GET | `/api/users/:user/topics/:topic/memory` | 記憶（`summary.md`）を読む |
+| PUT | `/api/users/:user/topics/:topic/memory` | 記憶を保存する。書き換えはここだけ |
+| POST | `/api/users/:user/topics/:topic/summary` | 記憶の下書きを作らせる。SSE で流す（保存はしない） |
 | GET | `/media/:user/:topic/:file` | 保存済み画像 |
 
 送信は `multipart/form-data` で、本文が `text`、画像が `images`（4 枚まで）。
@@ -184,15 +186,13 @@ tailscale serve --bg 3000
 | 既定のモデル | Opus 5 | おまかせ（auto） |
 | 人格の定義 | `CLAUDE.md` を親まで遡って読む | `AGENTS.md` を親まで遡って読む |
 | 役割の指示 | `--append-system-prompt` | 本文の先頭に積む |
-| 会話中の権限 | ツール単位の許可リストで `Read` だけ | `--mode ask`（読み取り専用) |
-| 記憶の更新時 | `Read` `Write` `Edit` だけ許可 | `--force`。ツール単位では絞れない |
+| 権限 | ツール単位の許可リストで `Read` だけ | `--mode ask`（読み取り専用) |
 
 新しいトピックの既定は **Cursor のおまかせ**。`DEFAULT_ENGINE` と `CURSOR_MODEL` で変えられる。
 
-権限の粒度は Claude Code の方が細かい。だで**記憶の更新だけは、会話にどのモデルを
-選んでいても Claude Code で走らせる**。会話は読み取りだけで済むが、記憶の更新は
-ファイルを書き換えるので、絞れる方に寄せておきたい。`SUMMARY_ENGINE=cursor` で
-変えられるが、そのときは `--force` になる。
+会話も記憶の整理も読み取りだけで走る。記憶を整理させるときのモデルは「記憶」の画面で
+その場で選べて、選ばなければ `SUMMARY_ENGINE` と `SUMMARY_MODEL` の既定に落ちる。
+既定は Claude Code の Sonnet で、会話より軽いモデルを充てている。
 
 cursor-agent はイメージにも入れてあるが、`cursor-agent login` を一度通す必要がある。
 ビルド中の導入で転ぶときや、そもそも要らないときは `.env` に `INSTALL_CURSOR=false`
@@ -200,8 +200,9 @@ cursor-agent はイメージにも入れてあるが、`cursor-agent login` を�
 
 ## 安全側に倒してあるところ
 
-- 会話中はファイルの読み取りだけ。書き込みもシェル実行もできない。
-- 書き込みが要るのは記憶の更新のときだけで、そのときも触れる範囲をユーザーのフォルダに限る。
+- AI に渡すのはファイルの読み取りだけ。会話でも記憶の整理でも、書き込みもシェル実行もできない。
+- 記憶を整理させても、返ってくるのは新しい本文の案だけ。人が確かめて保存を押したときに、
+  サーバーが `summary.md` を書き換える。承認しなければ何も起きない。
 - ユーザー名は `USERS` に列挙したものだけ、トピック名は英数字とハイフンだけを受け付ける。
   組み立てたパスがデータディレクトリの外に出ていないかを最後にもう一度確かめる。
 - 同じ人からの多重送信は待たせずに 409 で返す。全体の同時実行数は `MAX_CONCURRENT` で頭打ちにする。
@@ -223,7 +224,11 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 
 - `/user/:user` — トピック一覧。直近に話した順に並び、最後の発言を抜粋で出す。
 - `/user/:user/:topic` — チャット。日付の区切り、画像付きの吹き出し、
-  返答が届くにつれて伸びていく表示、ヘッダの「記憶を更新」。
+  返答が届くにつれて伸びていく表示、ヘッダの「記憶」。
+
+「記憶」はそのトピックの `summary.md` を開く画面。そのまま手で直せるし、モデルを選んで
+AI に整理させることもできる。AI が返すのは案で、保存を押すまでファイルは変わらない。
+気に入らなければ「元に戻す」で開いたときの内容に戻る。
 
 返答は Markdown として組む。数式は LaTeX で書かれていれば KaTeX で描画する。
 `$…$` と `$$…$$` のほか、`\(…\)` と `\[…\]` も受け付ける。KaTeX は重いので、
