@@ -22,36 +22,41 @@ async function errorMessage(res: Response): Promise<string> {
   return `通信に失敗しました (${res.status})`
 }
 
+/** 名前に日本語や空白が入るので、経路に埋める前に必ず通す。 */
+function path(segment: string): string {
+  return encodeURIComponent(segment)
+}
+
 export const api = {
   templates: () => fetch('/api/templates').then((r) => unwrap<TopicTemplate[]>(r)),
 
   engines: () => fetch('/api/engines').then((r) => unwrap<EngineInfo[]>(r)),
 
   listTopics: (user: string) =>
-    fetch(`/api/users/${user}/topics`).then((r) => unwrap<Topic[]>(r)),
+    fetch(`/api/users/${path(user)}/topics`).then((r) => unwrap<Topic[]>(r)),
 
   getTopic: (user: string, topic: string) =>
-    fetch(`/api/users/${user}/topics/${topic}`).then((r) => unwrap<Topic>(r)),
+    fetch(`/api/users/${path(user)}/topics/${path(topic)}`).then((r) => unwrap<Topic>(r)),
 
   createTopic: (
     user: string,
     input: { name: string; emoji: string; template: string; engine: string; model: string },
   ) =>
-    fetch(`/api/users/${user}/topics`, {
+    fetch(`/api/users/${path(user)}/topics`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(input),
     }).then((r) => unwrap<Topic>(r)),
 
   updateTopic: (user: string, topic: string, input: { engine: string; model: string }) =>
-    fetch(`/api/users/${user}/topics/${topic}`, {
+    fetch(`/api/users/${path(user)}/topics/${path(topic)}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(input),
     }).then((r) => unwrap<Topic>(r)),
 
   listMessages: (user: string, topic: string, days = 3) =>
-    fetch(`/api/users/${user}/topics/${topic}/messages?days=${days}`).then((r) =>
+    fetch(`/api/users/${path(user)}/topics/${path(topic)}/messages?days=${days}`).then((r) =>
       unwrap<Message[]>(r),
     ),
 }
@@ -100,7 +105,7 @@ export async function* sendMessage(
   form.set('text', input.text)
   for (const image of input.images) form.append('images', image)
 
-  const res = await fetch(`/api/users/${user}/topics/${topic}/messages`, {
+  const res = await fetch(`/api/users/${path(user)}/topics/${path(topic)}/messages`, {
     method: 'POST',
     body: form,
     signal,
@@ -113,7 +118,7 @@ export async function* updateSummary(
   topic: string,
   signal?: AbortSignal,
 ): AsyncGenerator<SummaryEvent> {
-  const res = await fetch(`/api/users/${user}/topics/${topic}/summary`, {
+  const res = await fetch(`/api/users/${path(user)}/topics/${path(topic)}/summary`, {
     method: 'POST',
     signal,
   })

@@ -46,6 +46,8 @@
 - 各フォルダの `AGENTS.md` は `CLAUDE.md` へのシンボリックリンク（cursor-agent 用）
 - 手元の `data/` は実際の会話が入る。動作確認で作ったトピックは消しておく
 - フロントの経路は `/user/:user` と `/user/:user/:topic`。`/:user` は 404 になる
+- トピック名はそのままフォルダ名で、日本語が入る。URL に埋めるときは
+  `encodeURIComponent` を通す。比較と保存の前に `normalizeTopicName` で NFC に寄せる
 - `DATA_DIR` と `DATA_PATH` は別物。前者は手元で直接動かすときの保存先、
   後者は compose がマウント元に使う。`.env` に両方あるで取り違えやすい
 

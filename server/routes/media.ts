@@ -2,14 +2,14 @@ import fs from 'node:fs/promises'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { imageAbsPath } from '../store/image'
-import { assertInsideDataDir, assertTopicSlug, assertUser } from '../store/paths'
+import { assertInsideDataDir, assertTopicName, assertUser } from '../store/paths'
 
 export const media = new Hono()
 
 /** 保存済みの画像を返す。データディレクトリの外は絶対に読ませない。 */
 media.get('/media/:user/:topic/:file', async (c) => {
   const user = assertUser(c.req.param('user'))
-  const topic = assertTopicSlug(c.req.param('topic'))
+  const topic = assertTopicName(c.req.param('topic'))
 
   const target = imageAbsPath(user, topic, c.req.param('file'))
   if (!target) {

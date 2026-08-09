@@ -77,9 +77,14 @@ export function imageName(stored: string): string {
   return stored.split('/').pop() ?? stored
 }
 
-/** ブラウザから参照する URL。保存はせず、返すときに組み立てる。 */
+/**
+ * ブラウザから参照する URL。保存はせず、返すときに組み立てる。
+ * トピック名には日本語も `#` も入りうるので、区切りごとに符号化する。
+ * 素で入れると `#` から先が断片として切り落とされる。
+ */
 export function mediaUrl(user: string, topic: string, stored: string): string {
-  return `/media/${user}/${topic}/${imageName(stored)}`
+  const segments = [user, topic, imageName(stored)].map(encodeURIComponent)
+  return `/media/${segments.join('/')}`
 }
 
 /** API で返す形に直す。ログにはファイル名しか入っていない。 */

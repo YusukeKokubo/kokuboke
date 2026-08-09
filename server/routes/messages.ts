@@ -7,7 +7,7 @@ import { resolveModel, runAgent } from '../agent'
 import { chatPrompt, chatSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { appendMessage, readRecent } from '../store/log'
-import { assertTopicSlug, assertUser, topicDir } from '../store/paths'
+import { assertTopicName, assertUser, topicDir } from '../store/paths'
 import { saveImage, withImageUrls } from '../store/image'
 import { readSummary, readTopic, topicExists } from '../store/topic'
 import { readProfile } from '../store/user'
@@ -22,7 +22,7 @@ async function requireTopic(user: string, topic: string): Promise<void> {
 
 messages.get('/api/users/:user/topics/:topic/messages', async (c) => {
   const user = assertUser(c.req.param('user'))
-  const topic = assertTopicSlug(c.req.param('topic'))
+  const topic = assertTopicName(c.req.param('topic'))
   await requireTopic(user, topic)
 
   const days = Number(c.req.query('days')) || config.contextDays
@@ -32,7 +32,7 @@ messages.get('/api/users/:user/topics/:topic/messages', async (c) => {
 
 messages.post('/api/users/:user/topics/:topic/messages', async (c) => {
   const user = assertUser(c.req.param('user'))
-  const topic = assertTopicSlug(c.req.param('topic'))
+  const topic = assertTopicName(c.req.param('topic'))
   await requireTopic(user, topic)
 
   const body = await c.req.parseBody({ all: true })

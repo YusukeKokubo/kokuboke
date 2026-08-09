@@ -45,6 +45,18 @@ describe('mediaUrl', () => {
     assert.equal(mediaUrl(USER, TOPIC, OLD_URL), OLD_URL)
   })
 
+  it('日本語のトピック名を符号化する', () => {
+    const url = mediaUrl(USER, '算数の宿題', NAME)
+    assert.equal(url, `/media/${USER}/${encodeURIComponent('算数の宿題')}/${NAME}`)
+  })
+
+  it('# を符号化する', () => {
+    // 素で入れると # から先が断片として切り落とされ、画像が出なくなる。
+    const url = mediaUrl(USER, 'C#入門', NAME)
+    assert.ok(url.includes('%23'), url)
+    assert.ok(!url.includes('#'), url)
+  })
+
   it('トピックを移しても URL は今の場所を指す', () => {
     assert.equal(mediaUrl(USER, 'science', NAME), `/media/${USER}/science/${NAME}`)
   })

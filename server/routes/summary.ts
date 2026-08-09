@@ -7,7 +7,7 @@ import { summaryPrompt, summarySystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { readRecent } from '../store/log'
-import { assertTopicSlug, assertUser, topicDir, userDir } from '../store/paths'
+import { assertTopicName, assertUser, topicDir, userDir } from '../store/paths'
 import { readTopic, topicExists } from '../store/topic'
 
 export const summary = new Hono()
@@ -18,7 +18,7 @@ export const summary = new Hono()
  */
 summary.post('/api/users/:user/topics/:topic/summary', async (c) => {
   const user = assertUser(c.req.param('user'))
-  const topic = assertTopicSlug(c.req.param('topic'))
+  const topic = assertTopicName(c.req.param('topic'))
 
   if (!(await topicExists(user, topic))) {
     throw new HTTPException(404, { message: 'トピックが見つかりません' })

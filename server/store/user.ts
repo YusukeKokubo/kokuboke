@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { config } from '../config'
 import { userClaudeMd, userProfileMd } from '../templates'
-import { isSlug, topicsDir, userDir } from './paths'
+import { isTopicName, topicsDir, userDir } from './paths'
 
 async function writeIfMissing(file: string, content: string): Promise<void> {
   try {
@@ -63,7 +63,7 @@ export async function ensureAllUsers(): Promise<void> {
       continue
     }
     for (const name of names) {
-      if (!isSlug(name)) continue
+      if (!isTopicName(name)) continue
       await ensureAgentsLink(path.join(topicsDir(user), name))
     }
   }

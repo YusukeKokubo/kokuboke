@@ -4,7 +4,7 @@ import { HTTPException } from 'hono/http-exception'
 import type { EngineId, Topic } from '../../shared/types'
 import { resolveModel } from '../agent'
 import { topicClaudeMd, topicSummaryMd } from '../templates'
-import { imagesDir, isSlug, logsDir, toSlug, topicDir, topicsDir } from './paths'
+import { imagesDir, isTopicName, logsDir, toTopicName, topicDir, topicsDir } from './paths'
 import { readLastEntry } from './log'
 import { ensureAgentsLink, ensureUser } from './user'
 
@@ -82,7 +82,7 @@ export async function listTopics(user: string): Promise<Topic[]> {
   const topics: Topic[] = []
   for (const name of names) {
     // 手で置かれた不正な名前のフォルダは黙って無視する。
-    if (!isSlug(name)) continue
+    if (!isTopicName(name)) continue
     if (!(await topicExists(user, name))) continue
     topics.push(await readTopic(user, name))
   }
@@ -109,7 +109,7 @@ export async function createTopic(
 
   await ensureUser(user)
 
-  const slug = toSlug(name)
+  const slug = toTopicName(name)
   if (await topicExists(user, slug)) {
     throw new HTTPException(409, { message: '同じ名前のトピックがあります' })
   }

@@ -2,27 +2,43 @@ import path from 'node:path'
 import { HTTPException } from 'hono/http-exception'
 import { config } from '../config'
 
-/** URL とフォルダ名に使う識別子。日本語の表示名とは別に持つ。 */
-const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/
+/**
+ * トピックの名前はそのままフォルダ名になり、URL にも出る。日本語も通す。
+ * 弾くのは、パスの区切りになるものと、SMB で共有したときに扱えなくなるもの。
+ */
+const FORBIDDEN = /[/\\:*?"<>|\u0000-\u001f\u007f]/
+/** 落とすとき用。global な正規表現は test() で lastIndex が残るので分けて持つ。 */
+const FORBIDDEN_ALL = new RegExp(FORBIDDEN.source, 'g')
 
-export function isSlug(value: string): boolean {
-  return SLUG.test(value)
+/** ext4 のファイル名は 255 バイトまで。日本語は 1 文字 3 バイトなので余裕を持たせる。 */
+const MAX_BYTES = 180
+
+/** 比較と保存の前に必ず通す。濁点の分かれた形（NFD）を合成済み（NFC）に寄せる。 */
+export function normalizeTopicName(value: string): string {
+  return value.normalize('NFC').trim()
+}
+
+export function isTopicName(value: string): boolean {
+  const name = normalizeTopicName(value)
+  if (!name || name === '.' || name === '..') return false
+  // 先頭のドットは隠しファイル扱いになり、末尾のドットは SMB で落ちる。
+  if (name.startsWith('.') || name.endsWith('.')) return false
+  if (FORBIDDEN.test(name)) return false
+  return Buffer.byteLength(name) <= MAX_BYTES
 }
 
 /**
- * 表示名から識別子をつくる。日本語だけの名前は英数字が残らないので、
- * その場合はランダムな識別子にフォールバックする。
+ * 入力からフォルダ名をつくる。使えない文字を落としてもなお残らない名前だけ、
+ * 機械的な名前に落とす。
  */
-export function toSlug(name: string): string {
-  const ascii = name
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40)
-    .replace(/-+$/, '')
+export function toTopicName(input: string): string {
+  const name = normalizeTopicName(input)
+    .replace(FORBIDDEN_ALL, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^\.+|\.+$/g, '')
+    .trim()
 
-  return isSlug(ascii) ? ascii : `t-${crypto.randomUUID().slice(0, 8)}`
+  return isTopicName(name) ? name : `t-${crypto.randomUUID().slice(0, 8)}`
 }
 
 /** USERS に無い名前は存在しないものとして扱う。 */
@@ -33,11 +49,12 @@ export function assertUser(user: string): string {
   return user
 }
 
-export function assertTopicSlug(topic: string): string {
-  if (!isSlug(topic)) {
+export function assertTopicName(topic: string): string {
+  const name = normalizeTopicName(topic)
+  if (!isTopicName(name)) {
     throw new HTTPException(400, { message: 'トピック名が不正です' })
   }
-  return topic
+  return name
 }
 
 export function userDir(user: string): string {
@@ -49,7 +66,7 @@ export function topicsDir(user: string): string {
 }
 
 export function topicDir(user: string, topic: string): string {
-  return path.join(topicsDir(user), assertTopicSlug(topic))
+  return path.join(topicsDir(user), assertTopicName(topic))
 }
 
 export function logsDir(user: string, topic: string): string {
@@ -62,7 +79,7 @@ export function imagesDir(user: string, topic: string): string {
 
 /**
  * 組み立てたパスがデータディレクトリの外へ出ていないか最後に検査する。
- * 識別子は正規表現で縛ってあるが、二重の歯止めとして置いておく。
+ * 名前は個別に検査しているが、二重の歯止めとして置いておく。
  */
 export function assertInsideDataDir(target: string): string {
   const resolved = path.resolve(target)

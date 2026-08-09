@@ -124,7 +124,7 @@ export default function ChatPage() {
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
       <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center gap-2 border-b px-2 py-2 backdrop-blur">
         <Link
-          to={`/user/${user}`}
+          to={`/user/${encodeURIComponent(user)}`}
           aria-label="トピック一覧に戻る"
           className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'size-9 shrink-0' })}
         >

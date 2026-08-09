@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { ENGINES } from '../agent'
 import { TOPIC_TEMPLATES } from '../templates'
-import { assertTopicSlug, assertUser } from '../store/paths'
+import { assertTopicName, assertUser } from '../store/paths'
 import { createTopic, listTopics, readTopic, topicExists, updateTopic } from '../store/topic'
 
 export const topics = new Hono()
@@ -38,7 +38,7 @@ topics.post('/api/users/:user/topics', async (c) => {
 
 topics.get('/api/users/:user/topics/:topic', async (c) => {
   const user = assertUser(c.req.param('user'))
-  const topic = assertTopicSlug(c.req.param('topic'))
+  const topic = assertTopicName(c.req.param('topic'))
 
   if (!(await topicExists(user, topic))) {
     throw new HTTPException(404, { message: 'トピックが見つかりません' })
@@ -48,7 +48,7 @@ topics.get('/api/users/:user/topics/:topic', async (c) => {
 
 topics.patch('/api/users/:user/topics/:topic', async (c) => {
   const user = assertUser(c.req.param('user'))
-  const topic = assertTopicSlug(c.req.param('topic'))
+  const topic = assertTopicName(c.req.param('topic'))
 
   if (!(await topicExists(user, topic))) {
     throw new HTTPException(404, { message: 'トピックが見つかりません' })

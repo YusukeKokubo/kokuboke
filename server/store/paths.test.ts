@@ -10,43 +10,95 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kokuboke-test-'))
 process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro,hanako'
 
-const { assertInsideDataDir, assertTopicSlug, assertUser, isSlug, toSlug } = await import('./paths')
+const { assertInsideDataDir, assertTopicName, assertUser, isTopicName, normalizeTopicName, toTopicName } =
+  await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
-describe('isSlug', () => {
-  it('英数字とハイフンだけを通す', () => {
-    assert.ok(isSlug('math'))
-    assert.ok(isSlug('math-2026'))
-    assert.ok(!isSlug('Math'), '大文字は通さない')
-    assert.ok(!isSlug('-math'), '先頭のハイフンは通さない')
-    assert.ok(!isSlug('math-'), '末尾のハイフンは通さない')
-    assert.ok(!isSlug('数学'), '日本語は通さない')
-    assert.ok(!isSlug(''))
+describe('isTopicName', () => {
+  it('日本語も英数字も通す', () => {
+    assert.ok(isTopicName('算数の宿題'))
+    assert.ok(isTopicName('math'))
+    assert.ok(isTopicName('宿題 2026'))
+    assert.ok(isTopicName('ドラえもん'), '濁点つきも通る')
   })
 
-  it('パスの区切りや上位への参照を通さない', () => {
-    assert.ok(!isSlug('../etc'))
-    assert.ok(!isSlug('a/b'))
-    assert.ok(!isSlug('..'))
+  it('パスの区切りになるものを弾く', () => {
+    assert.ok(!isTopicName('../secret'))
+    assert.ok(!isTopicName('a/b'))
+    assert.ok(!isTopicName('a\\b'))
+    assert.ok(!isTopicName('..'))
+    assert.ok(!isTopicName('.'))
+  })
+
+  it('SMB で扱えない文字を弾く', () => {
+    for (const bad of ['a:b', 'a*b', 'a?b', 'a"b', 'a<b', 'a>b', 'a|b']) {
+      assert.ok(!isTopicName(bad), `${bad} を通してはいけない`)
+    }
+  })
+
+  it('制御文字を弾く', () => {
+    assert.ok(!isTopicName('a\u0000b'))
+    assert.ok(!isTopicName('a\nb'))
+    assert.ok(!isTopicName('a\u007fb'))
+  })
+
+  it('隠しファイルになる名前と末尾のドットを弾く', () => {
+    assert.ok(!isTopicName('.hidden'))
+    assert.ok(!isTopicName('name.'))
+  })
+
+  it('空の名前を弾く', () => {
+    assert.ok(!isTopicName(''))
+    assert.ok(!isTopicName('   '))
+  })
+
+  it('ファイル名の上限を超える長さを弾く', () => {
+    assert.ok(isTopicName('あ'.repeat(60)), '180 バイトまでは通る')
+    assert.ok(!isTopicName('あ'.repeat(61)), '180 バイトを超えたら弾く')
+  })
+
+  it('繰り返し呼んでも結果が変わらない', () => {
+    // global な正規表現を test() に使うと lastIndex が残って交互に落ちる。
+    for (let i = 0; i < 4; i++) {
+      assert.ok(!isTopicName('a/b'), `${i} 回目で結果が変わった`)
+      assert.ok(isTopicName('算数'), `${i} 回目で結果が変わった`)
+    }
   })
 })
 
-describe('toSlug', () => {
-  it('英数字が残る名前はそのまま識別子にする', () => {
-    assert.equal(toSlug('Math Homework'), 'math-homework')
-    assert.equal(toSlug('  trim me  '), 'trim-me')
+describe('normalizeTopicName', () => {
+  it('分かれた濁点を合成済みの形に寄せる', () => {
+    const nfd = 'ドラえもん'.normalize('NFD')
+    assert.notEqual(nfd, 'ドラえもん')
+    assert.equal(normalizeTopicName(nfd), 'ドラえもん')
   })
 
-  it('日本語だけの名前は乱数に落とす', () => {
-    const slug = toSlug('算数の宿題')
-    assert.match(slug, /^t-[0-9a-f]{8}$/)
-    assert.ok(isSlug(slug), '落とした先も識別子として通る')
+  it('前後の空白を落とす', () => {
+    assert.equal(normalizeTopicName('  算数  '), '算数')
+  })
+})
+
+describe('toTopicName', () => {
+  it('使える名前はそのまま通す', () => {
+    assert.equal(toTopicName('算数の宿題'), '算数の宿題')
+    assert.equal(toTopicName('  Math Homework  '), 'Math Homework')
   })
 
-  it('作った識別子は必ず isSlug を満たす', () => {
-    for (const name of ['---', '2026', 'a'.repeat(80), '!!!', 'ｶﾀｶﾅ']) {
-      assert.ok(isSlug(toSlug(name)), `${name} から作った識別子が不正`)
+  it('使えない文字を落とす', () => {
+    assert.equal(toTopicName('算数/宿題'), '算数 宿題')
+    assert.equal(toTopicName('.hidden'), 'hidden')
+    assert.equal(toTopicName('name.'), 'name')
+  })
+
+  it('落とすと何も残らない名前だけ機械的な名前にする', () => {
+    assert.match(toTopicName('///'), /^t-[0-9a-f]{8}$/)
+    assert.match(toTopicName('   '), /^t-[0-9a-f]{8}$/)
+  })
+
+  it('作った名前は必ず isTopicName を満たす', () => {
+    for (const input of ['///', '...', 'あ'.repeat(200), 'a:b*c?d', '\u0000']) {
+      assert.ok(isTopicName(toTopicName(input)), `${JSON.stringify(input)} の結果が不正`)
     }
   })
 })
@@ -61,10 +113,19 @@ describe('assertUser', () => {
   })
 })
 
-describe('assertTopicSlug', () => {
-  it('識別子でないものは 400', () => {
-    assert.throws(() => assertTopicSlug('../secret'), { status: 400 })
-    assert.throws(() => assertTopicSlug('日本語'), { status: 400 })
+describe('assertTopicName', () => {
+  it('日本語は通す', () => {
+    assert.equal(assertTopicName('算数の宿題'), '算数の宿題')
+  })
+
+  it('URL から届く分かれた濁点を合成済みに揃える', () => {
+    assert.equal(assertTopicName('ドラえもん'.normalize('NFD')), 'ドラえもん')
+  })
+
+  it('使えない名前は 400', () => {
+    assert.throws(() => assertTopicName('../secret'), { status: 400 })
+    assert.throws(() => assertTopicName('a/b'), { status: 400 })
+    assert.throws(() => assertTopicName(''), { status: 400 })
   })
 })
 

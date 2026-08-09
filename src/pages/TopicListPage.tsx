@@ -59,7 +59,7 @@ export default function TopicListPage() {
           {topics?.map((topic) => (
             <li key={topic.slug}>
               <Link
-                to={`/user/${user}/${topic.slug}`}
+                to={`/user/${encodeURIComponent(user)}/${encodeURIComponent(topic.slug)}`}
                 className="hover:bg-accent active:bg-accent flex items-center gap-3 rounded-xl border p-3 transition-colors"
               >
                 <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full text-xl">
