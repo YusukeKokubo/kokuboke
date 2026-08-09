@@ -40,8 +40,6 @@ ENV HOME=/home/app
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-COPY --from=build /app/dist ./dist
-
 # /app は読めれば足りるので所有者を変えない。
 # ここで chown すると同じ内容のレイヤーがもう一つ増えてイメージが太る。
 # ボリュームを載せる場所はここで作っておく。イメージに無いパスに載せると
@@ -52,9 +50,14 @@ RUN mkdir -p /data /home/app/.claude /home/app/.cursor \
 USER app
 
 # cursor-agent は ~/.local/bin に入る。不要なら --build-arg INSTALL_CURSOR=false で外す。
+# ビルド成果物より上に置く。下に置くとコードを直すたびに入り直しになり、
+# そのとき版が上がって cursor のログインが切れることがある。
 ARG INSTALL_CURSOR=true
 ENV PATH=/home/app/.local/bin:$PATH
 RUN if [ "$INSTALL_CURSOR" = "true" ]; then curl -fsSL https://cursor.com/install | bash; fi
+
+# 毎回変わるものはいちばん下に置く。ここから下だけが作り直される。
+COPY --from=build /app/dist ./dist
 
 EXPOSE 3000
 
