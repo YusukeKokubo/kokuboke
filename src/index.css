@@ -104,3 +104,16 @@ body {
   /* 引っ張って更新やバウンスでチャットが動かないように */
   overscroll-behavior-y: none;
 }
+
+/* 長い数式はスマホ幅からはみ出すので、その中だけ横スクロールさせる。 */
+.katex-display {
+  margin: 0.25rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.25rem;
+}
+
+/* 既定だと本文より大きく出るので、吹き出しの文字に寄せる。 */
+.katex {
+  font-size: 1.05em;
+}

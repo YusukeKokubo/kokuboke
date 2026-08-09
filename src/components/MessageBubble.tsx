@@ -14,7 +14,7 @@ export function MessageBubble({ message, streaming }: Props) {
 
   return (
     <div className={cn('flex w-full gap-2', mine ? 'justify-end' : 'justify-start')}>
-      <div className={cn('flex max-w-[85%] flex-col gap-1', mine ? 'items-end' : 'items-start')}>
+      <div className={cn('flex min-w-0 max-w-[85%] flex-col gap-1', mine ? 'items-end' : 'items-start')}>
         {message.images.length > 0 && (
           <div className={cn('flex flex-wrap gap-1.5', mine ? 'justify-end' : 'justify-start')}>
             {message.images.map((url) => (
@@ -33,7 +33,7 @@ export function MessageBubble({ message, streaming }: Props) {
         {(message.text || streaming) && (
           <div
             className={cn(
-              'rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed break-words',
+              'min-w-0 max-w-full rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed break-words',
               mine
                 ? 'bg-primary text-primary-foreground rounded-br-md whitespace-pre-wrap'
                 : 'bg-card text-card-foreground rounded-bl-md border',

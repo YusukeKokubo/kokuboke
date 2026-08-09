@@ -33,6 +33,9 @@ export default defineConfig({
       workbox: {
         // アプリシェルだけをキャッシュする。会話ログと画像はオフライン対象にしない。
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // 数式まわり（KaTeX 本体とフォント）は重いうえ、使わない家庭も多い。
+        // どのみち返答にはネットワークが要るので、必要になったときに取りに行く。
+        globIgnores: ['**/KaTeX_*', '**/Math-*'],
         navigateFallbackDenylist: [/^\/api/, /^\/media/],
         runtimeCaching: [],
       },
