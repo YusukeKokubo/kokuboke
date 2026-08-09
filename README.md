@@ -131,6 +131,7 @@ sudo docker exec -it kokuboke cursor-agent login
 
 cursor は置き場所が二つに分かれていて、`~/.cursor` に設定と履歴、
 `~/.config/cursor/auth.json` にトークン本体が入る。両方をボリュームにしてある。
+ここに行き着くまでの切り分けは `docs/202608-cli-auth-persistence.md` に残してある。
 
 ### Tailscale で公開する
 
