@@ -1,0 +1,45 @@
+services:
+  kokuboke:
+    build:
+      context: .
+      args:
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
+    image: kokuboke:latest
+    container_name: kokuboke
+    restart: unless-stopped
+
+    # Tailscale がホストネットワークで動いているので、ループバックにだけ出す。
+    # LAN からも直接見せたい場合は "3000:3000" に変える。
+    ports:
+      - '127.0.0.1:3000:3000'
+
+    volumes:
+      - /volume1/docker/kokuboke/data:/data
+      # サブスクリプションのログイン情報。消えると再ログインが要るので必ず永続化する。
+      - claude-config:/home/app/.claude
+
+    environment:
+      TZ: Asia/Tokyo
+      NODE_ENV: production
+      PORT: '3000'
+      DATA_DIR: /data
+      USERS: ${USERS}
+      CONTEXT_DAYS: '3'
+      # Claude Code は 1 プロセスあたり 300〜500MB 使う。
+      # 同居コンテナが増えたら減らす。
+      MAX_CONCURRENT: '3'
+      IMAGE_MAX_EDGE: '1568'
+
+    mem_limit: 2500m
+    cpus: 3.0
+
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  claude-config:

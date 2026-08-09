@@ -1,0 +1,36 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: oklch(0.16 0.006 285);
+  --color-surface: oklch(0.22 0.007 285);
+  --color-surface-2: oklch(0.27 0.008 285);
+  --color-fg: oklch(0.95 0.003 285);
+  --color-muted: oklch(0.68 0.008 285);
+  --color-accent: oklch(0.72 0.13 205);
+  --color-accent-fg: oklch(0.18 0.02 205);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Hiragino Kaku Gothic ProN',
+    'Noto Sans JP',
+    sans-serif;
+  /* iOS/Android のアドレスバー出入りで高さが跳ねないように */
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
