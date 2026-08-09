@@ -1,4 +1,11 @@
+import fs from 'node:fs'
 import path from 'node:path'
+
+// 手元で `npm run dev` するときのために .env を読む。
+// コンテナでは compose が環境変数を渡すので、このファイルは存在しない。
+if (fs.existsSync('.env')) {
+  process.loadEnvFile('.env')
+}
 
 function num(value: string | undefined, fallback: number): number {
   const n = Number(value)
