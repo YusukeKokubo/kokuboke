@@ -1,4 +1,5 @@
 import { config } from '../config'
+import { ensureWebSearchApproved } from './cursor-config'
 import { runProcess } from './process'
 import type { AgentEvent, Engine, RunRequest } from './types'
 
@@ -32,12 +33,16 @@ function buildPrompt(request: RunRequest): string {
 export const cursorAgent: Engine = {
   id: 'cursor',
 
-  run(request: RunRequest): AsyncGenerator<AgentEvent> {
+  async *run(request: RunRequest): AsyncGenerator<AgentEvent> {
+    // ログインし直したあとは設定が既定に戻っていることがあるので、
+    // 起動のたびに確かめる。立っていれば読むだけで済む。
+    await ensureWebSearchApproved()
+
     let finalText = ''
     let finished = false
     let error: string | null = null
 
-    return runProcess({
+    yield* runProcess({
       bin: config.cursorBin,
       args: args(request),
       cwd: request.cwd,

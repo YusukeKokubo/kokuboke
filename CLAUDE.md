@@ -75,6 +75,12 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
 - cursor の認証は二か所に分かれる。`~/.cursor/cli-config.json` にあるのは素性の情報で、
   トークン本体は `~/.config/cursor/auth.json`。前者だけ永続化してもコンテナを
   作り直すたびに再ログインになる。切り分けは `docker diff`（ボリュームの中身は出ない）
+- cursor-agent はヘッドレスでもウェブ検索とページ取得のたびに承認を求め、答える人が
+  いないので即 `User Rejected` になる。検索は `cli-config.json` の
+  `autoAcceptWebSearch` で通る（`server/agent/cursor-config.ts` が起動のたびに
+  書き足す。設定はボリュームの中なのでイメージには焼けない）。ページ取得を通す道は
+  `--force` だけで、`permissions` の許可リストは `--print` の経路では見ていない
+  （2026.08.04-aaa8809 で確認）
 - Claude Code の `~/.claude.json` はホーム直下に出る。`~/.claude` の中ではない。
   `CLAUDE_CONFIG_DIR` で寄せられる（2.1.226 で確認）
 - コンテナは `USER app` で動く。`docker exec` も `app` で入るので、
