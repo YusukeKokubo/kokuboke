@@ -4,10 +4,9 @@ import { runProcess } from './process'
 import type { AgentEvent, Engine, RunRequest } from './types'
 
 function args(request: RunRequest): string[] {
-  // ask モードは読み取り専用。ファイル作成もシェル実行も拒否される。
-  // cursor-agent にはツール単位の許可リストが無いので、書き換えを通そうとすると
-  // サンドボックスに頼ることになる。記憶の整理も読み取りだけで済ませることで、
-  // そこに触れずに済ませている。
+  // ask モードは読み取り専用。ファイル作成もシェル実行も、道具そのものが無い。
+  // cursor-agent にはツール単位の許可リストが無いので、守りはこのモードだけが頼り。
+  // 記憶の整理も読み取りだけで済ませることで、そこに触れずに済ませている。
   return [
     '--print',
     '--output-format',
@@ -17,6 +16,14 @@ function args(request: RunRequest): string[] {
     '--trust',
     '--mode',
     'ask',
+    // ヘッドレスでもページ取得のたびに承認を求められ、答える人がいないので
+    // 既定では即 User Rejected になる。取得を通す道はこれだけで、
+    // permissions の許可リストは --print の経路では見ていない。
+    //
+    // 何でも通す名前だが、開くのは ask モードが持っている道具に限られる。
+    // 書き込みもシェルも最初から無いので、増えるのはウェブの読み取りだけ。
+    // ついでに --sandbox が無効になるが、そこに頼っていた守りは元から無い。
+    '--force',
     '--model',
     request.model,
   ]

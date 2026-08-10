@@ -80,7 +80,8 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
   `autoAcceptWebSearch` で通る（`server/agent/cursor-config.ts` が起動のたびに
   書き足す。設定はボリュームの中なのでイメージには焼けない）。ページ取得を通す道は
   `--force` だけで、`permissions` の許可リストは `--print` の経路では見ていない
-  （2026.08.04-aaa8809 で確認）
+  （2026.08.04-aaa8809 で確認）。`--force` を足しても ask モードなら書き込みと
+  シェルは道具ごと無いままで、増えるのはウェブの読み取りだけ
 - Claude Code の `~/.claude.json` はホーム直下に出る。`~/.claude` の中ではない。
   `CLAUDE_CONFIG_DIR` で寄せられる（2.1.226 で確認）
 - コンテナは `USER app` で動く。`docker exec` も `app` で入るので、
