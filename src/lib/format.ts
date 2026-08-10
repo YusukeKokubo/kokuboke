@@ -24,7 +24,7 @@ export function dayLabel(iso: string): string {
 }
 
 /** 名前がまだ付いていないトピックの見出し。 */
-export const NO_NAME = '名前のない話'
+export const NO_NAME = 'まだ名前のない話'
 
 export function topicLabel(topic: { name: string }): string {
   return topic.name || NO_NAME

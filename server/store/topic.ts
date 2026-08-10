@@ -34,7 +34,7 @@ interface TopicMeta {
 const AUTO_NAME_AFTER = 3
 
 /** 名前が付くまでのあいだ、画面と雛形の見出しに使う呼び名。 */
-const NO_NAME = '名前のない話'
+const NO_NAME = 'まだ名前のない話'
 
 function metaFile(user: string, ref: TopicRef): string {
   return path.join(topicDir(user, ref), 'topic.json')
