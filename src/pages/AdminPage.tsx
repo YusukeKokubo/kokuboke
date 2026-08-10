@@ -140,7 +140,10 @@ export default function AdminPage() {
 
             {behind > 0 && (
               <div className="flex flex-col gap-2">
-                <p>{behind} コミット分の更新があるよ。</p>
+                <p>
+                  {behind} コミット分の更新があるよ。
+                  {status.docsOnly && '（文書だけなんで、入れ替えるものは無い）'}
+                </p>
                 <ul className="text-muted-foreground flex flex-col gap-1 text-xs leading-relaxed">
                   {status.commits.slice(0, 10).map((message, i) => (
                     <li key={i} className="truncate">
@@ -161,7 +164,7 @@ export default function AdminPage() {
               </p>
             )}
 
-            {behind > 0 && status.canUpdate && (
+            {behind > 0 && !status.docsOnly && status.canUpdate && (
               <Button onClick={update} disabled={busy} className="self-start">
                 <Download className="size-4" />
                 {phase === 'requested' && '頼んどる…'}
@@ -170,7 +173,7 @@ export default function AdminPage() {
               </Button>
             )}
 
-            {behind > 0 && !status.canUpdate && (
+            {behind > 0 && !status.docsOnly && !status.canUpdate && (
               <p className="text-muted-foreground leading-relaxed">
                 この機械では更新を頼めない（Watchtower が居らんか、鍵が渡っとらん）。
               </p>

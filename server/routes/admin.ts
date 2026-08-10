@@ -27,6 +27,14 @@ interface Compare {
 }
 
 /**
+ * ワークフローの paths-ignore と同じ範囲。ここだけの差ならイメージは作られて
+ * いないので、待たせても入れ替わらない。合わせて直すこと。
+ */
+function docsOnly(files: string[]): boolean {
+  return files.length > 0 && files.every((f) => f.endsWith('.md') || f.startsWith('docs/'))
+}
+
+/**
  * 動いているイメージのコミットと main を GitHub に見比べてもらう。
  * 公開リポジトリなので認証は要らない。匿名の上限は 1 時間 60 回で、
  * 画面を開いたときに 1 回叩くだけなら足りる。
@@ -38,6 +46,7 @@ async function compare(commit: string): Promise<UpdateStatus> {
     behind: null,
     commits: [],
     composeChanged: false,
+    docsOnly: false,
     canUpdate: Boolean(config.watchtowerUrl && config.watchtowerToken),
   }
 
@@ -61,6 +70,7 @@ async function compare(commit: string): Promise<UpdateStatus> {
 
   const body = (await res.json()) as Compare
   const commits = body.commits ?? []
+  const files = (body.files ?? []).map((file) => file.filename ?? '').filter(Boolean)
 
   return {
     ...base,
@@ -71,7 +81,8 @@ async function compare(commit: string): Promise<UpdateStatus> {
       .map((entry) => (entry.commit?.message ?? '').split('\n')[0]?.trim() ?? '')
       .filter(Boolean)
       .reverse(),
-    composeChanged: (body.files ?? []).some((file) => file.filename === 'docker-compose.yml'),
+    composeChanged: files.includes('docker-compose.yml'),
+    docsOnly: docsOnly(files),
   }
 }
 
@@ -84,6 +95,7 @@ admin.get('/api/admin/status', async (c) => {
       behind: null,
       commits: [],
       composeChanged: false,
+      docsOnly: false,
       canUpdate: false,
       error: 'イメージから起動していないので更新は確認できません',
     })

@@ -95,6 +95,11 @@ export interface UpdateStatus {
    * コンテナの設定は今のものを引き継ぐので、これが立っている回は SSH が要る。
    */
   composeChanged: boolean
+  /**
+   * 文書だけの差か。ワークフローは .md と docs/ を無視するので、ここだけの
+   * 違いならイメージは作られていない。押しても入れ替わらない。
+   */
+  docsOnly: boolean
   /** 更新を叩ける状態か（Watchtower の設定が届いているか）。 */
   canUpdate: boolean
   /** 確認そのものに失敗したときの理由。 */
