@@ -89,8 +89,9 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
   1.40 以上しか受け付けないので起動直後から回り続ける。`nickfedor/watchtower` を使う。
   こちらの `/v1/update` は POST のみ（元家は GET でも受けた）。口は
   `WATCHTOWER_HTTP_API_ENDPOINTS` で選び、鍵が無いと開かない
-- GHCR のパッケージはリポジトリが公開でも既定で非公開。visibility を public に
-  しないと NAS から引けず、Watchtower のログに 403 が出るだけで静かに失敗する
+- Watchtower のログの 403 は、たいてい非公開ではなくイメージがまだ無いだけ。
+  Actions が押したパッケージは公開リポジトリなら匿名で引ける。引けるかどうかは
+  `ghcr.io/token` で匿名トークンを取ってマニフェストを叩けば分かる
 - CLI の版は Dockerfile で固定する（`CLAUDE_VERSION` / `CURSOR_VERSION`）。CI は
   毎回まっさらなので、留めないと push のたびに版が上がってログインが切れる。
   cursor の install スクリプトは版を選べない（取得時の最新が埋め込まれて降りてくる）ので、
