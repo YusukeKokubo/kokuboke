@@ -96,13 +96,13 @@ services:
       WATCHTOWER_LABEL_ENABLE: 'true'
       # 差し替えのたびに 1GB 近い層が残る。NAS の空きを食うので消させる。
       WATCHTOWER_CLEANUP: 'true'
-      # 10 分おきに見回る。押し忘れても放っておけば上がる。
-      WATCHTOWER_POLL_INTERVAL: '600'
-      # 管理画面から叩ける口だけを開ける。update 以外は要らない。
-      # API を開くと既定では定期の見回りが止まるので、両方生かすために
-      # PERIODIC_POLLS も立てる。
+      # 管理画面から頼まれたときだけ動く。定期の見回りはしない
+      # （API を開くと既定でそうなる。PERIODIC_POLLS は立てない）。
+      #
+      # 見回りをやめたのは、話している最中に入れ替わると返事の流れが切れるため。
+      # いつ押すかを人が決められるなら、勝手に上がる利点より確実さを採る。
+      # 押し忘れても困らない。押すまで古いまま動き続けるだけ。
       WATCHTOWER_HTTP_API_ENDPOINTS: update
-      WATCHTOWER_HTTP_API_PERIODIC_POLLS: 'true'
       # 空のままにはしない。deploy.sh が起動の前に確かめるし、この版の
       # Watchtower は鍵の無い口を開かせない。ここで `:?` にして必須にすると、
       # 鍵を置いていない手元では docker-compose build すら通らなくなる

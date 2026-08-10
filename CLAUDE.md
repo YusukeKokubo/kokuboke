@@ -79,9 +79,10 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
   `CLAUDE_CONFIG_DIR` で寄せられる（2.1.226 で確認）
 - コンテナは `USER app` で動く。`docker exec` も `app` で入るので、
   chown など root が要る作業は `-u 0` を付ける
-- イメージは Actions が作って GHCR に置く。ふだんの更新は NAS に同居する
-  Watchtower が引っ張る（10 分おき＋`/admin` から手動）。手元でコミットしただけでは
-  何も起きないので、まず push する。`deploy.sh` を通すのは初回と compose を直したときだけ
+- イメージは Actions が作って GHCR に置く。差し替えるのは NAS に同居する Watchtower で、
+  `/admin` から頼まれたときだけ動く（定期の見回りはさせていない。話している最中に
+  入れ替わると返事の流れが切れるため）。手元でコミットしただけでは何も起きないので、
+  まず push する。`deploy.sh` を通すのは初回と compose を直したときだけ
 - Watchtower が差し替えるのはイメージだけで、コンテナの設定は今のものを引き継ぐ。
   `docker-compose.yml` を直した回は見た目は正常に上がってくるのに設定が古いまま残る。
   管理画面は GitHub の compare で `docker-compose.yml` の変更を見つけて知らせる
