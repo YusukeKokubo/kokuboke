@@ -9,6 +9,24 @@ interface Props {
   streaming?: boolean
 }
 
+/**
+ * 一文字目が来るまでの間。点滅する棒だけだと止まって見えるので、
+ * 三つの点を順に弾ませて、待っているところだと分かるようにする。
+ */
+function Thinking() {
+  return (
+    <span className="flex h-6 items-center gap-1" role="status" aria-label="返事を考えているところ">
+      {[0, 160, 320].map((delay) => (
+        <span
+          key={delay}
+          style={{ animationDelay: `${delay}ms` }}
+          className="size-1.5 animate-[thinking-dot_1.2s_ease-in-out_infinite] rounded-full bg-current"
+        />
+      ))}
+    </span>
+  )
+}
+
 export function MessageBubble({ message, streaming }: Props) {
   const mine = message.role === 'user'
 
@@ -39,10 +57,16 @@ export function MessageBubble({ message, streaming }: Props) {
                 : 'bg-card text-card-foreground rounded-bl-md border',
             )}
           >
-            {/* 自分の発言は打ったとおりに出す。相手の返答だけ Markdown として組む。 */}
-            {mine ? message.text : <Markdown text={message.text} />}
-            {streaming && (
-              <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-current align-middle" />
+            {streaming && !message.text ? (
+              <Thinking />
+            ) : (
+              <>
+                {/* 自分の発言は打ったとおりに出す。相手の返答だけ Markdown として組む。 */}
+                {mine ? message.text : <Markdown text={message.text} />}
+                {streaming && (
+                  <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-current align-middle" />
+                )}
+              </>
             )}
           </div>
         )}

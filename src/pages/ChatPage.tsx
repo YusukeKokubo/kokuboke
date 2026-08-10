@@ -43,10 +43,15 @@ export default function ChatPage() {
   // トップレベルは記憶の置き場。ここでは話さず、中への入口だけ見せる。
   const isGroup = !sub
 
-  // 入力欄は sticky で本文の上に重なる。目印の要素に寄せると入力欄の高さだけ足りないので、
-  // 画面そのものを下端まで動かす。
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    window.scrollTo({ top: document.documentElement.scrollHeight, behavior })
+  /**
+   * 入力欄は sticky で本文の上に重なる。目印の要素に寄せると入力欄の高さだけ足りないので、
+   * 画面そのものを下端まで動かす。
+   *
+   * なめらかに動かさないのは、動いている途中の位置が下の見張りに「自分で上に戻った」と
+   * 見えてしまうため。追いかけるのをそこでやめてしまう。
+   */
+  const scrollToBottom = useCallback(() => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })
   }, [])
 
   useEffect(() => {
@@ -58,9 +63,9 @@ export default function ChatPage() {
         rememberUser(user)
         setMeta(topicMeta)
         setMessages(history)
-        // 初回は履歴の一番下から始めたいので、アニメーションなしで飛ばす。
-        // ここで測れる高さはまだ仮のもので、この後も伸びる。追うのは下の監視の役。
-        requestAnimationFrame(() => scrollToBottom('instant'))
+        // 初回は履歴の一番下から始める。ただしここで測れる高さはまだ仮のもので、
+        // 画像や数式が入るぶん後から伸びる。追いかけるのは下の見張りの役。
+        requestAnimationFrame(scrollToBottom)
       })
       .catch((cause: Error) => !cancelled && setNotice(cause.message))
     return () => {
@@ -90,7 +95,7 @@ export default function ChatPage() {
     const el = content.current
     if (!el) return
     const observer = new ResizeObserver(() => {
-      if (stick.current) scrollToBottom('instant')
+      if (stick.current) scrollToBottom()
     })
     observer.observe(el)
     return () => observer.disconnect()
