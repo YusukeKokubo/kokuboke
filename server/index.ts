@@ -6,6 +6,7 @@ import { HTTPException } from 'hono/http-exception'
 import { logger } from 'hono/logger'
 import { config, assertConfig } from './config'
 import { limiter } from './agent/queue'
+import { admin } from './routes/admin'
 import { media } from './routes/media'
 import { messages } from './routes/messages'
 import { summary } from './routes/summary'
@@ -19,10 +20,18 @@ const app = new Hono()
 
 app.use('*', logger())
 
+// commit を混ぜてあるのは、更新を頼んだ画面がここを叩き直して、
+// 別のコミットで戻ってきたことを確かめるため。
 app.get('/api/health', (c) =>
-  c.json({ ok: true, users: config.users, queue: limiter.stats }),
+  c.json({
+    ok: true,
+    users: config.users,
+    queue: limiter.stats,
+    commit: config.appCommit || null,
+  }),
 )
 
+app.route('/', admin)
 app.route('/', topics)
 app.route('/', messages)
 app.route('/', summary)

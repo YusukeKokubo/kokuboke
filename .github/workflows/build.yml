@@ -1,0 +1,56 @@
+name: build
+
+# NAS でビルドすると N100 で数分かかるうえ、SSH を開ける手間がある。
+# ここで x86_64 のイメージを作って GHCR に置き、NAS は引っ張るだけにする。
+# ubuntu のランナーは元から amd64 なので、buildx で別のアーキテクチャを
+# 作らせる必要はない（QEMU を挟むと極端に遅くなる）。
+
+on:
+  push:
+    branches: [main]
+    # イメージの中身に関わらないものは無視する。README を直しただけで
+    # NAS のコンテナが入れ替わるのは無駄。
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+# 同じ内容で二重に走らせない。新しい push が来たら古い方は捨てる。
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # イメージ名は小文字でないと GHCR が受け付けない。
+          # github.repository はアカウント名の大文字がそのまま入るので使えない。
+          tags: |
+            ghcr.io/yusukekokubo/kokuboke:latest
+            ghcr.io/yusukekokubo/kokuboke:${{ github.sha }}
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+          # ランナーは毎回まっさらなので、層は Actions のキャッシュに預ける。
+          # Dockerfile 側に BuildKit 前提の書き方は入れていないので、
+          # 手元（buildx の無い colima）のビルドはこれまで通り通る。
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -105,22 +105,27 @@ colima 環境では `docker compose`（プラグイン版）が解決されな�
 置き場所は NAS の `docker` 共有の下。Mac からは SMB で `/Volumes/docker/kokuboke`
 として見える。
 
-**ビルドは NAS 上で行う**。Mac は arm64、NAS は x86_64 で、手元で作ったイメージは
-そのままでは動かない。クロスビルドには buildx と QEMU が要るうえ、約 1GB の
-イメージを毎回転送することになる。
+**ビルドは GitHub Actions が行う**。main に push すると x86_64 のイメージを作って
+`ghcr.io/yusukekokubo/kokuboke:latest` に置く。NAS はそれを引っ張るだけで、
+N100 で数分かけてビルドすることはない。Mac は arm64 なので手元で作ったイメージは
+NAS では動かず、クロスビルドには buildx と QEMU が要る。ランナーは元から
+amd64 なので、そこを借りるのがいちばん速い。
 
 まず Mac 側で共有へ複製し、`.env` を用意する。
 
 ```sh
 git clone https://github.com/YusukeKokubo/kokuboke.git /Volumes/docker/kokuboke
 cd /Volumes/docker/kokuboke
-cp .env.example .env    # USERS を家族の名前に
+cp .env.example .env    # USERS、ADMIN_TOKEN、WATCHTOWER_TOKEN を埋める
 mkdir -p data
 ```
 
-続いて NAS 側でビルドして起動する。ここは Mac からは実行できない。
-SSH は常時開いていないので、コントロールパネルで期限付きに開けるか、
-Docker アプリの端末から実行する。
+鍵は二つとも `openssl rand -hex 24` で作る。`ADMIN_TOKEN` は更新の画面を開くため、
+`WATCHTOWER_TOKEN` はその画面から Watchtower に頼むためのもの。
+
+続いて NAS 側で起動する。SSH は常時開いていないので、コントロールパネルで
+期限付きに開けるか、Docker アプリの端末から実行する。ここを通るのは初回と、
+`docker-compose.yml` を直したときだけ。
 
 ```sh
 ssh <nas>
@@ -128,27 +133,51 @@ cd <docker 共有>/kokuboke
 sudo ./scripts/deploy.sh
 ```
 
-`scripts/deploy.sh` は、取り込み・ビルド・起動確認・古いイメージの片付けを
-まとめてある。`USERS` が空のままなら先に止まる。
+`scripts/deploy.sh` は、取り込み・イメージの取得・起動確認・古いイメージの
+片付けをまとめてある。`USERS` か `WATCHTOWER_TOKEN` が空のままなら先に止まる。
 
 `sudo` を付けるのは、この NAS では一般ユーザーが `/var/run/docker.sock` に
-届かないため。付け忘れると取り込みまで進んでからビルドで止まる。
+届かないため。
 
 コンテナは UID 1000 で動く。`ls -n data` の所有者がそれと違うとログを書けないので、
 ずれていたら `sudo chown -R 1000:1000 data` で合わせる。
 イメージ側は固定にしてある。機械ごとの値を焼き込むと、同じイメージを別の機械へ
 持っていけなくなるため。
 
-ビルドは N100 で数分かかる。他のコンテナと重なるとメモリを取り合うので、
-込み合う時間帯は避けた方がよい。
-
 リポジトリは公開なので、NAS 側に GitHub の認証情報を置かなくても取り込める。
 接続は HTTPS を使う（NAS に SSH 鍵を置かずに済む）。
 
+**GHCR のパッケージは既定で非公開になる。** リポジトリが公開でも、初めて
+push されたイメージは非公開のまま作られ、そのままでは NAS から引けない
+（Watchtower のログに 403 が出る）。GitHub のパッケージのページで
+`kokuboke` を開き、visibility を public にする。初回だけの作業。
+
 ### 更新するとき
 
-SSH を開けて `sudo ./scripts/deploy.sh` を叩くだけでよい。スクリプトの中で
-取り込みからビルド、起動確認まで行う。
+push したら、あとは NAS に触らなくてよい。
+
+同居している Watchtower が GHCR を 10 分おきに見て、新しいイメージがあれば
+引っ張って、同じ設定・同じボリュームでコンテナを作り直す。見に行くのは
+マニフェストだけなので、待っている間の負荷はほとんどない。
+
+すぐ反映したいときは `https://<マシン名>.<tailnet>.ts.net/admin?key=<ADMIN_TOKEN>`
+を開く。動いている版と main のずれ、間のコミット、更新のボタンがある。鍵は
+一度開けばその端末に残る。合わない鍵では画面ごと 404 になる。
+
+自分で自分を入れ替えることはできない（止める処理ごと死ぬ）ので、差し替える役は
+Watchtower に任せている。アプリには `docker.sock` を渡さず、「今見に行け」と
+頼む口だけを通す。押したあと画面は少しつながらなくなり、別のコミットで
+戻ってきたら成功と分かる。
+
+**`docker-compose.yml` を直した回だけは SSH が要る。** Watchtower が差し替えるのは
+イメージだけで、環境変数やメモリの上限といったコンテナの設定は今のものを
+引き継ぐ。設定を変えた回は見た目は正常に上がってくるので、更新の画面が
+「compose の変更が入っている」と出したときは `sudo ./scripts/deploy.sh` を叩く。
+
+CLI の版は Dockerfile で固定してある（`CLAUDE_VERSION` / `CURSOR_VERSION`）。
+CI は毎回まっさらな環境でビルドするので、固定しないと push のたびに CLI が
+上がり、そのたびにサブスクリプションのログインが切れる。上げたいときは
+Dockerfile を書き換えて、下の「二つのログイン」をやり直す。
 
 ## 初回だけ必要なこと
 

@@ -7,6 +7,8 @@ import type {
   Topic,
   TopicRef,
   TopicTemplate,
+  UpdateResult,
+  UpdateStatus,
 } from '../../shared/types'
 
 async function unwrap<T>(res: Response): Promise<T> {
@@ -107,6 +109,42 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ summary }),
     }).then((r) => unwrap<Memory>(r)),
+
+  /** 動いているイメージと main のずれ。鍵が合わなければ 404 になる。 */
+  updateStatus: (key: string) =>
+    fetch('/api/admin/status', { headers: { 'x-admin-token': key } }).then((r) =>
+      unwrap<UpdateStatus>(r),
+    ),
+
+  /**
+   * Watchtower に「今見に行け」と頼む。差し替えが始まると、返事が返る前に
+   * こちらが止められて接続が切れる。それは失敗ではないので、繋がらなかった
+   * ときは差し替えが始まったものとして扱う（null を返す）。設定が足りない
+   * などのはっきりした失敗は、サーバーが本文で返すのでそちらを投げる。
+   */
+  requestUpdate: (key: string): Promise<UpdateResult | null> =>
+    fetch('/api/admin/update', {
+      method: 'POST',
+      headers: { 'x-admin-token': key },
+    }).then(
+      async (r) => {
+        if (!r.ok) throw new Error(await errorMessage(r))
+        return (await r.json()) as UpdateResult
+      },
+      () => null,
+    ),
+
+  /**
+   * 戻ってきたかどうかと、どのコミットで動いているか。
+   *
+   * 期限を付けているのは、入れ替えの最中に掴んだ接続が、切れたことも返って
+   * こないまま宙ぶらりんになることがあるため。期限が無いと待ちの輪がそこで
+   * 止まって、いつまでも「入れ替え中」のままになる。
+   */
+  health: () =>
+    fetch('/api/health', { cache: 'no-store', signal: AbortSignal.timeout(5000) }).then((r) =>
+      unwrap<{ ok: boolean; commit: string | null }>(r),
+    ),
 }
 
 /** fetch のボディから SSE の data 行だけを取り出す。 */

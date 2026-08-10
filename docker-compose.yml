@@ -1,14 +1,25 @@
 services:
   kokuboke:
+    # NAS ではここに書いた出来合いのイメージを引っ張って使う。ビルドは GitHub
+    # Actions が x86_64 で行う（NAS の N100 でやると数分かかる）。
+    image: ghcr.io/yusukekokubo/kokuboke:latest
+    # build も残してあるのは手元で層の並びを確かめるため。`docker-compose build`
+    # と書けばこのイメージ名で手元に作られる。ただし NAS で `up` するときは
+    # イメージが無いとビルドが始まってしまうので、deploy.sh は pull してから
+    # `up -d --no-build` を掛ける。
     build:
       context: .
       args:
         # イメージのビルド中に cursor-agent が入らないときは
         # .env に INSTALL_CURSOR=false を書いて外す。
         INSTALL_CURSOR: ${INSTALL_CURSOR:-true}
-    image: kokuboke:latest
     container_name: kokuboke
     restart: unless-stopped
+
+    # Watchtower はこのラベルが付いたものだけを見る。NAS の他のコンテナを
+    # 巻き込んで勝手に上げないように、対象はここで明示する。
+    labels:
+      com.centurylinklabs.watchtower.enable: 'true'
 
     # Tailscale がホストネットワークで動いているので、既定はループバックだけ。
     # LAN からも直接見せたい場合は .env に BIND_ADDR=0.0.0.0 を書く。
@@ -48,6 +59,10 @@ services:
       # Claude Code は 1 プロセスあたり 300〜500MB 使う。同居コンテナが増えたら
       # .env で減らす。機械の余力しだいの値なのでここには既定だけ置く。
       MAX_CONCURRENT: ${MAX_CONCURRENT:-3}
+      # 更新の引き金は Watchtower に頼む。アプリ自身に docker.sock は渡さない
+      # （URL しか鍵の無いアプリに NAS の root 相当を持たせたくない）。
+      # コンテナ間の名前解決なので .env で書き換えられては困る。ここに置く。
+      WATCHTOWER_URL: http://watchtower:8080
 
     # NAS の実機（N100 / 4 コア）向けの既定値。手元で試すときは .env で下げる。
     mem_limit: ${MEM_LIMIT:-2500m}
@@ -59,6 +74,43 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+
+  # 自分で自分を入れ替えることはできない（止める処理ごと死ぬ）ので、
+  # 外に立って差し替える役をこれに任せる。GHCR のマニフェストだけを見に行き、
+  # digest が変わっていたら引っ張って、同じ設定・同じボリュームで作り直す。
+  watchtower:
+    # 元家の containrrr/watchtower は止まっていて、Docker API 1.25 で話しかける。
+    # 今の Docker は 1.40 以上しか受け付けないので、起動した直後から
+    # 「client version 1.25 is too old」で回り続ける。手入れの続いている
+    # 分かれ先を使う。版を留めるのは、勝手に上がって困るのがこちら側だから。
+    image: nickfedor/watchtower:1.20.3
+    container_name: kokuboke-watchtower
+    restart: unless-stopped
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    environment:
+      TZ: Asia/Tokyo
+      # ラベルの付いたものだけを見る。付いていないコンテナには触らない。
+      WATCHTOWER_LABEL_ENABLE: 'true'
+      # 差し替えのたびに 1GB 近い層が残る。NAS の空きを食うので消させる。
+      WATCHTOWER_CLEANUP: 'true'
+      # 10 分おきに見回る。押し忘れても放っておけば上がる。
+      WATCHTOWER_POLL_INTERVAL: '600'
+      # 管理画面から叩ける口だけを開ける。update 以外は要らない。
+      # API を開くと既定では定期の見回りが止まるので、両方生かすために
+      # PERIODIC_POLLS も立てる。
+      WATCHTOWER_HTTP_API_ENDPOINTS: update
+      WATCHTOWER_HTTP_API_PERIODIC_POLLS: 'true'
+      # 空のままにはしない。deploy.sh が起動の前に確かめるし、この版の
+      # Watchtower は鍵の無い口を開かせない。ここで `:?` にして必須にすると、
+      # 鍵を置いていない手元では docker-compose build すら通らなくなる
+      # （層の並びを確かめる手段が無くなる）ので、既定は空にしておく。
+      WATCHTOWER_HTTP_API_TOKEN: ${WATCHTOWER_TOKEN:-}
+
+    # 8080 は外に出さない。アプリがコンテナ間のネットワークで届けば足りる。
+    mem_limit: 128m
 
 volumes:
   claude-config:

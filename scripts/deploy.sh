@@ -1,13 +1,16 @@
 #!/bin/sh
-# NAS 上で実行する。SSH を開けている間の作業を 1 コマンドにまとめたもの。
-# docker.sock に一般ユーザーでは届かないので sudo で叩く。
+# NAS 上で実行する。ふだんの更新は管理画面から Watchtower に頼めば済むので、
+# ここを叩くのは次の三つの場合だけ。
+#
+#   - はじめて立てるとき
+#   - docker-compose.yml を直したとき（Watchtower はイメージを差し替えるだけで、
+#     コンテナの設定は今のものを引き継ぐ。設定の変更はここを通さないと効かない）
+#   - 差し替えが失敗して手で直したいとき
 #
 #   cd <docker 共有>/kokuboke && sudo ./scripts/deploy.sh
 #
-# origin から取り込めるならここで取り込む。取り込めなくても、置いてある
-# コードでそのまま進む。NAS に GitHub の認証情報を置いていない場合は、
-# Mac 側から先に取り込んでおく（共有は SMB で見えている）。
-#   git -C /Volumes/docker/kokuboke pull
+# イメージは GitHub Actions が x86_64 で作って GHCR に置く。ここではビルドせず
+# 引っ張るだけなので、N100 でも数十秒で終わる。
 
 set -eu
 cd "$(dirname "$0")/.."
@@ -31,6 +34,13 @@ if ! grep -qE '^USERS=[^[:space:]]+' .env; then
   echo ".env の USERS が空です。家族の名前を入れてください" >&2
   exit 1
 fi
+# Watchtower の待ち受けはこの鍵で守る。空のまま立てると、コンテナ間の
+# ネットワークに届く相手なら誰でも入れ替えを起こせる。
+if ! grep -qE '^WATCHTOWER_TOKEN=[^[:space:]]+' .env; then
+  echo ".env の WATCHTOWER_TOKEN が空です。適当な長い文字列を入れてください" >&2
+  echo "  例: openssl rand -hex 24" >&2
+  exit 1
+fi
 
 mkdir -p data
 
@@ -45,8 +55,13 @@ else
   echo "   git の管理下ではないので飛ばす"
 fi
 
-echo "==> ビルドして起動する（N100 では数分かかる）"
-$DC up -d --build
+echo "==> イメージを引っ張る"
+$DC pull
+
+# --no-build を付けるのは、GHCR に届かなかったときに N100 で数分のビルドが
+# 黙って始まらないようにするため。compose には手元用の build も残してある。
+echo "==> 起動する"
+$DC up -d --no-build
 
 echo "==> 立ち上がりを待つ"
 ok=""
@@ -69,10 +84,12 @@ fi
 curl -s http://127.0.0.1:3000/api/health
 echo
 
-# ビルドのたびに 1GB 近い層が積まれる。NAS の空きを食うので片付ける。
+# 引っ張るたびに 1GB 近い層が残る。ふだんの差し替えでは Watchtower が
+# CLEANUP で消すが、ここを通ったときは自分で片付ける。
 echo "==> 古いイメージを片付ける"
 docker image prune -f >/dev/null
 
 echo "==> 完了"
 echo "   ログイン確認: sudo docker exec -it kokuboke claude"
 echo "   公開:         tailscale serve --bg 3000"
+echo "   更新の画面:   /admin?key=<ADMIN_TOKEN>"

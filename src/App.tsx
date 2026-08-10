@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { rememberedUser } from '@/lib/remember'
 import TopicListPage from './pages/TopicListPage'
 import ChatPage from './pages/ChatPage'
+import AdminPage from './pages/AdminPage'
 
 export default function App() {
   return (
@@ -11,6 +12,8 @@ export default function App() {
       <Route path="/user/:user" element={<TopicListPage />} />
       <Route path="/user/:user/:topic" element={<ChatPage />} />
       <Route path="/user/:user/:topic/:sub" element={<ChatPage />} />
+      {/* 家族の誰の画面でもない。鍵は URL の ?key= で渡す。 */}
+      <Route path="/admin" element={<AdminPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )

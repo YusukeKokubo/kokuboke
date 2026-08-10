@@ -79,3 +79,35 @@ export interface Memory {
   /** summary.md の中身。無ければ空文字。 */
   summary: string
 }
+
+/** 動いているイメージと GitHub の main のずれ。管理画面が見る。 */
+export interface UpdateStatus {
+  /** このイメージを作った元のコミット。焼き込まれていなければ null。 */
+  commit: string | null
+  /** main の先頭。尋ねられなければ null。 */
+  latest: string | null
+  /** 何コミット遅れているか。分からなければ null。 */
+  behind: number | null
+  /** 遅れているコミットの一行目。新しい順。 */
+  commits: string[]
+  /**
+   * docker-compose.yml が変わっているか。Watchtower はイメージを差し替えるだけで
+   * コンテナの設定は今のものを引き継ぐので、これが立っている回は SSH が要る。
+   */
+  composeChanged: boolean
+  /** 更新を叩ける状態か（Watchtower の設定が届いているか）。 */
+  canUpdate: boolean
+  /** 確認そのものに失敗したときの理由。 */
+  error?: string
+}
+
+/** 更新を頼んだ結果。 */
+export interface UpdateResult {
+  /**
+   * 差し替えが始まったか。始まると返事が返る前にこちらが止められるので、
+   * 「返事が返らなかった」ことをそのまま合図として扱う。
+   */
+  replacing: boolean
+  /** 返事が返ってきたときの内訳。何も差し替わらなければ updated が 0。 */
+  summary: { scanned?: number; updated?: number; failed?: number; skipped?: number } | null
+}

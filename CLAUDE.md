@@ -21,6 +21,11 @@
   それ以外の確認は typecheck と build、あとは実際に動かして見る
 - テストは環境変数を差し込んでから `await import` する。`config` は読み込んだ時点で
   環境変数を見るため。`process.loadEnvFile` は既にある値を上書きしないので `.env` には負けない
+- 更新まわりの確認は、手元で compose を上げて中から叩く。ホストの 3000 は
+  開発中のサーバーが握っているので、ポートと `DATA_PATH` を上書きする別の
+  compose ファイルを scratchpad に置いて `-f` で重ねる。ただし `DATA_PATH` は
+  colima が VM に見せている場所（ホーム配下）にする。`/tmp` の下は共有されず、
+  コンテナからは空の root 持ちに見えて `EACCES` になる
 - 端から端までの確認は API を直に叩く。トピック作成 → `messages`（multipart の `text`）
   → `summary` で SSE が流れる。CLI を起動する経路はこれでしか確かめられない
 - UI の確認は agent-browser。`agent-browser set viewport 390 844` でスマホ幅にし、
@@ -74,8 +79,22 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
   `CLAUDE_CONFIG_DIR` で寄せられる（2.1.226 で確認）
 - コンテナは `USER app` で動く。`docker exec` も `app` で入るので、
   chown など root が要る作業は `-u 0` を付ける
-- `deploy.sh` は NAS が origin から取り込む。手元でコミットしただけでは何も変わらず、
-  同じイメージを作り直して終わる。デプロイしてもらう前に push する
+- イメージは Actions が作って GHCR に置く。ふだんの更新は NAS に同居する
+  Watchtower が引っ張る（10 分おき＋`/admin` から手動）。手元でコミットしただけでは
+  何も起きないので、まず push する。`deploy.sh` を通すのは初回と compose を直したときだけ
+- Watchtower が差し替えるのはイメージだけで、コンテナの設定は今のものを引き継ぐ。
+  `docker-compose.yml` を直した回は見た目は正常に上がってくるのに設定が古いまま残る。
+  管理画面は GitHub の compare で `docker-compose.yml` の変更を見つけて知らせる
+- `containrrr/watchtower` は止まっていて Docker API 1.25 で話しかける。今の Docker は
+  1.40 以上しか受け付けないので起動直後から回り続ける。`nickfedor/watchtower` を使う。
+  こちらの `/v1/update` は POST のみ（元家は GET でも受けた）。口は
+  `WATCHTOWER_HTTP_API_ENDPOINTS` で選び、鍵が無いと開かない
+- GHCR のパッケージはリポジトリが公開でも既定で非公開。visibility を public に
+  しないと NAS から引けず、Watchtower のログに 403 が出るだけで静かに失敗する
+- CLI の版は Dockerfile で固定する（`CLAUDE_VERSION` / `CURSOR_VERSION`）。CI は
+  毎回まっさらなので、留めないと push のたびに版が上がってログインが切れる。
+  cursor の install スクリプトは版を選べない（取得時の最新が埋め込まれて降りてくる）ので、
+  中の版番号と `downloads.cursor.com` の経路を Dockerfile に写して使う
 - Dockerfile の runtime は、CLI のインストールより下に依存とビルド成果物を置く。
   依存を上に置くと `package.json` を触るたびに cursor が入り直し、そのとき版が
   上がってログインが切れる。実行時の依存は deps ステージで揃えて持ってくる。

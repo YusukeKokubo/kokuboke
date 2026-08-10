@@ -11,6 +11,7 @@ data
 # ここに残すと、README を直しただけでビルド層のキャッシュが外れる。
 docs
 scripts
+.github
 README.md
 CLAUDE.md
 AGENTS.md

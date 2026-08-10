@@ -68,6 +68,26 @@ export const config = {
   /** low | medium | high | xhigh | max。未指定なら CLI の既定に任せる。 */
   claudeEffort: process.env.CLAUDE_EFFORT ?? '',
 
+  /**
+   * このイメージを作った元のコミット。Dockerfile が GIT_SHA から焼き込む。
+   * 手元で直に動かしたときは空で、そのときは更新の確認そのものを出さない。
+   */
+  appCommit: process.env.APP_COMMIT ?? '',
+
+  /** 更新の有無を尋ねる先。公開リポジトリなので認証は要らない。 */
+  githubRepo: process.env.GITHUB_REPO ?? 'YusukeKokubo/kokuboke',
+
+  /**
+   * 管理画面の鍵。空なら管理画面ごと閉じる（手元と、鍵を決めていない機械では
+   * 触れない）。誰の画面かを URL でしか分けていないので、家族の URL を知って
+   * いるだけでは更新を叩けないようにする。
+   */
+  adminToken: process.env.ADMIN_TOKEN ?? '',
+
+  /** Watchtower の待ち受け。compose がコンテナ間の名前で渡す。 */
+  watchtowerUrl: process.env.WATCHTOWER_URL ?? '',
+  watchtowerToken: process.env.WATCHTOWER_TOKEN ?? '',
+
   isProduction: process.env.NODE_ENV === 'production',
 } as const
 
