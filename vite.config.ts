@@ -12,6 +12,8 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Capacitor WebView では bridge 注入とぶつかるので、登録は main.tsx 側で分岐する。
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'kokuboke',

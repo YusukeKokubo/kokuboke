@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">kokuboke</string>
+    <string name="title_activity_main">kokuboke</string>
+    <string name="package_name">app.kokuboke</string>
+    <string name="custom_url_scheme">app.kokuboke</string>
+</resources>

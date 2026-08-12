@@ -81,6 +81,7 @@ npm run typecheck
 npm test              # server/store/ の読み書きとパスの検査
 npm run build         # dist/client と dist/server を吐く
 npm start             # ビルド済みを本番モードで起動
+npm run android:sync  # Capacitor Android へ同期（CAPACITOR_SERVER_URL 必須）
 node scripts/generate-icons.mjs   # public/favicon.svg から PWA アイコンを再生成
 ```
 
@@ -214,16 +215,42 @@ tailscale serve --bg 3000
 ```
 
 `https://<マシン名>.<tailnet>.ts.net` で届くようになる。マシン名は Tailscale
-コンテナの `hostname` に設定したもの。正規の証明書が付くので、Android の
-ブラウザから「ホーム画面に追加」すれば PWA として動く。
+コンテナの `hostname` に設定したもの。正規の証明書が付く。
 
 誰の画面かは `/user/名前` という URL でしか区別していない。この URL そのものが鍵なので、
-誰がいるかを答える API は置いていない。名前を選ばせる画面も作らない。
+誰がいるかを答える API は置いていない。名前の一覧も出さない。入口では自分の名前を
+手で入れるか、名前入り URL を直接開く。
 
-ただし Android の Chrome はホーム画面に貼るとき manifest の `start_url` を採るので、
-貼った URL のうち `/user/名前` が落ちて `/` から始まってしまう。そこで、一度開けた名前だけを
-その端末の localStorage に残しておいて、`/` に着いたらそこへ送り返している。
-初回だけは名前入りの URL をブラウザで開く必要がある。端末を替えたときも同じ。
+Android で Chrome を時間制限したまま使いたいときは、下の Capacitor シェルを使う。
+ブラウザの「ホーム画面に追加」（PWA）でも見た目はアプリになるが、実体は Chrome の
+ままなので画面時間の制限を一緒に受ける。
+
+### Android アプリ（Capacitor）
+
+別パッケージ `app.kokuboke` の WebView で、上の Tailscale URL を開く薄い殻。
+UI と API は NAS 上のままなので、サーバーを更新すればアプリも追従する。
+
+前提: 端末に [Android Studio](https://developer.android.com/studio)（SDK 付き）と
+JDK。この Mac にはまだ入っていないことがある。
+
+```sh
+# .env に家庭の URL を書く（末尾スラッシュなし）
+# CAPACITOR_SERVER_URL=https://<マシン名>.<tailnet>.ts.net
+
+mise exec -- npm run android:sync   # dist/client をビルドして android/ に同期
+mise exec -- npm run android:open   # Android Studio を開く
+```
+
+Android Studio から Run、または `Build > Build APK(s)` で APK を作り、家族の端末へ
+サイドロードする。初回起動で名前を入れると、その端末の localStorage に残る。
+
+Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制限し、kokuboke は
+制限なしにする。
+
+ただし Android の Chrome で PWA をホーム画面に貼るときも manifest の `start_url` を
+採るので、貼った URL のうち `/user/名前` が落ちて `/` から始まってしまう。そこで、
+一度開けた名前だけをその端末の localStorage に残しておいて、`/` に着いたらそこへ
+送り返している（アプリの名前入力も同じ仕組み）。
 
 ## API
 

@@ -44,6 +44,8 @@
 - `src/pages/` — 画面は 2 つだけ。`src/lib/api.ts` が API 呼び出しと SSE の受けの入口
 - `src/components/markdown/` — Markdown と数式の描画。`src/components/ui/` は shadcn だが
   style が `base-nova` で中身は `@base-ui/react`。Radix 前提の書き方は通らない
+- `android/` — Capacitor の WebView 殻。`CAPACITOR_SERVER_URL` 先の NAS UI を開く。
+  Chrome の時間制限を避けるため。`npm run android:sync` で同期
 
 データの構造・デプロイ・API 一覧は README.md にある。
 
@@ -60,6 +62,9 @@
   新しく入れるときは、どちら側で使うかで置き場所を決める
 - `DATA_DIR` と `DATA_PATH` は別物。前者は手元で直接動かすときの保存先、
   後者は compose がマウント元に使う。`.env` に両方あるで取り違えやすい
+- Android 殻は `server.url` で NAS を開く。APK に焼かれる URL は
+  `android:sync` 時の `CAPACITOR_SERVER_URL`。PWA の「ホーム画面に追加」は
+  実体が Chrome のままなので、画面時間の切り分けには使えない
 
 ## 進め方
 
