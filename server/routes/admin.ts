@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import type { UpdateResult, UpdateStatus } from '../../shared/types'
+import type { ActivityEntry, UpdateResult, UpdateStatus } from '../../shared/types'
 import { config } from '../config'
+import { listRecentActivity } from '../store/activity'
 
 export const admin = new Hono()
 
@@ -102,6 +103,17 @@ admin.get('/api/admin/status', async (c) => {
   }
 
   return c.json(await compare(config.appCommit))
+})
+
+/**
+ * 本人の送信を横断して新しい順に返す。詳細は各会話画面で見る前提なので、
+ * ここは抜粋と行き先だけでよい。
+ */
+admin.get('/api/admin/activity', async (c) => {
+  const raw = Number(c.req.query('limit') ?? 50)
+  const limit = Number.isFinite(raw) ? Math.min(200, Math.max(1, Math.trunc(raw))) : 50
+  const entries = await listRecentActivity(limit)
+  return c.json<{ entries: ActivityEntry[] }>({ entries })
 })
 
 admin.post('/api/admin/update', async (c) => {

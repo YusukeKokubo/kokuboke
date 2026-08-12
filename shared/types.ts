@@ -116,3 +116,21 @@ export interface UpdateResult {
   /** 返事が返ってきたときの内訳。何も差し替わらなければ updated が 0。 */
   summary: { scanned?: number; updated?: number; failed?: number; skipped?: number } | null
 }
+
+/** 管理画面の「最近の発言」。本人の送信だけを横断した一行。 */
+export interface ActivityEntry {
+  user: string
+  /** 器の slug。 */
+  topic: string
+  /** 子トピックの slug。 */
+  sub: string
+  topicName: string
+  subName: string
+  /** 子の絵文字。 */
+  emoji: string
+  /** 空白を畳んだ先頭〜80字。 */
+  text: string
+  imageCount: number
+  at: string
+  id: string
+}
