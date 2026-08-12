@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { registerSW } from 'virtual:pwa-register'
+import { rememberServiceWorker } from '@/lib/sw'
 import './index.css'
 import App from './App'
 
@@ -20,7 +21,10 @@ async function prepareNativeShell() {
 if (Capacitor.isNativePlatform()) {
   void prepareNativeShell()
 } else {
-  registerSW({ immediate: true })
+  registerSW({
+    immediate: true,
+    onRegisteredSW: (_url, registration) => rememberServiceWorker(registration),
+  })
 }
 
 createRoot(document.getElementById('root')!).render(

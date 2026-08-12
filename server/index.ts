@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { logger } from 'hono/logger'
 import { config, assertConfig } from './config'
@@ -49,9 +49,24 @@ if (config.isProduction) {
   const clientDir = path.resolve(import.meta.dirname, '../client')
   const root = path.relative(process.cwd(), clientDir)
 
-  app.use('/*', serveStatic({ root }))
+  // /assets/ の中は名前にハッシュが入るので中身が変わらない。それ以外
+  // （index.html・sw.js・manifest）は毎回確かめさせる。古い index.html を
+  // 握られると、消えた chunk を追い続ける画面ができてしまう。
+  const cacheHeader = (_file: string, c: Context) => {
+    c.header(
+      'Cache-Control',
+      c.req.path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
+    )
+  }
+
+  app.use('/*', serveStatic({ root, onFound: cacheHeader }))
+
+  // 取りこぼした /assets/ は 404 で返す。JavaScript を頼まれて index.html を
+  // 返すと MIME 違いで読み込みごと失敗し、何が起きたのか分からなくなる。
+  app.get('/assets/*', (c) => c.text('Not Found', 404))
+
   // SPA なので、実ファイルに当たらないパスは index.html に落とす。
-  app.get('*', serveStatic({ path: path.join(root, 'index.html') }))
+  app.get('*', serveStatic({ path: path.join(root, 'index.html'), onFound: cacheHeader }))
 }
 
 serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {

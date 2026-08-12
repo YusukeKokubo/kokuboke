@@ -1,7 +1,24 @@
 import { Suspense, lazy, memo } from 'react'
+import { checkForNewBuild } from '@/lib/sw'
 import { PlainMarkdown } from './markdown/Plain'
 
-const MathMarkdown = lazy(() => import('./markdown/Math'))
+/**
+ * 数式の側は別ファイルに切り出されていて、名前にはビルドごとのハッシュが入る。
+ * 配信が入れ替わったあとも開いたままだった画面は、もう無い名前を頼んでしまう。
+ * ここで throw すると Suspense の外まで飛んで画面ごと真っ白になるので、
+ * 数式なしの形に落として先へ進める。同じ URL は一度失敗すると読み直しても
+ * 取りに行かないため、その場での再試行はしない。
+ */
+async function loadMathMarkdown() {
+  try {
+    return await import('./markdown/Math')
+  } catch {
+    void checkForNewBuild()
+    return { default: PlainMarkdown }
+  }
+}
+
+const MathMarkdown = lazy(loadMathMarkdown)
 
 /** $…$ や \(…\) が出てきたら数式ありとみなす。 */
 const MATH = /\$[^$\n]+\$|\$\$|\\\(|\\\[/
