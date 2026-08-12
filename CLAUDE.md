@@ -70,8 +70,7 @@
 - PWA の更新は `registerType: 'autoUpdate'` だけでは回らない。プラグインが
   `skipWaiting` / `clientsClaim` を足すのは `injectRegister` が auto のときだけで、
   こちらは false にしている。書き忘れると新しい sw.js は待機したまま残り、
-  アプリを完全に閉じるまで古い画面が居座る。載せ替えの合図は
-  `controllerchange` を自分で見る（`src/lib/refresh.ts`）
+  普通のリロードでは古い `index.html` が返り続ける（スーパーリロードだけ通る）
 - 古い画面が頼むハッシュ付きのファイルは、差し替え後のイメージには無い。
   実ファイルに当たらないパスを何でも `index.html` に落とすと、JavaScript を
   頼まれて HTML を返して MIME 違いになり、画面が真っ白になる。`/assets/` の
