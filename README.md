@@ -259,7 +259,8 @@ mise exec -- npm run android:apk
 ```
 
 端末へは `adb install -r` か、ファイルを渡してサイドロード。初回起動で名前を
-入れると、その端末の localStorage に残る。
+入れると、その端末の localStorage に残る。アイコンを差し替えるときは
+`mise exec -- npm run android:icons` のあと、もう一度 `android:apk`。
 
 Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制限し、kokuboke は
 制限なしにする。
