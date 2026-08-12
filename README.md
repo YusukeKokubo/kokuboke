@@ -287,7 +287,7 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | POST | `/api/users/:user/topics/:topic/sub` | そのトピックの中に作る。話せるのはこちら。`name` は省略できる |
 | PATCH | `/api/users/:user/topics/:topic` | エンジンとモデル、または名前と絵文字を変える |
 | POST | `/api/users/:user/topics/:topic/name` | 会話を読ませて名前を付ける。付いた名前で改名まで行う |
-| GET | `/api/users/:user/topics/:topic/messages` | 直近の会話（既定 3 日分） |
+| GET | `/api/users/:user/topics/:topic/messages` | 保存されている会話すべて |
 | POST | `/api/users/:user/topics/:topic/messages` | 送信。SSE で返答を流す |
 | GET | `/api/users/:user/topics/:topic/memory` | 記憶（`summary.md`）を読む |
 | PUT | `/api/users/:user/topics/:topic/memory` | 記憶を保存する。書き換えはここだけ |

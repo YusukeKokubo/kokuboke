@@ -2,11 +2,10 @@ import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { streamSSE } from 'hono/streaming'
 import type { ChatEvent, Message } from '../../shared/types'
-import { config } from '../config'
 import { resolveModel, runAgent } from '../agent'
 import { chatPrompt, chatSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
-import { appendMessage, readRecent } from '../store/log'
+import { appendMessage, readAll, readRecent } from '../store/log'
 import { topicDir } from '../store/paths'
 import { saveImage, withImageUrls } from '../store/image'
 import { readParentSummary, readSummary, readTopic, shouldAutoName } from '../store/topic'
@@ -17,9 +16,8 @@ export const messages = new Hono()
 
 messages.on('GET', topicPaths('/messages'), async (c) => {
   const { user, ref } = await requireTopic(c)
-
-  const days = Number(c.req.query('days')) || config.contextDays
-  const history = await readRecent(user, ref, Math.min(Math.max(days, 1), 30))
+  // 画面は全部見せる。AI に渡す窓は POST 側の readRecent だけが切る。
+  const history = await readAll(user, ref)
   return c.json(history.map((m) => withImageUrls(user, ref, m)))
 })
 

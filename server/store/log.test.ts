@@ -11,7 +11,7 @@ process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 process.env.TZ = 'Asia/Tokyo'
 
-const { appendMessage, readLastEntry, readRecent } = await import('./log')
+const { appendMessage, readAll, readLastEntry, readRecent } = await import('./log')
 const { localDate } = await import('./date')
 const { logsDir } = await import('./paths')
 
@@ -83,6 +83,24 @@ describe('appendMessage と readRecent', () => {
       read.map((m) => m.text),
       ['無事', 'こっちも無事'],
     )
+  })
+})
+
+describe('readAll', () => {
+  it('days の外も含めて古い順に返す', async () => {
+    await appendMessage(USER, TOPIC, message('むかし', daysAgo(5)))
+    await appendMessage(USER, TOPIC, message('きのう', daysAgo(1)))
+    await appendMessage(USER, TOPIC, message('きょう', new Date()))
+
+    const read = await readAll(USER, TOPIC)
+    assert.deepEqual(
+      read.map((m) => m.text),
+      ['むかし', 'きのう', 'きょう'],
+    )
+  })
+
+  it('ログが無いトピックは空を返す', async () => {
+    assert.deepEqual(await readAll(USER, { topic: 'not-yet' }), [])
   })
 })
 

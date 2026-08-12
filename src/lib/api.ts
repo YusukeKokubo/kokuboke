@@ -97,8 +97,8 @@ export const api = {
   autoName: (user: string, ref: TopicRef) =>
     fetch(topicUrl(user, ref, '/name'), { method: 'POST' }).then((r) => unwrap<Topic>(r)),
 
-  listMessages: (user: string, ref: TopicRef, days = 3) =>
-    fetch(topicUrl(user, ref, `/messages?days=${days}`)).then((r) => unwrap<Message[]>(r)),
+  listMessages: (user: string, ref: TopicRef) =>
+    fetch(topicUrl(user, ref, '/messages')).then((r) => unwrap<Message[]>(r)),
 
   getMemory: (user: string, ref: TopicRef) =>
     fetch(topicUrl(user, ref, '/memory')).then((r) => unwrap<Memory>(r)),
