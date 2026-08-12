@@ -117,7 +117,7 @@ export interface UpdateResult {
   summary: { scanned?: number; updated?: number; failed?: number; skipped?: number } | null
 }
 
-/** 管理画面の「最近の発言」。本人の送信だけを横断した一行。 */
+/** 管理画面の「最新の会話」。ユーザーごとにいちばん新しい子トピック一行。 */
 export interface ActivityEntry {
   user: string
   /** 器の slug。 */

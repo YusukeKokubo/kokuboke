@@ -117,9 +117,9 @@ export const api = {
       unwrap<UpdateStatus>(r),
     ),
 
-  /** 本人の送信を横断した最近の一覧。詳細は各会話画面で見る。 */
-  activity: (key: string, limit = 50) =>
-    fetch(`/api/admin/activity?limit=${limit}`, { headers: { 'x-admin-token': key } }).then((r) =>
+  /** ユーザーごとの最新の会話。詳細は各会話画面で見る。 */
+  activity: (key: string) =>
+    fetch('/api/admin/activity', { headers: { 'x-admin-token': key } }).then((r) =>
       unwrap<{ entries: ActivityEntry[] }>(r),
     ),
 

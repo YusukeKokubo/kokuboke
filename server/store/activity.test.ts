@@ -32,29 +32,45 @@ beforeEach(async () => {
 })
 
 describe('listRecentActivity', () => {
-  it('本人の送信だけを新しい順に返す', async () => {
+  it('ユーザーごとに最新の会話だけを返す', async () => {
     const parent = await createTopic('taro', { name: '勉強' })
-    const child = await createTopic('taro', { name: '算数', emoji: '📐' }, parent.slug)
+    const math = await createTopic('taro', { name: '算数', emoji: '📐' }, parent.slug)
+    const history = await createTopic('taro', { name: '歴史' }, parent.slug)
 
-    const older = new Date('2026-08-10T10:00:00+09:00')
-    const newer = new Date('2026-08-11T12:00:00+09:00')
-    const ref = { topic: parent.slug, sub: child.slug }
-
-    await appendMessage('taro', ref, message('きのうの質問', older))
-    await appendMessage('taro', ref, message('AIの返事', older, 'assistant'))
-    await appendMessage('taro', ref, message('きょうの質問', newer))
-
-    const entries = await listRecentActivity(50)
-    assert.deepEqual(
-      entries.map((e) => e.text),
-      ['きょうの質問', 'きのうの質問'],
+    await appendMessage(
+      'taro',
+      { topic: parent.slug, sub: math.slug },
+      message('算数の質問', new Date('2026-08-11T12:00:00+09:00')),
     )
+    await appendMessage(
+      'taro',
+      { topic: parent.slug, sub: history.slug },
+      message('歴史の質問', new Date('2026-08-10T10:00:00+09:00')),
+    )
+
+    const entries = await listRecentActivity()
+    assert.equal(entries.length, 1)
     assert.equal(entries[0]?.user, 'taro')
-    assert.equal(entries[0]?.topic, parent.slug)
-    assert.equal(entries[0]?.sub, child.slug)
+    assert.equal(entries[0]?.sub, math.slug)
+    assert.equal(entries[0]?.text, '算数の質問')
     assert.equal(entries[0]?.emoji, '📐')
     assert.equal(entries[0]?.topicName, '勉強')
     assert.equal(entries[0]?.subName, '算数')
+  })
+
+  it('同じ会話の古い発言は出さない', async () => {
+    const parent = await createTopic('taro', { name: '器' })
+    const child = await createTopic('taro', { name: '子' }, parent.slug)
+    const ref = { topic: parent.slug, sub: child.slug }
+
+    await appendMessage('taro', ref, message('きのう', new Date('2026-08-10T10:00:00+09:00')))
+    await appendMessage('taro', ref, message('きょう', new Date('2026-08-11T12:00:00+09:00')))
+
+    const entries = await listRecentActivity()
+    assert.deepEqual(
+      entries.map((e) => e.text),
+      ['きょう'],
+    )
   })
 
   it('ユーザーをまたいでも新しい順に並べる', async () => {
@@ -74,27 +90,34 @@ describe('listRecentActivity', () => {
       message('花子', new Date('2026-08-11T09:00:00+09:00')),
     )
 
-    const entries = await listRecentActivity(50)
+    const entries = await listRecentActivity()
     assert.deepEqual(
       entries.map((e) => e.user),
       ['hanako', 'taro'],
     )
   })
 
-  it('limit で切り捨てる', async () => {
+  it('話していないユーザーは出さない', async () => {
     const parent = await createTopic('taro', { name: '器' })
-    const child = await createTopic('taro', { name: '子' }, parent.slug)
-    const ref = { topic: parent.slug, sub: child.slug }
+    await createTopic('taro', { name: '子' }, parent.slug)
 
-    await appendMessage('taro', ref, message('いち', new Date('2026-08-10T10:00:00+09:00')))
-    await appendMessage('taro', ref, message('に', new Date('2026-08-10T11:00:00+09:00')))
-    await appendMessage('taro', ref, message('さん', new Date('2026-08-10T12:00:00+09:00')))
+    assert.deepEqual(await listRecentActivity(), [])
+  })
 
-    const entries = await listRecentActivity(2)
-    assert.deepEqual(
-      entries.map((e) => e.text),
-      ['さん', 'に'],
+  it('新しい空の器があっても、話した会話の方を取る', async () => {
+    const old = await createTopic('taro', { name: '古い器' })
+    const child = await createTopic('taro', { name: '子' }, old.slug)
+    await appendMessage(
+      'taro',
+      { topic: old.slug, sub: child.slug },
+      message('昨日の話', new Date('2026-08-10T10:00:00+09:00')),
     )
+    await createTopic('taro', { name: '新しい器' })
+
+    const entries = await listRecentActivity()
+    assert.equal(entries.length, 1)
+    assert.equal(entries[0]?.topicName, '古い器')
+    assert.equal(entries[0]?.text, '昨日の話')
   })
 
   it('空白を畳んで抜粋する', async () => {
@@ -107,7 +130,7 @@ describe('listRecentActivity', () => {
       message(`  行1\n\n行2  ${long}`, new Date()),
     )
 
-    const [entry] = await listRecentActivity(1)
+    const [entry] = await listRecentActivity()
     assert.ok(entry)
     assert.ok(!entry.text.includes('\n'))
     assert.equal(entry.text.length, 80)

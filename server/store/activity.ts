@@ -1,10 +1,7 @@
-import type { ActivityEntry } from '../../shared/types'
+import type { ActivityEntry, Topic } from '../../shared/types'
 import { config } from '../config'
-import { readRecent } from './log'
+import { readLastEntry } from './log'
 import { listTopics } from './topic'
-
-/** readLastEntry と同じ地平。これより古い発言は管理の一覧では見ない。 */
-const WINDOW_DAYS = 30
 
 const PREVIEW = 80
 
@@ -13,37 +10,42 @@ function preview(text: string): string {
 }
 
 /**
- * 全ユーザーの子トピックから、本人の送信だけを新しい順に集める。
+ * ユーザーごとに、いちばん新しく話した子トピックを一行返す。
  * 器は会話しないので子だけ見る。詳細は各会話画面で開く前提の要約。
  */
-export async function listRecentActivity(limit: number): Promise<ActivityEntry[]> {
+export async function listRecentActivity(): Promise<ActivityEntry[]> {
   const entries: ActivityEntry[] = []
 
   for (const user of config.users) {
     const topics = await listTopics(user)
+    let latest: { topic: Topic; child: Topic } | null = null
     for (const topic of topics) {
       for (const child of topic.children) {
-        const ref = { topic: topic.slug, sub: child.slug }
-        const messages = await readRecent(user, ref, WINDOW_DAYS)
-        for (const message of messages) {
-          if (message.role !== 'user') continue
-          entries.push({
-            user,
-            topic: topic.slug,
-            sub: child.slug,
-            topicName: topic.name,
-            subName: child.name,
-            emoji: child.emoji,
-            text: preview(message.text),
-            imageCount: message.images.length,
-            at: message.at,
-            id: message.id,
-          })
+        if (!child.lastMessageAt) continue
+        if (!latest || child.lastMessageAt > latest.child.lastMessageAt!) {
+          latest = { topic, child }
         }
       }
     }
+    if (!latest) continue
+
+    const last = await readLastEntry(user, { topic: latest.topic.slug, sub: latest.child.slug })
+    if (!last) continue
+
+    entries.push({
+      user,
+      topic: latest.topic.slug,
+      sub: latest.child.slug,
+      topicName: latest.topic.name,
+      subName: latest.child.name,
+      emoji: latest.child.emoji,
+      text: preview(last.text),
+      imageCount: last.images.length,
+      at: last.at,
+      id: last.id,
+    })
   }
 
   entries.sort((a, b) => b.at.localeCompare(a.at))
-  return entries.slice(0, Math.max(0, limit))
+  return entries
 }

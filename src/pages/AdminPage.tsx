@@ -211,7 +211,7 @@ export default function AdminPage() {
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="text-muted-foreground text-xs font-medium tracking-wide">最近の発言</h2>
+          <h2 className="text-muted-foreground text-xs font-medium tracking-wide">最新の会話</h2>
 
           {activityError && <p className="text-destructive leading-relaxed">{activityError}</p>}
 
@@ -220,13 +220,13 @@ export default function AdminPage() {
           )}
 
           {!activityError && entries && entries.length === 0 && (
-            <p className="text-muted-foreground">まだ発言が無いよ</p>
+            <p className="text-muted-foreground">まだ会話が無いよ</p>
           )}
 
           {!activityError && entries && entries.length > 0 && (
             <ul className="flex flex-col">
               {entries.map((entry) => (
-                <li key={`${entry.user}:${entry.id}`} className="border-b last:border-b-0">
+                <li key={entry.user} className="border-b last:border-b-0">
                   <Link
                     to={topicHref(entry.user, { topic: entry.topic, sub: entry.sub })}
                     className="hover:bg-muted/50 -mx-2 flex flex-col gap-0.5 rounded-md px-2 py-2.5"
