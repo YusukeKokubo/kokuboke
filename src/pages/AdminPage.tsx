@@ -100,7 +100,7 @@ export default function AdminPage() {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
-      <header className="flex items-center justify-between border-b px-4 py-3">
+      <header className="flex items-center justify-between border-b px-4 py-3 pt-[calc(0.75rem+var(--safe-top))]">
         <div>
           <h1 className="text-base font-semibold">kokuboke</h1>
           <p className="text-muted-foreground text-xs">更新</p>

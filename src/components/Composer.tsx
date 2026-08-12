@@ -143,7 +143,7 @@ export function Composer({ disabled, onSend }: Props) {
         </div>
       )}
 
-      <div className="flex items-end gap-2 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="flex items-end gap-2 px-3 py-3 pb-[calc(0.75rem+var(--safe-bottom))]">
         <input
           ref={fileInput}
           type="file"

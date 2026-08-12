@@ -46,7 +46,7 @@ export default function TopicListPage() {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 backdrop-blur">
+      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 pt-[calc(0.75rem+var(--safe-top))] backdrop-blur">
         <div>
           <h1 className="text-base font-semibold">{user}</h1>
           <p className="text-muted-foreground text-xs">トピック</p>
