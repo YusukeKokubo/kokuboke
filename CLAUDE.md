@@ -45,7 +45,7 @@
 - `src/components/markdown/` — Markdown と数式の描画。`src/components/ui/` は shadcn だが
   style が `base-nova` で中身は `@base-ui/react`。Radix 前提の書き方は通らない
 - `android/` — Capacitor の WebView 殻。`CAPACITOR_SERVER_URL` 先の NAS UI を開く。
-  Chrome の時間制限を避けるため。`npm run android:sync` で同期
+  Chrome の時間制限を避けるため。Studio 不要で `android:sdk` → `android:apk`
 
 データの構造・デプロイ・API 一覧は README.md にある。
 
@@ -65,6 +65,8 @@
 - Android 殻は `server.url` で NAS を開く。APK に焼かれる URL は
   `android:sync` 時の `CAPACITOR_SERVER_URL`。PWA の「ホーム画面に追加」は
   実体が Chrome のままなので、画面時間の切り分けには使えない
+- Android ビルドは cmdline-tools + JDK。`ANDROID_HOME` の既定は
+  `/opt/homebrew/share/android-commandlinetools`。Studio は開けても使わない
 
 ## 進め方
 

@@ -82,6 +82,8 @@ npm test              # server/store/ の読み書きとパスの検査
 npm run build         # dist/client と dist/server を吐く
 npm start             # ビルド済みを本番モードで起動
 npm run android:sync  # Capacitor Android へ同期（CAPACITOR_SERVER_URL 必須）
+npm run android:sdk   # cmdline-tools に platform / build-tools を入れる（初回）
+npm run android:apk   # sync して debug APK を作る
 node scripts/generate-icons.mjs   # public/favicon.svg から PWA アイコンを再生成
 ```
 
@@ -229,23 +231,43 @@ Android で Chrome を時間制限したまま使いたいときは、下の Cap
 
 別パッケージ `app.kokuboke` の WebView で、上の Tailscale URL を開く薄い殻。
 UI と API は NAS 上のままなので、サーバーを更新すればアプリも追従する。
+Android Studio は不要。JDK と command line tools だけで APK を出す。
 
-前提: 端末に [Android Studio](https://developer.android.com/studio)（SDK 付き）と
-JDK。この Mac にはまだ入っていないことがある。
+一度だけ入れるもの:
 
 ```sh
-# .env に家庭の URL を書く（末尾スラッシュなし）
-# CAPACITOR_SERVER_URL=https://<マシン名>.<tailnet>.ts.net
+brew install openjdk@21 android-commandlinetools
+# Java を macOS に認識させる（案内に出る通り）
+sudo ln -sfn /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk \
+  /Library/Java/JavaVirtualMachines/openjdk-21.jdk
 
-mise exec -- npm run android:sync   # dist/client をビルドして android/ に同期
-mise exec -- npm run android:open   # Android Studio を開く
+# platform / build-tools / ライセンス
+mise exec -- npm run android:sdk
 ```
 
-Android Studio から Run、または `Build > Build APK(s)` で APK を作り、家族の端末へ
-サイドロードする。初回起動で名前を入れると、その端末の localStorage に残る。
+`.env` に家庭の URL を書く（末尾スラッシュなし）:
+
+```
+CAPACITOR_SERVER_URL=https://<マシン名>.<tailnet>.ts.net
+```
+
+APK を作る:
+
+```sh
+mise exec -- npm run android:apk
+# → android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+端末へは `adb install -r` か、ファイルを渡してサイドロード。初回起動で名前を
+入れると、その端末の localStorage に残る。
 
 Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制限し、kokuboke は
 制限なしにする。
+
+環境変数の既定（Homebrew 前提）:
+
+- `JAVA_HOME` … 未設定なら `openjdk@21` か `java_home -v 21`
+- `ANDROID_HOME` … 未設定なら `/opt/homebrew/share/android-commandlinetools`
 
 ただし Android の Chrome で PWA をホーム画面に貼るときも manifest の `start_url` を
 採るので、貼った URL のうち `/user/名前` が落ちて `/` から始まってしまう。そこで、
