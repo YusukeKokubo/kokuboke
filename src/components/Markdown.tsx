@@ -1,5 +1,5 @@
 import { Suspense, lazy, memo } from 'react'
-import { checkForNewBuild } from '@/lib/sw'
+import { checkForNewBuild } from '@/lib/refresh'
 import { PlainMarkdown } from './markdown/Plain'
 
 /**

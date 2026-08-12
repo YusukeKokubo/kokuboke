@@ -33,6 +33,14 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // 新しい sw.js を待機させず、その場で交代させる。
+        // registerType: 'autoUpdate' なら普通はプラグインが勝手に付けるが、
+        // それは injectRegister が auto のときだけ。こちらは false にしている
+        // （Capacitor と衝突するため）ので、自分で書く必要がある。
+        // 無いと、新しい版は installed のまま待機し、アプリを完全に閉じるまで
+        // 古い画面が残る。古い画面はもう無いファイル名を頼むので 404 になる。
+        skipWaiting: true,
+        clientsClaim: true,
         // アプリシェルだけをキャッシュする。会話ログと画像はオフライン対象にしない。
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // 数式まわり（KaTeX 本体とフォント）は重いうえ、使わない家庭も多い。
