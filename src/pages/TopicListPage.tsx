@@ -61,7 +61,7 @@ export default function TopicListPage() {
           </Button>
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="size-4" />
-            新しく作る
+            新しいトピックを追加
           </Button>
         </div>
       </header>
