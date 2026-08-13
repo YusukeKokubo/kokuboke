@@ -27,6 +27,14 @@ export interface TopicRef {
   sub?: string
 }
 
+/**
+ * 器（トップレベル）を指すか。`sub` が無いときだけ真。
+ * 空文字は「子の途中状態」なので偽（`!ref.sub` だと真になってしまう）。
+ */
+export function isGroupRef(ref: TopicRef): boolean {
+  return ref.sub === undefined
+}
+
 export interface Topic {
   slug: string
   /** 子トピックなら器のフォルダ名。トップレベルなら null。 */

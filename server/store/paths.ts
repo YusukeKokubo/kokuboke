@@ -1,9 +1,10 @@
 import path from 'node:path'
 import { HTTPException } from 'hono/http-exception'
-import type { TopicRef } from '../../shared/types'
+import { isGroupRef, type TopicRef } from '../../shared/types'
 import { config } from '../config'
 
 export type { TopicRef }
+export { isGroupRef }
 
 /**
  * トピックの名前はそのままフォルダ名になり、URL にも出る。日本語も通す。
@@ -72,14 +73,6 @@ export function topicsDir(user: string): string {
 export function assertTopicRef(topic: string, sub?: string | null): TopicRef {
   const parent = assertTopicName(topic)
   return sub ? { topic: parent, sub: assertTopicName(sub) } : { topic: parent }
-}
-
-/**
- * 器（トップレベル）を指すか。`sub` が無いときだけ真。
- * 空文字は「子の途中状態」なので偽（`!ref.sub` だと真になってしまう）。
- */
-export function isGroupRef(ref: TopicRef): boolean {
-  return ref.sub === undefined
 }
 
 export function topicDir(user: string, ref: TopicRef): string {

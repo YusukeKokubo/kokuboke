@@ -1,17 +1,18 @@
-import type {
-  ActivityEntry,
-  ChatEvent,
-  Claude,
-  EngineInfo,
-  Message,
-  Profile,
-  Summary,
-  SummaryEvent,
-  Topic,
-  TopicRef,
-  TopicTemplate,
-  UpdateResult,
-  UpdateStatus,
+import {
+  isGroupRef,
+  type ActivityEntry,
+  type ChatEvent,
+  type Claude,
+  type EngineInfo,
+  type Message,
+  type Profile,
+  type Summary,
+  type SummaryEvent,
+  type Topic,
+  type TopicRef,
+  type TopicTemplate,
+  type UpdateResult,
+  type UpdateStatus,
 } from '../../shared/types'
 
 async function unwrap<T>(res: Response): Promise<T> {
@@ -37,7 +38,7 @@ function path(segment: string): string {
 /** 子トピックは経路の途中に sub を挟んで親と区別する。 */
 function topicUrl(user: string, ref: TopicRef, suffix = ''): string {
   const base = `/api/users/${path(user)}/topics/${path(ref.topic)}`
-  return (ref.sub ? `${base}/sub/${path(ref.sub)}` : base) + suffix
+  return (isGroupRef(ref) ? base : `${base}/sub/${path(ref.sub!)}`) + suffix
 }
 
 interface NewTopic {

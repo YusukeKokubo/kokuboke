@@ -1,14 +1,14 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { streamSSE } from 'hono/streaming'
-import type { Summary, SummaryEvent, TopicRef } from '../../shared/types'
+import { isGroupRef, type Summary, type SummaryEvent, type TopicRef } from '../../shared/types'
 import { resolveModel, runAgent } from '../agent'
 import { groupSummaryPrompt, summaryPrompt, summarySystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { readJson } from '../lib/body'
 import { readRecent } from '../store/log'
-import { topicDir, isGroupRef } from '../store/paths'
+import { topicDir } from '../store/paths'
 import {
   readChildSources,
   readGroupSummary,

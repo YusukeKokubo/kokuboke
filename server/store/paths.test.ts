@@ -10,8 +10,15 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kokuboke-test-'))
 process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro,hanako'
 
-const { assertInsideDataDir, assertTopicName, assertUser, isGroupRef, isTopicName, normalizeTopicName, toTopicName } =
-  await import('./paths')
+const {
+  assertInsideDataDir,
+  assertTopicName,
+  assertUser,
+  isGroupRef,
+  isTopicName,
+  normalizeTopicName,
+  toTopicName,
+} = await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 

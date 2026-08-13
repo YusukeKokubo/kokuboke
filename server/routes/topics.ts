@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
+import { isGroupRef } from '../../shared/types'
 import { ENGINES, resolveModel, runAgent } from '../agent'
 import { namePrompt, nameSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
@@ -7,7 +8,7 @@ import { config } from '../config'
 import { readJson } from '../lib/body'
 import { TOPIC_TEMPLATES } from '../templates'
 import { readRecent } from '../store/log'
-import { assertTopicName, assertUser, isGroupRef, normalizeTopicName, topicDir } from '../store/paths'
+import { assertTopicName, assertUser, normalizeTopicName, topicDir } from '../store/paths'
 import {
   createTopic,
   listChildren,
