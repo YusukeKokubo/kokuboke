@@ -1,6 +1,7 @@
 import type { ActivityEntry, ChildTopic, GroupTopic } from '../../shared/types'
 import { config } from '../config'
 import { readLastEntry } from './log'
+import { assertUser, asTopicName, topicRef } from './paths'
 import { listTopics } from './topic'
 
 const PREVIEW = 80
@@ -16,7 +17,8 @@ function preview(text: string): string {
 export async function listRecentActivity(): Promise<ActivityEntry[]> {
   const entries: ActivityEntry[] = []
 
-  for (const user of config.users) {
+  for (const name of config.users) {
+    const user = assertUser(name)
     const topics = await listTopics(user)
     let latest: { topic: GroupTopic; child: ChildTopic } | null = null
     for (const topic of topics) {
@@ -29,11 +31,11 @@ export async function listRecentActivity(): Promise<ActivityEntry[]> {
     }
     if (!latest) continue
 
-    const last = await readLastEntry(user, {
-      kind: 'child',
-      topic: latest.topic.slug,
-      sub: latest.child.slug,
-    })
+    const topic = asTopicName(latest.topic.slug)
+    const sub = asTopicName(latest.child.slug)
+    if (!topic || !sub) continue
+
+    const last = await readLastEntry(user, topicRef(topic, sub))
     if (!last) continue
 
     entries.push({

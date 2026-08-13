@@ -12,23 +12,24 @@ export type UserName = string & { readonly [userBrand]: 'user' }
 /** assertTopicName / toTopicName を通したトピック名。 */
 export type TopicName = string & { readonly [topicBrand]: 'topic' }
 
-type TopicRefShape =
+type VerifiedTopicRefShape =
   | { kind: 'group'; topic: TopicName }
   | { kind: 'child'; topic: TopicName; sub: TopicName }
 
 /**
  * 検証済みのトピック位置。assertTopicRef / topicRef だけが作る。
  * 入れ子は一段まで。slug 未定の途中状態は載せない。
+ * 画面側の TopicRef（shared/types）とは別物。
  */
-export type TopicRef = TopicRefShape & { readonly [refBrand]: 'TopicRef' }
+export type VerifiedTopicRef = VerifiedTopicRefShape & { readonly [refBrand]: 'VerifiedTopicRef' }
 
 /** 器（トップレベル）を指すか。 */
-export function isGroupRef(ref: TopicRef): ref is TopicRef & { kind: 'group' } {
+export function isGroupRef(ref: VerifiedTopicRef): ref is VerifiedTopicRef & { kind: 'group' } {
   return ref.kind === 'group'
 }
 
-/** TopicRef からフォルダ名（slug）を取り出す。 */
-export function refSlug(ref: TopicRef): TopicName {
+/** VerifiedTopicRef からフォルダ名（slug）を取り出す。 */
+export function refSlug(ref: VerifiedTopicRef): TopicName {
   return isGroupRef(ref) ? ref.topic : ref.sub
 }
 
@@ -72,11 +73,12 @@ export function toTopicName(input: string): TopicName {
 }
 
 /**
- * isTopicName を通した名前だけを TopicName にする。
- * readdir の結果を濾したあとなど、すでに形が分かっているときに使う。
+ * 濾しとブランド化を一手で。通らない名前は null。
+ * readdir の結果など、まだ検証していない文字列に使う。
  */
-export function trustedTopicName(name: string): TopicName {
-  return normalizeTopicName(name) as TopicName
+export function asTopicName(name: string): TopicName | null {
+  const value = normalizeTopicName(name)
+  return isTopicName(value) ? (value as TopicName) : null
 }
 
 /** USERS に無い名前は存在しないものとして扱う。route 入口で呼ぶ。 */
@@ -89,16 +91,16 @@ export function assertUser(user: string): UserName {
 
 /** route 入口で呼ぶ。 */
 export function assertTopicName(topic: string): TopicName {
-  const name = normalizeTopicName(topic)
-  if (!isTopicName(name)) {
+  const name = asTopicName(topic)
+  if (!name) {
     throw new BadRequestError('トピック名が不正です')
   }
-  return name as TopicName
+  return name
 }
 
-/** 検証済みの名前から TopicRef を組む。store 内の組み立て用。 */
-export function topicRef(topic: TopicName, sub?: TopicName): TopicRef {
-  return (sub ? { kind: 'child', topic, sub } : { kind: 'group', topic }) as TopicRef
+/** 検証済みの名前から VerifiedTopicRef を組む。store 内の組み立て用。 */
+export function topicRef(topic: TopicName, sub?: TopicName): VerifiedTopicRef {
+  return (sub ? { kind: 'child', topic, sub } : { kind: 'group', topic }) as VerifiedTopicRef
 }
 
 /** 検証済みの user からディレクトリを組み立てる。 */
@@ -111,23 +113,23 @@ export function topicsDir(user: UserName): string {
 }
 
 /** URL から届いた組を検査して ref にする。route 入口で呼ぶ。 */
-export function assertTopicRef(topic: string, sub?: string | null): TopicRef {
+export function assertTopicRef(topic: string, sub?: string | null): VerifiedTopicRef {
   const parent = assertTopicName(topic)
   return sub ? topicRef(parent, assertTopicName(sub)) : topicRef(parent)
 }
 
 /** 検証済みの ref からディレクトリを組み立てる。 */
-export function topicDir(user: UserName, ref: TopicRef): string {
+export function topicDir(user: UserName, ref: VerifiedTopicRef): string {
   const dir = path.join(topicsDir(user), ref.topic)
   if (isGroupRef(ref)) return dir
   return path.join(dir, ref.sub)
 }
 
-export function logsDir(user: UserName, ref: TopicRef): string {
+export function logsDir(user: UserName, ref: VerifiedTopicRef): string {
   return path.join(topicDir(user, ref), 'logs')
 }
 
-export function imagesDir(user: UserName, ref: TopicRef): string {
+export function imagesDir(user: UserName, ref: VerifiedTopicRef): string {
   return path.join(topicDir(user, ref), 'images')
 }
 

@@ -29,6 +29,7 @@ export const NO_NAME = 'まだ名前のない話'
 /**
  * トピックの位置。入れ子は一段まで。
  * 器と子を kind で分ける。slug 未定の途中状態は ref に載せない。
+ * 画面・API 用。サーバーのパス組み立ては VerifiedTopicRef（store/paths）を使う。
  */
 export type TopicRef =
   | { kind: 'group'; topic: string }

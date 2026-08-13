@@ -13,7 +13,9 @@ process.env.USERS = 'taro,hanako'
 const {
   assertInsideDataDir,
   assertTopicName,
+  assertTopicRef,
   assertUser,
+  asTopicName,
   isGroupRef,
   isTopicName,
   normalizeTopicName,
@@ -136,13 +138,30 @@ describe('assertTopicName', () => {
   })
 })
 
+describe('asTopicName', () => {
+  it('通る名前は TopicName として返す', () => {
+    assert.equal(asTopicName('算数の宿題'), '算数の宿題')
+  })
+
+  it('分かれた濁点を合成済みに揃える', () => {
+    assert.equal(asTopicName('ドラえもん'.normalize('NFD')), 'ドラえもん')
+  })
+
+  it('通らない名前は null', () => {
+    assert.equal(asTopicName('../secret'), null)
+    assert.equal(asTopicName('a/b'), null)
+    assert.equal(asTopicName(''), null)
+    assert.equal(asTopicName('あ'.repeat(61)), null)
+  })
+})
+
 describe('isGroupRef', () => {
   it('group なら器', () => {
-    assert.equal(isGroupRef({ kind: 'group', topic: 'スキンケア' }), true)
+    assert.equal(isGroupRef(assertTopicRef('スキンケア')), true)
   })
 
   it('child なら子', () => {
-    assert.equal(isGroupRef({ kind: 'child', topic: 'スキンケア', sub: '肌の記録' }), false)
+    assert.equal(isGroupRef(assertTopicRef('スキンケア', '肌の記録')), false)
   })
 })
 
