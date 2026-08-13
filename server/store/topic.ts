@@ -6,6 +6,7 @@ import { resolveModel } from '../agent'
 import { groupSummaryMd, topicClaudeMd, topicSummaryMd } from '../templates'
 import {
   imagesDir,
+  isGroupRef,
   isTopicName,
   logsDir,
   normalizeTopicName,
@@ -46,7 +47,7 @@ async function writeMeta(user: string, ref: TopicRef, meta: TopicMeta): Promise<
 
 /** 同じ並びの中で slug だけ差し替えた ref を作る。 */
 function withSlug(ref: TopicRef, slug: string): TopicRef {
-  return ref.sub === undefined ? { topic: slug } : { topic: ref.topic, sub: slug }
+  return isGroupRef(ref) ? { topic: slug } : { topic: ref.topic, sub: slug }
 }
 
 /** 空いている名前になるまで、末尾の数字を増やしていく。 */
@@ -94,7 +95,7 @@ function toTopic(
   const choice = resolveModel(meta.engine, meta.model)
   return {
     slug: meta.slug,
-    group: ref.sub ? ref.topic : null,
+    group: isGroupRef(ref) ? null : ref.topic,
     name: meta.name,
     emoji: meta.emoji,
     createdAt: meta.createdAt,
@@ -109,7 +110,7 @@ function toTopic(
 
 export async function readTopic(user: string, ref: TopicRef): Promise<Topic> {
   // トップレベルは器なので自分では話さない。読むログもない。
-  const last = ref.sub ? await readLastEntry(user, ref) : null
+  const last = isGroupRef(ref) ? null : await readLastEntry(user, ref)
   return toTopic(await readMeta(user, ref), ref, last)
 }
 
@@ -212,6 +213,7 @@ export async function createTopic(
     throw new HTTPException(404, { message: 'トピックが見つかりません' })
   }
 
+  // 子の途中は sub: ''（slug 未定）。withSlug / isGroupRef だけが解釈する。
   const base: TopicRef = group ? { topic: group, sub: '' } : { topic: '' }
   let ref: TopicRef
   if (name) {
@@ -314,7 +316,7 @@ export async function renameTopic(
  * 一度試して失敗した後には二度と立たない。
  */
 export async function shouldAutoName(user: string, ref: TopicRef): Promise<boolean> {
-  if (!ref.sub) return false
+  if (isGroupRef(ref)) return false
 
   const meta = await readMeta(user, ref)
   if (meta.name || meta.nameTried) return false
@@ -375,7 +377,7 @@ export async function readClaude(user: string, ref: TopicRef): Promise<string> {
  * 器には全体で共有する前提を、子にはその話に閉じた要約を置く。
  */
 export async function readGroupSummary(user: string, ref: TopicRef): Promise<string> {
-  if (!ref.sub) return ''
+  if (isGroupRef(ref)) return ''
   return readSummary(user, { topic: ref.topic })
 }
 

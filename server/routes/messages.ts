@@ -6,7 +6,7 @@ import { resolveModel, runAgent } from '../agent'
 import { chatPrompt, chatSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { appendMessage, readAll, readRecent } from '../store/log'
-import { topicDir } from '../store/paths'
+import { topicDir, isGroupRef } from '../store/paths'
 import { saveImage, withImageUrls } from '../store/image'
 import { readGroupSummary, readSummary, readTopic, shouldAutoName } from '../store/topic'
 import { readProfile } from '../store/user'
@@ -25,7 +25,7 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
   const { user, ref } = await requireTopic(c)
 
   // トップレベルは要約の置き場なので、話しかける先は必ずその中のトピックになる。
-  if (!ref.sub) {
+  if (isGroupRef(ref)) {
     throw new HTTPException(400, { message: 'このトピックの中から選んで話しかけてね' })
   }
 

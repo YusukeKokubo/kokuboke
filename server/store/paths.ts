@@ -74,9 +74,18 @@ export function assertTopicRef(topic: string, sub?: string | null): TopicRef {
   return sub ? { topic: parent, sub: assertTopicName(sub) } : { topic: parent }
 }
 
+/**
+ * 器（トップレベル）を指すか。`sub` が無いときだけ真。
+ * 空文字は「子の途中状態」なので偽（`!ref.sub` だと真になってしまう）。
+ */
+export function isGroupRef(ref: TopicRef): boolean {
+  return ref.sub === undefined
+}
+
 export function topicDir(user: string, ref: TopicRef): string {
   const dir = path.join(topicsDir(user), assertTopicName(ref.topic))
-  return ref.sub ? path.join(dir, assertTopicName(ref.sub)) : dir
+  if (isGroupRef(ref)) return dir
+  return path.join(dir, assertTopicName(ref.sub!))
 }
 
 export function logsDir(user: string, ref: TopicRef): string {

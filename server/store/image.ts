@@ -4,7 +4,7 @@ import { HTTPException } from 'hono/http-exception'
 import sharp from 'sharp'
 import { config } from '../config'
 import type { Message } from '../../shared/types'
-import { imagesDir, type TopicRef } from './paths'
+import { imagesDir, isGroupRef, type TopicRef } from './paths'
 import { localDate } from './date'
 
 export interface SavedImage {
@@ -84,7 +84,9 @@ export function imageName(stored: string): string {
  * 子トピックの分は、経路の途中に `sub` を挟んで親と区別する。
  */
 export function mediaUrl(user: string, ref: TopicRef, stored: string): string {
-  const segments = ref.sub ? [user, ref.topic, 'sub', ref.sub] : [user, ref.topic]
+  const segments = isGroupRef(ref)
+    ? [user, ref.topic]
+    : [user, ref.topic, 'sub', ref.sub!]
   segments.push(imageName(stored))
   return `/media/${segments.map(encodeURIComponent).join('/')}`
 }

@@ -104,9 +104,9 @@ export function summarySystemPrompt(input: {
   user: string
   topicName: string
   /** 器の共有の要約を書くとき。会話は中のトピック側にある。 */
-  group?: boolean
+  isGroup?: boolean
 }): string {
-  const where = input.group
+  const where = input.isGroup
     ? `対象は「${input.user}」さんの「${input.topicName}」トピックです。ここは会話をしない器で、中のどれで話しても共有したい前提を残します。`
     : `対象は「${input.user}」さんの「${input.topicName}」トピックです。`
 

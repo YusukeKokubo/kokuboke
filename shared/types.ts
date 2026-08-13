@@ -13,8 +13,14 @@ export interface Message {
 export type EngineId = 'claude' | 'cursor'
 
 /**
- * トピックの位置。`sub` があれば、そのトピックの中の子トピックを指す。
- * 入れ子は一段までで、それ以上は掘らない。
+ * トピックの位置。入れ子は一段まで。
+ *
+ * - `sub` が無い（undefined）→ 器（トップレベル）
+ * - `sub` がある → その器の中の子
+ *
+ * 空文字の `sub` は「子を作る途中で slug がまだ無い」印で、`withSlug` だけが読む。
+ * それ以外に渡してはいけない。判定は必ず `isGroupRef` を通す（`!ref.sub` だと
+ * 空文字も器扱いになる）。
  */
 export interface TopicRef {
   topic: string

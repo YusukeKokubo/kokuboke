@@ -7,7 +7,7 @@ import { config } from '../config'
 import { readJson } from '../lib/body'
 import { TOPIC_TEMPLATES } from '../templates'
 import { readRecent } from '../store/log'
-import { assertTopicName, assertUser, normalizeTopicName, topicDir } from '../store/paths'
+import { assertTopicName, assertUser, isGroupRef, normalizeTopicName, topicDir } from '../store/paths'
 import {
   createTopic,
   listChildren,
@@ -110,7 +110,7 @@ topics.on('GET', topicPaths(), async (c) => {
   const { user, ref } = await requireTopic(c)
 
   const topic = await readTopic(user, ref)
-  if (!ref.sub) topic.children = await listChildren(user, ref.topic)
+  if (isGroupRef(ref)) topic.children = await listChildren(user, ref.topic)
 
   return c.json(topic)
 })
@@ -134,7 +134,7 @@ topics.on('PATCH', topicPaths(), async (c) => {
  */
 topics.on('POST', topicPaths('/name'), async (c) => {
   const { user, ref } = await requireTopic(c)
-  if (!ref.sub) {
+  if (isGroupRef(ref)) {
     throw new HTTPException(400, { message: '名前を付けられるのは中のトピックだけです' })
   }
 

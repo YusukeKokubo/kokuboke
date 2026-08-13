@@ -8,7 +8,7 @@ import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { readJson } from '../lib/body'
 import { readRecent } from '../store/log'
-import { topicDir } from '../store/paths'
+import { topicDir, isGroupRef } from '../store/paths'
 import {
   readChildSources,
   readGroupSummary,
@@ -49,7 +49,7 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
 
   const meta = await readTopic(user, ref)
   const days = Math.max(config.contextDays, 14)
-  const isGroup = !ref.sub
+  const isGroup = isGroupRef(ref)
 
   // 器は自分では話さない。中のトピックの記録から共有の前提を拾う。
   const prompt = isGroup
@@ -73,7 +73,7 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
       const events = runAgent(choice, {
         cwd: topicDir(user, ref),
         prompt,
-        systemPrompt: summarySystemPrompt({ user, topicName: meta.name, group: isGroup }),
+        systemPrompt: summarySystemPrompt({ user, topicName: meta.name, isGroup }),
         signal: c.req.raw.signal,
       })
 

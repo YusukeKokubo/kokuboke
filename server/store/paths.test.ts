@@ -10,7 +10,7 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kokuboke-test-'))
 process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro,hanako'
 
-const { assertInsideDataDir, assertTopicName, assertUser, isTopicName, normalizeTopicName, toTopicName } =
+const { assertInsideDataDir, assertTopicName, assertUser, isGroupRef, isTopicName, normalizeTopicName, toTopicName } =
   await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
@@ -126,6 +126,20 @@ describe('assertTopicName', () => {
     assert.throws(() => assertTopicName('../secret'), { status: 400 })
     assert.throws(() => assertTopicName('a/b'), { status: 400 })
     assert.throws(() => assertTopicName(''), { status: 400 })
+  })
+})
+
+describe('isGroupRef', () => {
+  it('sub が無ければ器', () => {
+    assert.equal(isGroupRef({ topic: 'スキンケア' }), true)
+  })
+
+  it('sub があれば子', () => {
+    assert.equal(isGroupRef({ topic: 'スキンケア', sub: '肌の記録' }), false)
+  })
+
+  it('空文字の sub は子の途中状態で、器にはしない', () => {
+    assert.equal(isGroupRef({ topic: 'スキンケア', sub: '' }), false)
   })
 })
 
