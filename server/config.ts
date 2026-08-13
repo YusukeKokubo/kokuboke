@@ -51,7 +51,7 @@ export const config = {
   claudeBin: process.env.CLAUDE_BIN ?? 'claude',
   cursorBin: process.env.CURSOR_BIN ?? 'cursor-agent',
 
-  /** 会話に使うモデル。ENGINES にある id か、CLI が受け付ける別名。 */
+  /** 会話に使うモデル。ENGINES にある id。無い値は捨てて既定に落ちる。 */
   claudeModel: process.env.CLAUDE_MODEL ?? 'claude-opus-5',
 
   /** cursor-agent 側の既定モデル。 */
