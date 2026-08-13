@@ -32,42 +32,18 @@ export function userProfileMd(user: string): string {
 }
 
 /**
- * 画面に出す雛形。足すときは TemplateId と CLAUDE_BODIES を一緒に直す。
+ * 雛形の定義。画面の一覧・本文・判定はここから組み立てる。
+ * 足すときは TemplateId とここを一緒に直す。
  */
-export const TOPIC_TEMPLATES: TopicTemplate[] = [
-  {
-    id: 'study',
+const TEMPLATES: Record<
+  TemplateId,
+  { label: string; description: string; emoji: string; body: string }
+> = {
+  study: {
     label: '学習のサポート',
     description: '答えを教えるより、考え方を引き出す家庭教師',
     emoji: '📘',
-  },
-  {
-    id: 'advice',
-    label: '相談・アドバイス',
-    description: 'スキンケアや体調など、続けて相談したいこと',
-    emoji: '💬',
-  },
-  {
-    id: 'recipe',
-    label: '料理・レシピ',
-    description: '冷蔵庫の中身や写真から献立を考える',
-    emoji: '🍳',
-  },
-  {
-    id: 'plain',
-    label: '指定なし',
-    description: '特に役割を決めず、あとから自分で書く',
-    emoji: '📝',
-  },
-]
-
-export function isTemplateId(value: unknown): value is TemplateId {
-  return typeof value === 'string' && TOPIC_TEMPLATES.some((item) => item.id === value)
-}
-
-/** 雛形ごとの役割の本文。TemplateId を増やすとここに型で迫られる。 */
-const CLAUDE_BODIES: Record<TemplateId, string> = {
-  study: `## 役割
+    body: `## 役割
 
 学習を手伝う家庭教師として振る舞う。
 
@@ -78,7 +54,12 @@ const CLAUDE_BODIES: Record<TemplateId, string> = {
 - 途中式や図がある写真を送られたら、どこまで合っているかを先に伝える。
 - 間違いを責めない。惜しかった部分を先に言う。
 `,
-  advice: `## 役割
+  },
+  advice: {
+    label: '相談・アドバイス',
+    description: 'スキンケアや体調など、続けて相談したいこと',
+    emoji: '💬',
+    body: `## 役割
 
 継続して相談に乗る相手として振る舞う。
 
@@ -89,7 +70,12 @@ const CLAUDE_BODIES: Record<TemplateId, string> = {
 - 前回からの変化があれば、それに触れてから本題に入る。
 - 写真を送られたら、見て取れることだけを述べ、断定はしない。
 `,
-  recipe: `## 役割
+  },
+  recipe: {
+    label: '料理・レシピ',
+    description: '冷蔵庫の中身や写真から献立を考える',
+    emoji: '🍳',
+    body: `## 役割
 
 日々の料理を一緒に考える相手として振る舞う。
 
@@ -100,16 +86,35 @@ const CLAUDE_BODIES: Record<TemplateId, string> = {
 - 足りない材料があるときは、代わりに使えるものも書く。
 - 手順は番号を振って、一手順を一行で。
 `,
-  plain: `## 役割
+  },
+  plain: {
+    label: '指定なし',
+    description: '特に役割を決めず、あとから自分で書く',
+    emoji: '📝',
+    body: `## 役割
 
 （ここに書く）
 `,
+  },
+}
+
+export const TOPIC_TEMPLATES: TopicTemplate[] = (
+  Object.entries(TEMPLATES) as [TemplateId, (typeof TEMPLATES)[TemplateId]][]
+).map(([id, item]) => ({
+  id,
+  label: item.label,
+  description: item.description,
+  emoji: item.emoji,
+}))
+
+export function isTemplateId(value: unknown): value is TemplateId {
+  return typeof value === 'string' && value in TEMPLATES
 }
 
 export function topicClaudeMd(templateId: string, name: string): string {
   const header = `# ${name}\n\nこのトピックでの役割をここに書く。上の階層の CLAUDE.md も一緒に読まれる。\n\n`
   const id = isTemplateId(templateId) ? templateId : 'plain'
-  return header + CLAUDE_BODIES[id]
+  return header + TEMPLATES[id].body
 }
 
 export function topicSummaryMd(name: string): string {

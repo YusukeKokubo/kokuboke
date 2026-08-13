@@ -8,10 +8,10 @@ import {
   type Profile,
   type Summary,
   type SummaryEvent,
+  type TemplateId,
   type Topic,
   type TopicRef,
   type TopicTemplate,
-  type TemplateId,
   type UpdateResult,
   type UpdateStatus,
 } from '../../shared/types'

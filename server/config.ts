@@ -20,15 +20,11 @@ function list(value: string | undefined): string[] {
     .filter(Boolean)
 }
 
-/** 空なら空のまま。値があるのに一覧外なら起動時に落とす。 */
-function oneOf<T extends string>(
-  value: string | undefined,
-  allowed: readonly T[],
-  name: string,
-): T | '' {
+/** 空なら空のまま。一覧外は空に落とし、assertConfig で起動時に弾く。 */
+function oneOf<T extends string>(value: string | undefined, allowed: readonly T[]): T | '' {
   if (!value) return ''
   if ((allowed as readonly string[]).includes(value)) return value as T
-  throw new Error(`${name} が不正です。使えるのは ${allowed.join(' | ')}`)
+  return ''
 }
 
 const CLAUDE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -79,8 +75,8 @@ export const config = {
   /** 要約は素早く安く済ませたいので、別に指定できるようにする。ENGINES にある id で。 */
   summaryModel: process.env.SUMMARY_MODEL ?? 'claude-sonnet-5',
 
-  /** low | medium | high | xhigh | max。未指定なら CLI の既定に任せる。 */
-  claudeEffort: oneOf(process.env.CLAUDE_EFFORT, CLAUDE_EFFORTS, 'CLAUDE_EFFORT'),
+  /** 未指定なら CLI の既定に任せる。 */
+  claudeEffort: oneOf(process.env.CLAUDE_EFFORT, CLAUDE_EFFORTS),
 
   /**
    * このイメージを作った元のコミット。Dockerfile が GIT_SHA から焼き込む。
@@ -108,5 +104,8 @@ export const config = {
 export function assertConfig(): void {
   if (config.users.length === 0) {
     throw new Error('環境変数 USERS が空です。例: USERS=taro,hanako')
+  }
+  if (process.env.CLAUDE_EFFORT && !config.claudeEffort) {
+    throw new Error(`CLAUDE_EFFORT が不正です。使えるのは ${CLAUDE_EFFORTS.join(' | ')}`)
   }
 }
