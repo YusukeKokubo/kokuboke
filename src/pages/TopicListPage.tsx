@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { FilePlus2, NotebookPen, Plus, ScrollText, Settings2 } from 'lucide-react'
+import { NotebookPen, Plus, ScrollText, Settings2 } from 'lucide-react'
 import type { Topic, TopicRef } from '../../shared/types'
 import { api } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
@@ -18,8 +18,7 @@ export default function TopicListPage() {
   const navigate = useNavigate()
   const [topics, setTopics] = useState<Topic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  /** 新規作成の相手。null ならトップレベル、文字列ならそのトピックの中。 */
-  const [creating, setCreating] = useState<string | null | undefined>(undefined)
+  const [creating, setCreating] = useState(false)
   const [memoryFor, setMemoryFor] = useState<TopicRef | null>(null)
   const [claudeFor, setClaudeFor] = useState<TopicRef | null>(null)
   const [docsOpen, setDocsOpen] = useState(false)
@@ -60,7 +59,7 @@ export default function TopicListPage() {
             <Settings2 className="size-4" />
             設定
           </Button>
-          <Button size="sm" onClick={() => setCreating(null)}>
+          <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="size-4" />
             新しく作る
           </Button>
@@ -87,38 +86,39 @@ export default function TopicListPage() {
         <ul className="flex flex-col gap-1.5">
           {topics?.map((topic) => (
             <li key={topic.slug} className="pt-1">
-              <div className="flex items-center gap-2 px-1 pb-1.5">
-                <span className="text-base">{topic.emoji}</span>
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold">{topic.name}</span>
-                <IconButton
-                  label={`${topic.name} の振る舞い`}
-                  onClick={() => setClaudeFor({ topic: topic.slug })}
-                >
-                  <ScrollText className="size-4" />
-                </IconButton>
-                <IconButton
-                  label={`${topic.name} の記憶`}
-                  onClick={() => setMemoryFor({ topic: topic.slug })}
-                >
-                  <NotebookPen className="size-4" />
-                </IconButton>
-                <IconButton
-                  label={`${topic.name} の中に、名前を決めて作る`}
-                  onClick={() => setCreating(topic.slug)}
-                >
-                  <FilePlus2 className="size-4" />
-                </IconButton>
-                <IconButton
-                  label={`${topic.name} の中で新しく話す`}
-                  onClick={() => start(topic.slug)}
-                >
-                  <Plus className="size-4" />
-                </IconButton>
+              <div className="flex flex-col gap-0.5 px-1 pb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{topic.emoji}</span>
+                  <span className="min-w-0 truncate text-sm font-semibold">{topic.name}</span>
+                </div>
+                <div className="-ml-1.5 flex flex-wrap items-center">
+                  <TopicButton
+                    label="振る舞い"
+                    title={`${topic.name} の振る舞い`}
+                    onClick={() => setClaudeFor({ topic: topic.slug })}
+                  >
+                    <ScrollText className="size-3.5" />
+                  </TopicButton>
+                  <TopicButton
+                    label="記憶"
+                    title={`${topic.name} の記憶`}
+                    onClick={() => setMemoryFor({ topic: topic.slug })}
+                  >
+                    <NotebookPen className="size-3.5" />
+                  </TopicButton>
+                  <TopicButton
+                    label="話す"
+                    title={`${topic.name} の中で新しく話す`}
+                    onClick={() => start(topic.slug)}
+                  >
+                    <Plus className="size-3.5" />
+                  </TopicButton>
+                </div>
               </div>
 
               {topic.children.length === 0 ? (
                 <p className="text-muted-foreground ml-3 border-l pl-3 text-xs">
-                  まだ中に何もないよ。＋を押すとすぐ話し始められる。
+                  まだ中に何もないよ。「話す」を押すとすぐ話し始められる。
                 </p>
               ) : (
                 <ul className="ml-3 flex flex-col gap-1.5 border-l pl-3">
@@ -137,12 +137,10 @@ export default function TopicListPage() {
       </main>
 
       <NewTopicDialog
-        open={creating !== undefined}
-        parent={creating ?? null}
-        onOpenChange={(open) => !open && setCreating(undefined)}
+        open={creating}
+        onOpenChange={setCreating}
         onCreate={async (input) => {
-          if (creating) await api.createChild(user, creating, input)
-          else await api.createTopic(user, input)
+          await api.createTopic(user, input)
           load()
         }}
       />
@@ -166,12 +164,14 @@ export default function TopicListPage() {
   )
 }
 
-function IconButton({
+function TopicButton({
   label,
+  title,
   onClick,
   children,
 }: {
   label: string
+  title: string
   onClick: () => void
   children: React.ReactNode
 }) {
@@ -179,12 +179,13 @@ function IconButton({
     <Button
       type="button"
       variant="ghost"
-      size="icon"
-      aria-label={label}
+      size="sm"
+      title={title}
       onClick={onClick}
-      className="text-muted-foreground size-8 shrink-0"
+      className="text-muted-foreground shrink-0"
     >
       {children}
+      {label}
     </Button>
   )
 }

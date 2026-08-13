@@ -65,14 +65,6 @@ export const api = {
       body: JSON.stringify(input),
     }).then((r) => unwrap<Topic>(r)),
 
-  /** トピックの中をさらに分ける。 */
-  createChild: (user: string, topic: string, input: NewTopic) =>
-    fetch(`/api/users/${path(user)}/topics/${path(topic)}/sub`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(input),
-    }).then((r) => unwrap<Topic>(r)),
-
   /** 名前も雛形も決めずに始める。フォルダ名は仮のもので、あとから付け直される。 */
   startChild: (user: string, topic: string) =>
     fetch(`/api/users/${path(user)}/topics/${path(topic)}/sub`, {

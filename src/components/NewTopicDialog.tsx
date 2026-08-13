@@ -13,12 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { ModelPicker, type ModelSelection } from '@/components/ModelPicker'
 
 interface Props {
   open: boolean
-  /** この名前のトピックの中に作る。トップレベルに作るなら null。 */
-  parent?: string | null
   onOpenChange: (open: boolean) => void
   onCreate: (input: {
     name: string
@@ -29,12 +26,11 @@ interface Props {
   }) => Promise<void>
 }
 
-export function NewTopicDialog({ open, parent = null, onOpenChange, onCreate }: Props) {
+export function NewTopicDialog({ open, onOpenChange, onCreate }: Props) {
   const [templates, setTemplates] = useState<TopicTemplate[]>([])
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('💬')
   const [template, setTemplate] = useState('plain')
-  const [model, setModel] = useState<ModelSelection | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,8 +50,8 @@ export function NewTopicDialog({ open, parent = null, onOpenChange, onCreate }: 
         name: name.trim(),
         emoji,
         template,
-        engine: model?.engine ?? '',
-        model: model?.model ?? '',
+        engine: '',
+        model: '',
       })
       onOpenChange(false)
     } catch (cause) {
@@ -69,11 +65,9 @@ export function NewTopicDialog({ open, parent = null, onOpenChange, onCreate }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{parent ? `${parent} の中に作る` : '新しいトピック'}</DialogTitle>
+          <DialogTitle>新しいトピック</DialogTitle>
           <DialogDescription>
-            {parent
-              ? '中で分けても、上に書いた記憶はどれにも効くよ。'
-              : 'ここは記憶の置き場だよ。話しかけるのは、この中に作ったトピック。'}
+            ここは記憶の置き場だよ。話しかけるのは、この中に作ったトピック。
           </DialogDescription>
         </DialogHeader>
 
@@ -122,16 +116,6 @@ export function NewTopicDialog({ open, parent = null, onOpenChange, onCreate }: 
               </button>
             ))}
           </div>
-
-          {/* 器では話さないので、モデルを選ぶのは中のトピックのときだけ。 */}
-          {parent && (
-            <div className="border-t pt-4">
-              <ModelPicker value={model} onChange={setModel} />
-              <p className="text-muted-foreground mt-2 text-xs">
-                選ばなければ既定のモデルを使うよ。あとから変えられる。
-              </p>
-            </div>
-          )}
 
           {error && <p className="text-destructive text-sm">{error}</p>}
         </div>

@@ -240,7 +240,7 @@ export default function ChatPage() {
           <div className="flex flex-col gap-2 py-6">
             <p className="text-muted-foreground text-center text-sm">
               {meta && meta.children.length === 0
-                ? 'まだ中に何もないよ。一覧から中のトピックを作ってね。'
+                ? 'まだ中に何もないよ。一覧の「話す」から始められるよ。'
                 : 'このトピックの中から、どれで話すか選んでね。'}
             </p>
             {meta?.children.map((child) => (
