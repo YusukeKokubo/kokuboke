@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, NotebookPen, Pencil, ScrollText } from 'lucide-react'
-import type { Message, Topic } from '../../shared/types'
+import { isGroupRef, type Message, type Topic } from '../../shared/types'
 import { api, sendMessage } from '@/lib/api'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
 import { rememberUser } from '@/lib/remember'
@@ -43,7 +43,7 @@ export default function ChatPage() {
   const stick = useRef(true)
 
   // トップレベルは要約の置き場。ここでは話さず、中への入口だけ見せる。
-  const isGroup = !sub
+  const isGroup = isGroupRef(ref)
 
   /**
    * 入力欄は sticky で本文の上に重なる。目印の要素に寄せると入力欄の高さだけ足りないので、
