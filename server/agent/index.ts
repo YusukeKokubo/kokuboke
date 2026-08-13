@@ -1,10 +1,14 @@
 import { HTTPException } from 'hono/http-exception'
+import type { EngineId } from '../../shared/types'
 import { config } from '../config'
 import { claudeCode } from './claude-code'
 import { cursorAgent } from './cursor'
-import type { AgentEvent, EngineId, RunRequest } from './types'
+import { ENGINES, isEngineId } from './engines'
+import type { AgentEvent, RunRequest } from './types'
 
 export type { AgentEvent, EngineId } from './types'
+export type { EngineInfo } from '../../shared/types'
+export { ENGINES, isEngineId } from './engines'
 
 export interface ModelChoice {
   engine: EngineId
@@ -12,47 +16,15 @@ export interface ModelChoice {
   label: string
 }
 
-export interface EngineInfo {
-  id: EngineId
-  label: string
-  note: string
-  models: Array<{ id: string; label: string }>
-}
-
-/**
- * 画面に出す選択肢。cursor-agent 側は `cursor-agent --list-models` で
- * 出てくるもののうち、この用途に向くものを絞って載せている。
- */
-export const ENGINES: EngineInfo[] = [
-  {
-    id: 'claude',
-    label: 'Claude Code',
-    note: 'CLAUDE.md をそのまま読む。',
-    models: [
-      { id: 'claude-opus-5', label: 'Opus 5' },
-      { id: 'claude-sonnet-5', label: 'Sonnet 5' },
-      { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
-    ],
-  },
-  {
-    id: 'cursor',
-    label: 'Cursor',
-    note: 'GPT や Grok も選べる。',
-    models: [
-      { id: 'auto', label: 'おまかせ' },
-      { id: 'composer-2.5', label: 'Composer 2.5' },
-      { id: 'claude-opus-5-thinking-high', label: 'Opus 5 Thinking' },
-      { id: 'gpt-5.2', label: 'GPT-5.2' },
-      { id: 'gpt-5.3-codex', label: 'Codex 5.3' },
-      { id: 'cursor-grok-4.5-high', label: 'Grok 4.5' },
-    ],
-  },
-]
-
 const IMPLEMENTATIONS = { claude: claudeCode, cursor: cursorAgent } as const
 
-export function isEngineId(value: unknown): value is EngineId {
-  return value === 'claude' || value === 'cursor'
+/** エンジンごとの会話用の既定モデル。EngineId を増やすとここも型で迫られる。 */
+function defaultModel(engine: EngineId): string {
+  const models: Record<EngineId, string> = {
+    claude: config.claudeModel,
+    cursor: config.cursorModel,
+  }
+  return models[engine]
 }
 
 /** 指定が無い、あるいは知らない組み合わせなら既定に落とす。 */
@@ -63,13 +35,21 @@ export function resolveModel(engine?: string | null, model?: string | null): Mod
   const chosen = info.models.find((item) => item.id === model)
   if (chosen) return { engine: id, model: chosen.id, label: `${info.label} / ${chosen.label}` }
 
-  const fallback = id === 'claude' ? config.claudeModel : config.cursorModel
+  const fallback = defaultModel(id)
   const known = info.models.find((item) => item.id === fallback)
   return {
     engine: id,
     model: fallback,
     label: `${info.label} / ${known?.label ?? fallback}`,
   }
+}
+
+/**
+ * 要約・命名向け。Claude のときは SUMMARY_MODEL、Cursor のときは会話と同じ既定。
+ */
+export function resolveSummaryModel(): ModelChoice {
+  const model = config.summaryEngine === 'claude' ? config.summaryModel : defaultModel(config.summaryEngine)
+  return resolveModel(config.summaryEngine, model)
 }
 
 export function runAgent(choice: ModelChoice, request: Omit<RunRequest, 'model'>): AsyncGenerator<AgentEvent> {

@@ -1,5 +1,9 @@
+import { NO_NAME } from '../../shared/types'
+
 const TIME = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit', hour12: false })
 const DAY = new Intl.DateTimeFormat('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })
+
+export { NO_NAME }
 
 export function timeLabel(iso: string): string {
   return TIME.format(new Date(iso))
@@ -22,9 +26,6 @@ export function dayLabel(iso: string): string {
   if (key === yesterday) return '昨日'
   return DAY.format(new Date(iso))
 }
-
-/** 名前がまだ付いていないトピックの見出し。 */
-export const NO_NAME = 'まだ名前のない話'
 
 export function topicLabel(topic: { name: string }): string {
   return topic.name || NO_NAME

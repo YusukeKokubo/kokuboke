@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { streamSSE } from 'hono/streaming'
 import { isGroupRef, type Summary, type SummaryEvent, type TopicRef } from '../../shared/types'
-import { resolveModel, runAgent } from '../agent'
+import { resolveModel, resolveSummaryModel, runAgent } from '../agent'
 import { groupSummaryPrompt, summaryPrompt, summarySystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
@@ -60,9 +60,7 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
   const body = await readJson<{ engine?: string; model?: string }>(c.req.raw)
   const choice = body.engine
     ? resolveModel(body.engine, body.model)
-    : config.summaryEngine === 'cursor'
-      ? resolveModel('cursor', config.cursorModel)
-      : resolveModel('claude', config.summaryModel)
+    : resolveSummaryModel()
 
   const release = await limiter.acquire(user)
 

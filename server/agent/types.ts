@@ -1,4 +1,6 @@
-export type EngineId = 'claude' | 'cursor'
+import type { EngineId } from '../../shared/types'
+
+export type { EngineId }
 
 export type AgentEvent =
   | { type: 'delta'; text: string }

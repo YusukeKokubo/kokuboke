@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { HTTPException } from 'hono/http-exception'
-import type { EngineId, Message, Topic } from '../../shared/types'
+import { NO_NAME, type EngineId, type Message, type Topic } from '../../shared/types'
 import { resolveModel } from '../agent'
 import { groupSummaryMd, topicClaudeMd, topicSummaryMd } from '../templates'
 import {
@@ -33,9 +33,6 @@ interface TopicMeta {
 
 /** 本人がこれだけ話したら、会話を読んで名前を付けにいく。 */
 const AUTO_NAME_AFTER = 3
-
-/** 名前が付くまでのあいだ、画面と雛形の見出しに使う呼び名。 */
-const NO_NAME = 'まだ名前のない話'
 
 function metaFile(user: string, ref: TopicRef): string {
   return path.join(topicDir(user, ref), 'topic.json')
@@ -360,7 +357,7 @@ export async function readChildSources(
   for (const child of children) {
     const ref = { topic, sub: child.slug }
     sources.push({
-      name: child.name || child.slug,
+      name: child.name || NO_NAME,
       summary: await readSummary(user, ref),
       history: await readRecent(user, ref, days),
     })

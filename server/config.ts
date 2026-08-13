@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { isEngineId } from './agent/engines'
 
 // 手元で `npm run dev` するときのために .env を読む。
 // コンテナでは compose が環境変数を渡すので、このファイルは存在しない。
@@ -43,8 +44,8 @@ export const config = {
   /** 受け付けるアップロードの最大バイト数。 */
   uploadMaxBytes: num(process.env.UPLOAD_MAX_BYTES, 20 * 1024 * 1024),
 
-  /** トピックに指定が無いときに使うエンジン。claude | cursor */
-  defaultEngine: process.env.DEFAULT_ENGINE === 'claude' ? ('claude' as const) : ('cursor' as const),
+  /** トピックに指定が無いときに使うエンジン。 */
+  defaultEngine: isEngineId(process.env.DEFAULT_ENGINE) ? process.env.DEFAULT_ENGINE : 'cursor',
 
   /** 各 CLI の実行ファイル名。PATH 上にあるものを使う。 */
   claudeBin: process.env.CLAUDE_BIN ?? 'claude',
@@ -60,7 +61,7 @@ export const config = {
    * 要約の更新に使うエンジン。会話と違ってファイルを書き換えるので、
    * ツール単位で権限を絞れる Claude Code を既定にしている。
    */
-  summaryEngine: process.env.SUMMARY_ENGINE === 'cursor' ? ('cursor' as const) : ('claude' as const),
+  summaryEngine: isEngineId(process.env.SUMMARY_ENGINE) ? process.env.SUMMARY_ENGINE : 'claude',
 
   /** 要約は素早く安く済ませたいので、別に指定できるようにする。 */
   summaryModel: process.env.SUMMARY_MODEL ?? 'sonnet',

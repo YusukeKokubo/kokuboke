@@ -12,6 +12,20 @@ export interface Message {
 
 export type EngineId = 'claude' | 'cursor'
 
+export interface EngineInfo {
+  id: EngineId
+  label: string
+  note: string
+  models: Array<{ id: string; label: string }>
+}
+
+/**
+ * 名前がまだ付いていないトピックの見出し。
+ * サーバーは作った直後の CLAUDE.md / summary.md に焼き込み、画面は表示のたびに使う。
+ * 文言を変えても、すでに書いたファイルの見出しは古い方のまま残る。
+ */
+export const NO_NAME = 'まだ名前のない話'
+
 /**
  * トピックの位置。入れ子は一段まで。
  *
@@ -56,13 +70,6 @@ export interface Topic {
    * 要約の置き場として扱う。子トピックの側では常に空。
    */
   children: Topic[]
-}
-
-export interface EngineInfo {
-  id: EngineId
-  label: string
-  note: string
-  models: Array<{ id: string; label: string }>
 }
 
 export interface TopicTemplate {

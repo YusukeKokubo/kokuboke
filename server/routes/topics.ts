@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { isGroupRef } from '../../shared/types'
-import { ENGINES, resolveModel, runAgent } from '../agent'
+import { ENGINES, resolveSummaryModel, runAgent } from '../agent'
 import { namePrompt, nameSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
@@ -148,10 +148,7 @@ topics.on('POST', topicPaths('/name'), async (c) => {
     throw new HTTPException(400, { message: 'まだ記録がありません' })
   }
 
-  const choice =
-    config.summaryEngine === 'cursor'
-      ? resolveModel('cursor', config.cursorModel)
-      : resolveModel('claude', config.summaryModel)
+  const choice = resolveSummaryModel()
 
   const group = await readTopic(user, { topic: ref.topic })
   const release = await limiter.acquire(user)
