@@ -100,10 +100,19 @@ ${renderHistory(input.history)}
 {"name": "見出し", "emoji": "🍳"}`
 }
 
-export function summarySystemPrompt(input: { user: string; topicName: string }): string {
+export function summarySystemPrompt(input: {
+  user: string
+  topicName: string
+  /** 器の共有記憶を書くとき。会話は中のトピック側にある。 */
+  group?: boolean
+}): string {
+  const where = input.group
+    ? `対象は「${input.user}」さんの「${input.topicName}」トピックです。ここは会話をしない器で、中のどれで話しても共有したい前提を残します。`
+    : `対象は「${input.user}」さんの「${input.topicName}」トピックです。`
+
   return `あなたは会話の記録を整理する係です。
 
-- 対象は「${input.user}」さんの「${input.topicName}」トピックです。
+- ${where}
 - ファイルは書き換えません。新しい summary.md の全文を返すところまでが仕事です。
   保存するかどうかは人が決めます。
 - 前置き・説明・報告は書かないでください。返すのは summary.md の中身だけです。`
@@ -135,6 +144,47 @@ export function summaryPrompt(input: {
 
 - すでに書かれている内容は消さずに、変わったところだけ直し、新しく分かったことを足します。
 - 個々のやりとりを列挙するのではなく、続けて話すために必要な事実と経緯を残します。
+- 会話のたびに読み込まれるので、簡潔に保ってください。
+- そのままファイルに保存できる形で、本文だけを返します。全体をコードブロックで
+  囲まないでください。`)
+
+  return parts.join('\n\n')
+}
+
+export function groupSummaryPrompt(input: {
+  topicName: string
+  summary: string
+  children: { name: string; summary: string; history: Message[] }[]
+}): string {
+  const parts: string[] = []
+
+  if (input.summary.trim()) {
+    parts.push(`<current_summary>\n${input.summary.trim()}\n</current_summary>`)
+  }
+
+  const blocks = input.children.map((child) => {
+    const body: string[] = [`<child>`, `<name>${child.name}</name>`]
+    if (child.summary.trim()) {
+      body.push(`<summary>\n${child.summary.trim()}\n</summary>`)
+    }
+    if (child.history.length > 0) {
+      body.push(`<conversation>\n${renderHistory(child.history)}\n</conversation>`)
+    }
+    body.push(`</child>`)
+    return body.join('\n')
+  })
+
+  // 新しい順に並んでいるので、溢れたら古い方から落とす。
+  while (blocks.join('\n\n').length > MAX_HISTORY_CHARS && blocks.length > 1) {
+    blocks.pop()
+  }
+  parts.push(`<children>\n${blocks.join('\n\n')}\n</children>`)
+
+  parts.push(`上の中のトピックの記録を踏まえて、「${input.topicName}」トピックの summary.md を書き直してください。
+
+- ここに書くのは、中のどれで話しても効かせたい共有の前提です。
+- 一つの話に閉じた経緯はそれぞれの記憶に任せ、ここでは繰り返さないでください。
+- すでに書かれている内容は消さずに、変わったところだけ直し、新しく分かったことを足します。
 - 会話のたびに読み込まれるので、簡潔に保ってください。
 - そのままファイルに保存できる形で、本文だけを返します。全体をコードブロックで
   囲まないでください。`)

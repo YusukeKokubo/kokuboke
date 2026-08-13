@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { HTTPException } from 'hono/http-exception'
-import type { EngineId, Topic } from '../../shared/types'
+import type { EngineId, Message, Topic } from '../../shared/types'
 import { resolveModel } from '../agent'
 import { topicClaudeMd, topicSummaryMd } from '../templates'
 import {
@@ -15,7 +15,7 @@ import {
   type TopicRef,
 } from './paths'
 import { localDate, localTime, stamp } from './date'
-import { countUserMessages, readLastEntry } from './log'
+import { countUserMessages, readLastEntry, readRecent } from './log'
 import { ensureAgentsLink, ensureUser } from './user'
 
 interface TopicMeta {
@@ -333,6 +333,31 @@ async function read(file: string): Promise<string> {
 
 export async function readSummary(user: string, ref: TopicRef): Promise<string> {
   return read(path.join(topicDir(user, ref), 'summary.md'))
+}
+
+/** 器の要約を書くときの材料。中のトピックそれぞれの記憶と直近の会話。 */
+export interface ChildSource {
+  name: string
+  summary: string
+  history: Message[]
+}
+
+export async function readChildSources(
+  user: string,
+  topic: string,
+  days: number,
+): Promise<ChildSource[]> {
+  const children = await listChildren(user, topic)
+  const sources: ChildSource[] = []
+  for (const child of children) {
+    const ref = { topic, sub: child.slug }
+    sources.push({
+      name: child.name || child.slug,
+      summary: await readSummary(user, ref),
+      history: await readRecent(user, ref, days),
+    })
+  }
+  return sources
 }
 
 export async function readClaude(user: string, ref: TopicRef): Promise<string> {

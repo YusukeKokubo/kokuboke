@@ -1,15 +1,21 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { streamSSE } from 'hono/streaming'
-import type { Memory, SummaryEvent } from '../../shared/types'
+import type { Memory, SummaryEvent, TopicRef } from '../../shared/types'
 import { resolveModel, runAgent } from '../agent'
-import { summaryPrompt, summarySystemPrompt } from '../agent/prompt'
+import { groupSummaryPrompt, summaryPrompt, summarySystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { readJson } from '../lib/body'
 import { readRecent } from '../store/log'
 import { topicDir } from '../store/paths'
-import { readParentSummary, readSummary, readTopic, writeSummary } from '../store/topic'
+import {
+  readChildSources,
+  readParentSummary,
+  readSummary,
+  readTopic,
+  writeSummary,
+} from '../store/topic'
 import { requireTopic, topicPaths } from './target'
 
 export const summary = new Hono()
@@ -42,12 +48,13 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
   const { user, ref } = await requireTopic(c)
 
   const meta = await readTopic(user, ref)
-  // 要約は当日だけでなく、もう少し広めに読む。
-  const history = await readRecent(user, ref, Math.max(config.contextDays, 14))
+  const days = Math.max(config.contextDays, 14)
+  const isGroup = !ref.sub
 
-  if (history.length === 0) {
-    throw new HTTPException(400, { message: 'まだ記録がありません' })
-  }
+  // 器は自分では話さない。中のトピックの記録から共有の前提を拾う。
+  const prompt = isGroup
+    ? await groupDraftPrompt(user, ref.topic, meta.name, days)
+    : await topicDraftPrompt(user, ref, meta.name, days)
 
   // 画面から指定が来ればそれを使う。無ければ .env の既定に落ちる。
   const body = await readJson<{ engine?: string; model?: string }>(c.req.raw)
@@ -65,13 +72,8 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
     try {
       const events = runAgent(choice, {
         cwd: topicDir(user, ref),
-        prompt: summaryPrompt({
-          history,
-          topicName: meta.name,
-          summary: await readSummary(user, ref),
-          groupSummary: await readParentSummary(user, ref),
-        }),
-        systemPrompt: summarySystemPrompt({ user, topicName: meta.name }),
+        prompt,
+        systemPrompt: summarySystemPrompt({ user, topicName: meta.name, group: isGroup }),
         signal: c.req.raw.signal,
       })
 
@@ -96,6 +98,41 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
     }
   })
 })
+
+async function topicDraftPrompt(
+  user: string,
+  ref: TopicRef,
+  topicName: string,
+  days: number,
+): Promise<string> {
+  const history = await readRecent(user, ref, days)
+  if (history.length === 0) {
+    throw new HTTPException(400, { message: 'まだ記録がありません' })
+  }
+  return summaryPrompt({
+    history,
+    topicName,
+    summary: await readSummary(user, ref),
+    groupSummary: await readParentSummary(user, ref),
+  })
+}
+
+async function groupDraftPrompt(
+  user: string,
+  topic: string,
+  topicName: string,
+  days: number,
+): Promise<string> {
+  const children = await readChildSources(user, topic, days)
+  if (children.every((child) => child.history.length === 0)) {
+    throw new HTTPException(400, { message: '中のトピックでまだ話していないよ' })
+  }
+  return groupSummaryPrompt({
+    topicName,
+    summary: await readSummary(user, { topic }),
+    children,
+  })
+}
 
 /**
  * 本文だけを返すよう頼んでも、全体をコードブロックで囲んでくることがある。

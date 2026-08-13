@@ -9,7 +9,9 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kokuboke-test-'))
 process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 
-const { readClaude, writeClaude } = await import('./topic')
+const { createTopic, readChildSources, readClaude, writeClaude, writeSummary } =
+  await import('./topic')
+const { appendMessage } = await import('./log')
 const { topicDir } = await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
@@ -41,5 +43,51 @@ describe('トピックの CLAUDE.md', () => {
     await writeClaude(USER, child, '途中式を見る')
     assert.equal(await readClaude(USER, child), '途中式を見る\n')
     assert.equal(await readClaude(USER, REF), '')
+  })
+})
+
+describe('readChildSources', () => {
+  const parent = { topic: '器' }
+
+  beforeEach(async () => {
+    await fsp.rm(topicDir(USER, parent), { recursive: true, force: true })
+  })
+
+  it('中のトピックの記憶と直近の会話を返す', async () => {
+    const group = await createTopic(USER, { name: '器' })
+    const child = await createTopic(USER, { name: '買い物' }, group.slug)
+    const ref = { topic: group.slug, sub: child.slug }
+
+    await writeSummary(USER, ref, '牛乳が切れている')
+    await appendMessage(USER, ref, {
+      id: '1',
+      role: 'user',
+      text: '卵も足して',
+      images: [],
+      at: new Date().toISOString(),
+    })
+
+    const sources = await readChildSources(USER, group.slug, 3)
+    assert.equal(sources.length, 1)
+    assert.equal(sources[0]?.name, '買い物')
+    assert.equal(sources[0]?.summary.trim(), '牛乳が切れている')
+    assert.deepEqual(
+      sources[0]?.history.map((m) => m.text),
+      ['卵も足して'],
+    )
+  })
+
+  it('会話が無い子は history が空', async () => {
+    await createTopic(USER, { name: '器' })
+    await createTopic(USER, { name: '買い物' }, '器')
+
+    const sources = await readChildSources(USER, '器', 3)
+    assert.equal(sources.length, 1)
+    assert.deepEqual(sources[0]?.history, [])
+  })
+
+  it('中が無ければ空', async () => {
+    await createTopic(USER, { name: '器' })
+    assert.deepEqual(await readChildSources(USER, '器', 3), [])
   })
 })
