@@ -80,6 +80,16 @@ export interface Memory {
   summary: string
 }
 
+/** ユーザー直下の profile.md。無ければ空文字。 */
+export interface Profile {
+  profile: string
+}
+
+/** ユーザー直下またはトピックの CLAUDE.md。無ければ空文字。 */
+export interface Claude {
+  claude: string
+}
+
 /** 動いているイメージと GitHub の main のずれ。管理画面が見る。 */
 export interface UpdateStatus {
   /** このイメージを作った元のコミット。焼き込まれていなければ null。 */

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, NotebookPen, Pencil } from 'lucide-react'
+import { ChevronLeft, NotebookPen, Pencil, ScrollText } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
 import { api, sendMessage } from '@/lib/api'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
@@ -9,6 +9,7 @@ import { topicHref } from '@/lib/route'
 import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
+import { TopicClaudeDialog } from '@/components/DocDialog'
 import { MemoryDialog } from '@/components/MemoryDialog'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
@@ -35,6 +36,7 @@ export default function ChatPage() {
   const [notice, setNotice] = useState<string | null>(null)
   const [modelOpen, setModelOpen] = useState(false)
   const [memoryOpen, setMemoryOpen] = useState(false)
+  const [claudeOpen, setClaudeOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
 
   const content = useRef<HTMLElement>(null)
@@ -214,6 +216,16 @@ export default function ChatPage() {
         <Button
           size="sm"
           variant="ghost"
+          onClick={() => setClaudeOpen(true)}
+          disabled={status !== 'idle'}
+          className="shrink-0"
+        >
+          <ScrollText className="size-4" />
+          振る舞い
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
           onClick={() => setMemoryOpen(true)}
           disabled={status !== 'idle'}
           className="shrink-0"
@@ -312,6 +324,13 @@ export default function ChatPage() {
         target={ref}
         open={memoryOpen}
         onOpenChange={setMemoryOpen}
+      />
+
+      <TopicClaudeDialog
+        user={user}
+        target={ref}
+        open={claudeOpen}
+        onOpenChange={setClaudeOpen}
       />
 
       <RenameDialog

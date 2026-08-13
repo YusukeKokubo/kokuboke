@@ -1,9 +1,11 @@
 import type {
   ActivityEntry,
   ChatEvent,
+  Claude,
   EngineInfo,
   Memory,
   Message,
+  Profile,
   SummaryEvent,
   Topic,
   TopicRef,
@@ -110,6 +112,36 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ summary }),
     }).then((r) => unwrap<Memory>(r)),
+
+  getProfile: (user: string) =>
+    fetch(`/api/users/${path(user)}/profile`).then((r) => unwrap<Profile>(r)),
+
+  saveProfile: (user: string, profile: string) =>
+    fetch(`/api/users/${path(user)}/profile`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ profile }),
+    }).then((r) => unwrap<Profile>(r)),
+
+  getClaude: (user: string) =>
+    fetch(`/api/users/${path(user)}/claude`).then((r) => unwrap<Claude>(r)),
+
+  saveClaude: (user: string, claude: string) =>
+    fetch(`/api/users/${path(user)}/claude`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ claude }),
+    }).then((r) => unwrap<Claude>(r)),
+
+  getTopicClaude: (user: string, ref: TopicRef) =>
+    fetch(topicUrl(user, ref, '/claude')).then((r) => unwrap<Claude>(r)),
+
+  saveTopicClaude: (user: string, ref: TopicRef, claude: string) =>
+    fetch(topicUrl(user, ref, '/claude'), {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ claude }),
+    }).then((r) => unwrap<Claude>(r)),
 
   /** 動いているイメージと main のずれ。鍵が合わなければ 404 になる。 */
   updateStatus: (key: string) =>

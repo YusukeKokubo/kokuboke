@@ -7,6 +7,7 @@ import { logger } from 'hono/logger'
 import { config, assertConfig } from './config'
 import { limiter } from './agent/queue'
 import { admin } from './routes/admin'
+import { docs } from './routes/docs'
 import { media } from './routes/media'
 import { messages } from './routes/messages'
 import { summary } from './routes/summary'
@@ -35,6 +36,7 @@ app.route('/', admin)
 app.route('/', topics)
 app.route('/', messages)
 app.route('/', summary)
+app.route('/', docs)
 app.route('/', media)
 
 app.onError((error, c) => {

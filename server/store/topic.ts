@@ -335,6 +335,10 @@ export async function readSummary(user: string, ref: TopicRef): Promise<string> 
   return read(path.join(topicDir(user, ref), 'summary.md'))
 }
 
+export async function readClaude(user: string, ref: TopicRef): Promise<string> {
+  return read(path.join(topicDir(user, ref), 'CLAUDE.md'))
+}
+
 /**
  * 子で話すときは、親の記憶も一緒に効かせる。
  * 親には全体で共有する前提を、子にはその話に閉じた記憶を置く。
@@ -351,4 +355,9 @@ export async function readParentSummary(user: string, ref: TopicRef): Promise<st
 export async function writeSummary(user: string, ref: TopicRef, text: string): Promise<void> {
   const body = text.trim()
   await fs.writeFile(path.join(topicDir(user, ref), 'summary.md'), body ? body + '\n' : '')
+}
+
+export async function writeClaude(user: string, ref: TopicRef, text: string): Promise<void> {
+  const body = text.trim()
+  await fs.writeFile(path.join(topicDir(user, ref), 'CLAUDE.md'), body ? body + '\n' : '')
 }

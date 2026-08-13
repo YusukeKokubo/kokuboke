@@ -87,11 +87,33 @@ export async function ensureAllUsers(): Promise<void> {
   }
 }
 
-export async function readProfile(user: string): Promise<string> {
+async function read(file: string): Promise<string> {
   try {
-    return await fs.readFile(path.join(userDir(user), 'profile.md'), 'utf8')
+    return await fs.readFile(file, 'utf8')
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''
     throw error
   }
+}
+
+/** 末尾の改行を揃える。空なら空ファイル。 */
+async function write(file: string, text: string): Promise<void> {
+  const body = text.trim()
+  await fs.writeFile(file, body ? body + '\n' : '')
+}
+
+export async function readProfile(user: string): Promise<string> {
+  return read(path.join(userDir(user), 'profile.md'))
+}
+
+export async function writeProfile(user: string, text: string): Promise<void> {
+  await write(path.join(userDir(user), 'profile.md'), text)
+}
+
+export async function readClaude(user: string): Promise<string> {
+  return read(path.join(userDir(user), 'CLAUDE.md'))
+}
+
+export async function writeClaude(user: string, text: string): Promise<void> {
+  await write(path.join(userDir(user), 'CLAUDE.md'), text)
 }

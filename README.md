@@ -292,6 +292,12 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | GET | `/api/users/:user/topics/:topic/memory` | 記憶（`summary.md`）を読む |
 | PUT | `/api/users/:user/topics/:topic/memory` | 記憶を保存する。書き換えはここだけ |
 | POST | `/api/users/:user/topics/:topic/summary` | 記憶の下書きを作らせる。SSE で流す（保存はしない） |
+| GET | `/api/users/:user/profile` | プロフィール（`profile.md`）を読む |
+| PUT | `/api/users/:user/profile` | プロフィールを保存する |
+| GET | `/api/users/:user/claude` | 話し方（ユーザーの `CLAUDE.md`）を読む |
+| PUT | `/api/users/:user/claude` | 話し方を保存する |
+| GET | `/api/users/:user/topics/:topic/claude` | 振る舞い（トピックの `CLAUDE.md`）を読む |
+| PUT | `/api/users/:user/topics/:topic/claude` | 振る舞いを保存する |
 | GET | `/media/:user/:topic/:file` | 保存済み画像 |
 
 トピックを指す経路はどれも、`:topic` のうしろに `/sub/:sub` を足すと中で分けたほうを指す。

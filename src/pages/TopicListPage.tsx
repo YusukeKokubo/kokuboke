@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { FilePlus2, NotebookPen, Plus } from 'lucide-react'
+import { FilePlus2, NotebookPen, Plus, ScrollText, Settings2 } from 'lucide-react'
 import type { Topic, TopicRef } from '../../shared/types'
 import { api } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
@@ -8,8 +8,10 @@ import { rememberUser } from '@/lib/remember'
 import { topicHref } from '@/lib/route'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { TopicClaudeDialog } from '@/components/DocDialog'
 import { MemoryDialog } from '@/components/MemoryDialog'
 import { NewTopicDialog } from '@/components/NewTopicDialog'
+import { UserDocsDialog } from '@/components/UserDocsDialog'
 
 export default function TopicListPage() {
   const { user = '' } = useParams()
@@ -19,6 +21,8 @@ export default function TopicListPage() {
   /** 新規作成の相手。null ならトップレベル、文字列ならそのトピックの中。 */
   const [creating, setCreating] = useState<string | null | undefined>(undefined)
   const [memoryFor, setMemoryFor] = useState<TopicRef | null>(null)
+  const [claudeFor, setClaudeFor] = useState<TopicRef | null>(null)
+  const [docsOpen, setDocsOpen] = useState(false)
 
   const load = useCallback(() => {
     api
@@ -51,10 +55,16 @@ export default function TopicListPage() {
           <h1 className="text-base font-semibold">{user}</h1>
           <p className="text-muted-foreground text-xs">トピック</p>
         </div>
-        <Button size="sm" onClick={() => setCreating(null)}>
-          <Plus className="size-4" />
-          新しく作る
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button size="sm" variant="ghost" onClick={() => setDocsOpen(true)}>
+            <Settings2 className="size-4" />
+            設定
+          </Button>
+          <Button size="sm" onClick={() => setCreating(null)}>
+            <Plus className="size-4" />
+            新しく作る
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 px-3 py-3">
@@ -80,6 +90,12 @@ export default function TopicListPage() {
               <div className="flex items-center gap-2 px-1 pb-1.5">
                 <span className="text-base">{topic.emoji}</span>
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">{topic.name}</span>
+                <IconButton
+                  label={`${topic.name} の振る舞い`}
+                  onClick={() => setClaudeFor({ topic: topic.slug })}
+                >
+                  <ScrollText className="size-4" />
+                </IconButton>
                 <IconButton
                   label={`${topic.name} の記憶`}
                   onClick={() => setMemoryFor({ topic: topic.slug })}
@@ -137,6 +153,15 @@ export default function TopicListPage() {
         open={memoryFor !== null}
         onOpenChange={(open) => !open && setMemoryFor(null)}
       />
+
+      <TopicClaudeDialog
+        user={user}
+        target={claudeFor}
+        open={claudeFor !== null}
+        onOpenChange={(open) => !open && setClaudeFor(null)}
+      />
+
+      <UserDocsDialog user={user} open={docsOpen} onOpenChange={setDocsOpen} />
     </div>
   )
 }
