@@ -4,6 +4,8 @@ import type { EngineId, EngineInfo } from '../../shared/types'
  * 画面に出す選択肢。cursor-agent 側は `cursor-agent --list-models` で
  * 出てくるもののうち、この用途に向くものを絞って載せている。
  * エンジンを足すときは `EngineId` とここを一緒に直す。
+ *
+ * ここでは config を読まない。config がこのファイルを読むため（循環になる）。
  */
 export const ENGINES: EngineInfo[] = [
   {

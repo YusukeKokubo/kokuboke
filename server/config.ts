@@ -51,7 +51,7 @@ export const config = {
   claudeBin: process.env.CLAUDE_BIN ?? 'claude',
   cursorBin: process.env.CURSOR_BIN ?? 'cursor-agent',
 
-  /** 会話に使うモデル。エイリアス（opus / sonnet）でもフル名でも可。 */
+  /** 会話に使うモデル。ENGINES にある id か、CLI が受け付ける別名。 */
   claudeModel: process.env.CLAUDE_MODEL ?? 'claude-opus-5',
 
   /** cursor-agent 側の既定モデル。 */
@@ -63,8 +63,8 @@ export const config = {
    */
   summaryEngine: isEngineId(process.env.SUMMARY_ENGINE) ? process.env.SUMMARY_ENGINE : 'claude',
 
-  /** 要約は素早く安く済ませたいので、別に指定できるようにする。 */
-  summaryModel: process.env.SUMMARY_MODEL ?? 'sonnet',
+  /** 要約は素早く安く済ませたいので、別に指定できるようにする。ENGINES にある id で。 */
+  summaryModel: process.env.SUMMARY_MODEL ?? 'claude-sonnet-5',
 
   /** low | medium | high | xhigh | max。未指定なら CLI の既定に任せる。 */
   claudeEffort: process.env.CLAUDE_EFFORT ?? '',

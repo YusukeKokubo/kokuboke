@@ -48,7 +48,8 @@ export function resolveModel(engine?: string | null, model?: string | null): Mod
  * 要約・命名向け。Claude のときは SUMMARY_MODEL、Cursor のときは会話と同じ既定。
  */
 export function resolveSummaryModel(): ModelChoice {
-  const model = config.summaryEngine === 'claude' ? config.summaryModel : defaultModel(config.summaryEngine)
+  const model =
+    config.summaryEngine === 'claude' ? config.summaryModel : defaultModel(config.summaryEngine)
   return resolveModel(config.summaryEngine, model)
 }
 
