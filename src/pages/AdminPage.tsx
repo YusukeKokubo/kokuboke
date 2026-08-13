@@ -228,7 +228,7 @@ export default function AdminPage() {
               {entries.map((entry) => (
                 <li key={entry.user} className="border-b last:border-b-0">
                   <Link
-                    to={topicHref(entry.user, { topic: entry.topic, sub: entry.sub })}
+                    to={topicHref(entry.user, { kind: 'child', topic: entry.topic, sub: entry.sub })}
                     className="hover:bg-muted/50 -mx-2 flex flex-col gap-0.5 rounded-md px-2 py-2.5"
                   >
                     <div className="text-muted-foreground flex items-baseline justify-between gap-3 text-xs">

@@ -137,16 +137,12 @@ describe('assertTopicName', () => {
 })
 
 describe('isGroupRef', () => {
-  it('sub が無ければ器', () => {
-    assert.equal(isGroupRef({ topic: 'スキンケア' }), true)
+  it('group なら器', () => {
+    assert.equal(isGroupRef({ kind: 'group', topic: 'スキンケア' }), true)
   })
 
-  it('sub があれば子', () => {
-    assert.equal(isGroupRef({ topic: 'スキンケア', sub: '肌の記録' }), false)
-  })
-
-  it('空文字の sub は子の途中状態で、器にはしない', () => {
-    assert.equal(isGroupRef({ topic: 'スキンケア', sub: '' }), false)
+  it('child なら子', () => {
+    assert.equal(isGroupRef({ kind: 'child', topic: 'スキンケア', sub: '肌の記録' }), false)
   })
 })
 

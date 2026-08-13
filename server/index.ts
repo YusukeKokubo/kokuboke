@@ -5,6 +5,7 @@ import { Hono, type Context } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { logger } from 'hono/logger'
 import { config, assertConfig } from './config'
+import { AppError } from './errors'
 import { limiter } from './agent/queue'
 import { admin } from './routes/admin'
 import { docs } from './routes/docs'
@@ -40,6 +41,9 @@ app.route('/', docs)
 app.route('/', media)
 
 app.onError((error, c) => {
+  if (error instanceof AppError) {
+    return c.json({ error: error.message }, error.status)
+  }
   if (error instanceof HTTPException) {
     return c.json({ error: error.message }, error.status)
   }

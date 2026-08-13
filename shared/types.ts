@@ -28,31 +28,19 @@ export const NO_NAME = 'まだ名前のない話'
 
 /**
  * トピックの位置。入れ子は一段まで。
- *
- * - `sub` が無い（undefined）→ 器（トップレベル）
- * - `sub` がある → その器の中の子
- *
- * 空文字の `sub` は「子を作る途中で slug がまだ無い」印で、`withSlug` だけが読む。
- * それ以外に渡してはいけない。判定は必ず `isGroupRef` を通す（`!ref.sub` だと
- * 空文字も器扱いになる）。
+ * 器と子を kind で分ける。slug 未定の途中状態は ref に載せない。
  */
-export interface TopicRef {
-  topic: string
-  sub?: string
+export type TopicRef =
+  | { kind: 'group'; topic: string }
+  | { kind: 'child'; topic: string; sub: string }
+
+/** 器（トップレベル）を指すか。 */
+export function isGroupRef(ref: TopicRef): ref is { kind: 'group'; topic: string } {
+  return ref.kind === 'group'
 }
 
-/**
- * 器（トップレベル）を指すか。`sub` が無いときだけ真。
- * 空文字は「子の途中状態」なので偽（`!ref.sub` だと真になってしまう）。
- */
-export function isGroupRef(ref: TopicRef): boolean {
-  return ref.sub === undefined
-}
-
-export interface Topic {
+interface TopicFields {
   slug: string
-  /** 子トピックなら器のフォルダ名。トップレベルなら null。 */
-  group: string | null
   /** まだ名前を付けていないサブトピックでは空文字。画面側で仮の見出しを出す。 */
   name: string
   emoji: string
@@ -65,12 +53,23 @@ export interface Topic {
   lastMessageAt: string | null
   /** 一覧に出すための直近の発言の抜粋。 */
   preview: string | null
-  /**
-   * 中で分けている子トピック。一つでもあれば、そのトピック自身では会話せず、
-   * 要約の置き場として扱う。子トピックの側では常に空。
-   */
-  children: Topic[]
 }
+
+/** 器。会話せず、中の子の要約の置き場として扱う。 */
+export interface GroupTopic extends TopicFields {
+  kind: 'group'
+  group: null
+  children: ChildTopic[]
+}
+
+/** 器の中の子。ここで会話する。 */
+export interface ChildTopic extends TopicFields {
+  kind: 'child'
+  /** 器のフォルダ名。 */
+  group: string
+}
+
+export type Topic = GroupTopic | ChildTopic
 
 export type TemplateId = 'study' | 'advice' | 'recipe' | 'plain'
 

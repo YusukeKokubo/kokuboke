@@ -27,7 +27,10 @@ type Status = 'idle' | 'sending'
 export default function ChatPage() {
   const { user = '', topic = '', sub } = useParams()
   const navigate = useNavigate()
-  const ref = useMemo(() => (sub ? { topic, sub } : { topic }), [topic, sub])
+  const ref = useMemo(
+    () => (sub ? { kind: 'child' as const, topic, sub } : { kind: 'group' as const, topic }),
+    [topic, sub],
+  )
 
   const [meta, setMeta] = useState<Topic | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -108,7 +111,7 @@ export default function ChatPage() {
     (next: Topic) => {
       setMeta(next)
       if (next.slug !== sub) {
-        navigate(topicHref(user, { topic, sub: next.slug }), { replace: true })
+        navigate(topicHref(user, { kind: 'child', topic, sub: next.slug }), { replace: true })
       }
     },
     [navigate, sub, topic, user],
@@ -178,7 +181,7 @@ export default function ChatPage() {
         </Link>
 
         <div className="min-w-0 flex-1">
-          {meta?.group && (
+          {meta?.kind === 'child' && (
             <p className="text-muted-foreground truncate text-[11px]">{meta.group}</p>
           )}
           {isGroup ? (
@@ -239,27 +242,28 @@ export default function ChatPage() {
         {isGroup && (
           <div className="flex flex-col gap-2 py-6">
             <p className="text-muted-foreground text-center text-sm">
-              {meta && meta.children.length === 0
+              {meta?.kind === 'group' && meta.children.length === 0
                 ? 'まだ中に何もないよ。一覧の「話す」から始められるよ。'
                 : 'このトピックの中から、どれで話すか選んでね。'}
             </p>
-            {meta?.children.map((child) => (
-              <Link
-                key={child.slug}
-                to={topicHref(user, { topic, sub: child.slug })}
-                className="hover:bg-accent flex items-center gap-3 rounded-xl border p-3"
-              >
-                <span className="text-xl">{child.emoji}</span>
-                <span
-                  className={cn(
-                    'truncate text-[15px] font-medium',
-                    child.name || 'text-muted-foreground',
-                  )}
+            {meta?.kind === 'group' &&
+              meta.children.map((child) => (
+                <Link
+                  key={child.slug}
+                  to={topicHref(user, { kind: 'child', topic, sub: child.slug })}
+                  className="hover:bg-accent flex items-center gap-3 rounded-xl border p-3"
                 >
-                  {topicLabel(child)}
-                </span>
-              </Link>
-            ))}
+                  <span className="text-xl">{child.emoji}</span>
+                  <span
+                    className={cn(
+                      'truncate text-[15px] font-medium',
+                      child.name || 'text-muted-foreground',
+                    )}
+                  >
+                    {topicLabel(child)}
+                  </span>
+                </Link>
+              ))}
           </div>
         )}
 

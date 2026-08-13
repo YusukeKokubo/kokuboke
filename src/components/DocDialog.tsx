@@ -181,8 +181,13 @@ interface TopicClaudeProps {
 /** トピックの CLAUDE.md。器でも子でも同じ口。 */
 export function TopicClaudeDialog({ user, target, open, onOpenChange }: TopicClaudeProps) {
   const topic = target?.topic
-  const sub = target?.sub
-  const ref = useMemo(() => (topic ? { topic, sub } : null), [topic, sub])
+  const sub = target?.kind === 'child' ? target.sub : undefined
+  const ref = useMemo((): TopicRef | null => {
+    if (!topic) return null
+    return sub === undefined
+      ? { kind: 'group', topic }
+      : { kind: 'child', topic, sub }
+  }, [topic, sub])
 
   const load = useCallback(
     () => (ref ? api.getTopicClaude(user, ref).then((doc) => doc.claude) : Promise.resolve('')),

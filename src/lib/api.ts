@@ -4,6 +4,7 @@ import {
   type ChatEvent,
   type Claude,
   type EngineInfo,
+  type GroupTopic,
   type Message,
   type Profile,
   type Summary,
@@ -39,7 +40,7 @@ function path(segment: string): string {
 /** 子トピックは経路の途中に sub を挟んで親と区別する。 */
 function topicUrl(user: string, ref: TopicRef, suffix = ''): string {
   const base = `/api/users/${path(user)}/topics/${path(ref.topic)}`
-  return (isGroupRef(ref) ? base : `${base}/sub/${path(ref.sub!)}`) + suffix
+  return (isGroupRef(ref) ? base : `${base}/sub/${path(ref.sub)}`) + suffix
 }
 
 interface NewTopic {
@@ -56,7 +57,7 @@ export const api = {
   engines: () => fetch('/api/engines').then((r) => unwrap<EngineInfo[]>(r)),
 
   listTopics: (user: string) =>
-    fetch(`/api/users/${path(user)}/topics`).then((r) => unwrap<Topic[]>(r)),
+    fetch(`/api/users/${path(user)}/topics`).then((r) => unwrap<GroupTopic[]>(r)),
 
   getTopic: (user: string, ref: TopicRef) => fetch(topicUrl(user, ref)).then((r) => unwrap<Topic>(r)),
 

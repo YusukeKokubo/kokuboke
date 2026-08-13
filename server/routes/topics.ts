@@ -111,7 +111,9 @@ topics.on('GET', topicPaths(), async (c) => {
   const { user, ref } = await requireTopic(c)
 
   const topic = await readTopic(user, ref)
-  if (isGroupRef(ref)) topic.children = await listChildren(user, ref.topic)
+  if (isGroupRef(ref) && topic.kind === 'group') {
+    return c.json({ ...topic, children: await listChildren(user, ref.topic) })
+  }
 
   return c.json(topic)
 })
@@ -150,7 +152,7 @@ topics.on('POST', topicPaths('/name'), async (c) => {
 
   const choice = resolveSummaryModel()
 
-  const group = await readTopic(user, { topic: ref.topic })
+  const group = await readTopic(user, { kind: 'group', topic: ref.topic })
   const release = await limiter.acquire(user)
 
   let text = ''

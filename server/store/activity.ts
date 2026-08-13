@@ -1,4 +1,4 @@
-import type { ActivityEntry, Topic } from '../../shared/types'
+import type { ActivityEntry, ChildTopic, GroupTopic } from '../../shared/types'
 import { config } from '../config'
 import { readLastEntry } from './log'
 import { listTopics } from './topic'
@@ -18,7 +18,7 @@ export async function listRecentActivity(): Promise<ActivityEntry[]> {
 
   for (const user of config.users) {
     const topics = await listTopics(user)
-    let latest: { topic: Topic; child: Topic } | null = null
+    let latest: { topic: GroupTopic; child: ChildTopic } | null = null
     for (const topic of topics) {
       for (const child of topic.children) {
         if (!child.lastMessageAt) continue
@@ -29,7 +29,11 @@ export async function listRecentActivity(): Promise<ActivityEntry[]> {
     }
     if (!latest) continue
 
-    const last = await readLastEntry(user, { topic: latest.topic.slug, sub: latest.child.slug })
+    const last = await readLastEntry(user, {
+      kind: 'child',
+      topic: latest.topic.slug,
+      sub: latest.child.slug,
+    })
     if (!last) continue
 
     entries.push({

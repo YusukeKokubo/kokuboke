@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { NotebookPen, Plus, ScrollText, Settings2 } from 'lucide-react'
-import type { Topic, TopicRef } from '../../shared/types'
+import type { ChildTopic, GroupTopic, TopicRef } from '../../shared/types'
 import { api } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { rememberUser } from '@/lib/remember'
@@ -16,7 +16,7 @@ import { UserDocsDialog } from '@/components/UserDocsDialog'
 export default function TopicListPage() {
   const { user = '' } = useParams()
   const navigate = useNavigate()
-  const [topics, setTopics] = useState<Topic[] | null>(null)
+  const [topics, setTopics] = useState<GroupTopic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [summaryFor, setSummaryFor] = useState<TopicRef | null>(null)
@@ -41,7 +41,7 @@ export default function TopicListPage() {
   async function start(topic: string) {
     try {
       const child = await api.startChild(user, topic)
-      navigate(topicHref(user, { topic, sub: child.slug }))
+      navigate(topicHref(user, { kind: 'child', topic, sub: child.slug }))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '始められませんでした')
     }
@@ -95,14 +95,14 @@ export default function TopicListPage() {
                   <TopicButton
                     label="CLAUDE.md"
                     title={`${topic.name} の CLAUDE.md`}
-                    onClick={() => setClaudeFor({ topic: topic.slug })}
+                    onClick={() => setClaudeFor({ kind: 'group', topic: topic.slug })}
                   >
                     <ScrollText className="size-3.5" />
                   </TopicButton>
                   <TopicButton
                     label="要約"
                     title={`${topic.name} の要約`}
-                    onClick={() => setSummaryFor({ topic: topic.slug })}
+                    onClick={() => setSummaryFor({ kind: 'group', topic: topic.slug })}
                   >
                     <NotebookPen className="size-3.5" />
                   </TopicButton>
@@ -127,7 +127,7 @@ export default function TopicListPage() {
                     <TopicCard
                       key={child.slug}
                       topic={child}
-                      href={topicHref(user, { topic: topic.slug, sub: child.slug })}
+                      href={topicHref(user, { kind: 'child', topic: topic.slug, sub: child.slug })}
                     />
                   ))}
                 </ul>
@@ -193,7 +193,7 @@ function TopicButton({
   )
 }
 
-function TopicCard({ topic, href }: { topic: Topic; href: string }) {
+function TopicCard({ topic, href }: { topic: ChildTopic; href: string }) {
   return (
     <li className="flex items-center gap-1">
       <Link

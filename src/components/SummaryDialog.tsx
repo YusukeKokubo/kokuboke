@@ -38,8 +38,13 @@ export function SummaryDialog({ user, target, open, onOpenChange }: Props) {
 
   // 依存に置くのは中身。親が毎回作り直したオブジェクトでも読み直さない。
   const topic = target?.topic
-  const sub = target?.sub
-  const ref = useMemo(() => (topic ? { topic, sub } : null), [topic, sub])
+  const sub = target?.kind === 'child' ? target.sub : undefined
+  const ref = useMemo((): TopicRef | null => {
+    if (!topic) return null
+    return sub === undefined
+      ? { kind: 'group', topic }
+      : { kind: 'child', topic, sub }
+  }, [topic, sub])
 
   useEffect(() => {
     if (!open || !ref) return

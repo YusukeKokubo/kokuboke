@@ -127,7 +127,7 @@ async function groupDraftPrompt(
   }
   return groupSummaryPrompt({
     topicName,
-    summary: await readSummary(user, { topic }),
+    summary: await readSummary(user, { kind: 'group', topic }),
     children,
   })
 }

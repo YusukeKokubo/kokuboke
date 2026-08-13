@@ -1,6 +1,6 @@
 import path from 'node:path'
-import { HTTPException } from 'hono/http-exception'
 import { isGroupRef, type TopicRef } from '../../shared/types'
+import { BadRequestError, NotFoundError } from '../errors'
 import { config } from '../config'
 
 export type { TopicRef }
@@ -45,40 +45,45 @@ export function toTopicName(input: string): string {
   return isTopicName(name) ? name : `t-${crypto.randomUUID().slice(0, 8)}`
 }
 
-/** USERS に無い名前は存在しないものとして扱う。 */
+/** USERS に無い名前は存在しないものとして扱う。route 入口で呼ぶ。 */
 export function assertUser(user: string): string {
   if (!config.users.includes(user)) {
-    throw new HTTPException(404, { message: 'ユーザーが見つかりません' })
+    throw new NotFoundError('ユーザーが見つかりません')
   }
   return user
 }
 
+/** route 入口で呼ぶ。 */
 export function assertTopicName(topic: string): string {
   const name = normalizeTopicName(topic)
   if (!isTopicName(name)) {
-    throw new HTTPException(400, { message: 'トピック名が不正です' })
+    throw new BadRequestError('トピック名が不正です')
   }
   return name
 }
 
+/** 検証済みの user からディレクトリを組み立てる。 */
 export function userDir(user: string): string {
-  return path.join(config.dataDir, assertUser(user))
+  return path.join(config.dataDir, user)
 }
 
 export function topicsDir(user: string): string {
   return path.join(userDir(user), 'topics')
 }
 
-/** URL から届いた組を検査して ref にする。 */
+/** URL から届いた組を検査して ref にする。route 入口で呼ぶ。 */
 export function assertTopicRef(topic: string, sub?: string | null): TopicRef {
   const parent = assertTopicName(topic)
-  return sub ? { topic: parent, sub: assertTopicName(sub) } : { topic: parent }
+  return sub
+    ? { kind: 'child', topic: parent, sub: assertTopicName(sub) }
+    : { kind: 'group', topic: parent }
 }
 
+/** 検証済みの ref からディレクトリを組み立てる。 */
 export function topicDir(user: string, ref: TopicRef): string {
-  const dir = path.join(topicsDir(user), assertTopicName(ref.topic))
+  const dir = path.join(topicsDir(user), ref.topic)
   if (isGroupRef(ref)) return dir
-  return path.join(dir, assertTopicName(ref.sub!))
+  return path.join(dir, ref.sub)
 }
 
 export function logsDir(user: string, ref: TopicRef): string {
@@ -97,7 +102,7 @@ export function assertInsideDataDir(target: string): string {
   const resolved = path.resolve(target)
   const root = path.resolve(config.dataDir)
   if (resolved !== root && !resolved.startsWith(root + path.sep)) {
-    throw new HTTPException(400, { message: '不正なパスです' })
+    throw new BadRequestError('不正なパスです')
   }
   return resolved
 }

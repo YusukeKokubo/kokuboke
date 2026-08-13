@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { HTTPException } from 'hono/http-exception'
 import sharp from 'sharp'
 import { config } from '../config'
+import { BadRequestError, PayloadTooLargeError } from '../errors'
 import type { Message } from '../../shared/types'
 import { imagesDir, isGroupRef, type TopicRef } from './paths'
 import { localDate } from './date'
@@ -29,7 +29,7 @@ function filename(at: Date): string {
  */
 export async function saveImage(user: string, ref: TopicRef, file: File): Promise<SavedImage> {
   if (file.size > config.uploadMaxBytes) {
-    throw new HTTPException(413, { message: '画像が大きすぎます' })
+    throw new PayloadTooLargeError('画像が大きすぎます')
   }
 
   let input = Buffer.from(await file.arrayBuffer())
@@ -56,7 +56,7 @@ export async function saveImage(user: string, ref: TopicRef, file: File): Promis
       .jpeg({ quality: 82 })
       .toBuffer()
   } catch {
-    throw new HTTPException(400, { message: '画像を読み取れませんでした' })
+    throw new BadRequestError('画像を読み取れませんでした')
   }
 
   const dir = imagesDir(user, ref)
@@ -86,7 +86,7 @@ export function imageName(stored: string): string {
 export function mediaUrl(user: string, ref: TopicRef, stored: string): string {
   const segments = isGroupRef(ref)
     ? [user, ref.topic]
-    : [user, ref.topic, 'sub', ref.sub!]
+    : [user, ref.topic, 'sub', ref.sub]
   segments.push(imageName(stored))
   return `/media/${segments.map(encodeURIComponent).join('/')}`
 }
