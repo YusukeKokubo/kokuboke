@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { isEngineId } from './agent/engines'
+import { ENGINES, isEngineId } from './agent/engines'
 
 // 手元で `npm run dev` するときのために .env を読む。
 // コンテナでは compose が環境変数を渡すので、このファイルは存在しない。
@@ -102,10 +102,28 @@ export const config = {
 } as const
 
 export function assertConfig(): void {
+  const modelIds = (engine: string): string[] =>
+    ENGINES.find((item) => item.id === engine)?.models.map((model) => model.id) ?? []
+
+  const assertModel = (key: string, model: string, engine: string): void => {
+    const ids = modelIds(engine)
+    if (ids.includes(model)) return
+    throw new Error(`${key} が不正です。${engine} で使えるのは ${ids.join(' | ')}`)
+  }
+
   if (config.users.length === 0) {
     throw new Error('環境変数 USERS が空です。例: USERS=taro,hanako')
   }
   if (process.env.CLAUDE_EFFORT && !config.claudeEffort) {
     throw new Error(`CLAUDE_EFFORT が不正です。使えるのは ${CLAUDE_EFFORTS.join(' | ')}`)
+  }
+  assertModel('CLAUDE_MODEL', config.claudeModel, 'claude')
+  assertModel('CURSOR_MODEL', config.cursorModel, 'cursor')
+  // SUMMARY_MODEL を実際に使うのは claude のときだけ。cursor では
+  // resolveSummaryModel が CURSOR_MODEL に落とすので、書いてあっても効かない。
+  // 効かない値まで検査すると、SUMMARY_ENGINE=cursor の既定（claude 側の id が
+  // 残ったまま）で起動できなくなる。
+  if (config.summaryEngine === 'claude') {
+    assertModel('SUMMARY_MODEL', config.summaryModel, 'claude')
   }
 }

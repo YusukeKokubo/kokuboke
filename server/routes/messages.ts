@@ -9,7 +9,7 @@ import { sse } from '../lib/sse'
 import { appendMessage, readAll, readRecent } from '../store/log'
 import { saveImage, withImageUrls } from '../store/image'
 import { isGroupRef, topicDir } from '../store/paths'
-import { readGroupSummary, readSummary, readTopic, shouldAutoName } from '../store/topic'
+import { readGroupSummary, readSummary, readTopic, shouldAutoName, topicExists } from '../store/topic'
 import { readProfile } from '../store/user'
 import { requireTopic, topicPaths } from './target'
 
@@ -107,6 +107,13 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
           await send({ type: 'delta', text })
         },
       )
+
+      // 待っているあいだにトピックが消されていることがある。appendMessage は
+      // logs を作り直してしまうので、書く前に実体があるかを見る。
+      if (!(await topicExists(user, ref))) {
+        await send({ type: 'error', message: 'このトピックは削除されたよ' }).catch(() => {})
+        return
+      }
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),

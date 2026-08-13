@@ -16,6 +16,7 @@ import {
 
 async function unwrap<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(await errorMessage(res))
+  if (res.status === 204) return undefined as T
   return (await res.json()) as T
 }
 
@@ -88,6 +89,8 @@ export const api = {
   /** 会話を読んで名前を付けてもらう。こちらも slug が変わる。 */
   autoName: (user: string, ref: TopicRef) =>
     json.send<Topic>('POST', topicUrl(user, ref, '/name')),
+
+  deleteTopic: (user: string, ref: TopicRef) => json.send<void>('DELETE', topicUrl(user, ref)),
 
   listMessages: (user: string, ref: TopicRef) =>
     json.get<Message[]>(topicUrl(user, ref, '/messages')),

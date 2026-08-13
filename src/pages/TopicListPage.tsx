@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { NotebookPen, Plus, ScrollText, Settings2 } from 'lucide-react'
+import { NotebookPen, Plus, ScrollText, Settings2, Trash2 } from 'lucide-react'
 import type { ChildTopic, GroupTopic, TopicRef } from '../../shared/types'
 import { api } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
@@ -11,7 +11,19 @@ import { Button } from '@/components/ui/button'
 import { TopicClaudeDialog } from '@/components/DocDialog'
 import { SummaryDialog } from '@/components/SummaryDialog'
 import { NewTopicDialog } from '@/components/NewTopicDialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { UserDocsDialog } from '@/components/UserDocsDialog'
+
+type DeleteTarget =
+  | { kind: 'group'; topic: GroupTopic }
+  | { kind: 'child'; groupName: string; topic: ChildTopic }
 
 export default function TopicListPage() {
   const { user = '' } = useParams()
@@ -22,6 +34,9 @@ export default function TopicListPage() {
   const [summaryFor, setSummaryFor] = useState<TopicRef | null>(null)
   const [claudeFor, setClaudeFor] = useState<TopicRef | null>(null)
   const [docsOpen, setDocsOpen] = useState(false)
+  const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const load = useCallback(() => {
     api
@@ -44,6 +59,31 @@ export default function TopicListPage() {
       navigate(topicHref(user, { kind: 'child', topic, sub: child.slug }))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '始められませんでした')
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting || deleteBusy) return
+    setDeleteBusy(true)
+    setDeleteError(null)
+    try {
+      if (deleting.kind === 'group') {
+        await api.deleteTopic(user, { kind: 'group', topic: deleting.topic.slug })
+      } else {
+        await api.deleteTopic(user, {
+          kind: 'child',
+          topic: deleting.groupName,
+          sub: deleting.topic.slug,
+        })
+      }
+      setDeleting(null)
+    } catch (cause) {
+      setDeleteError(cause instanceof Error ? cause.message : '削除できませんでした')
+    } finally {
+      setDeleteBusy(false)
+      // 失敗のときも読み直す。別の端末で先に消されていた場合、
+      // 一覧に古い行が残ったままになる。
+      load()
     }
   }
 
@@ -114,6 +154,16 @@ export default function TopicListPage() {
                   >
                     <Plus className="size-3.5" />
                   </TopicButton>
+                  <TopicButton
+                    label="削除"
+                    title={`${topic.name} を削除する`}
+                    onClick={() => {
+                      setDeleteError(null)
+                      setDeleting({ kind: 'group', topic })
+                    }}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </TopicButton>
                 </div>
               </div>
 
@@ -128,6 +178,10 @@ export default function TopicListPage() {
                       key={child.slug}
                       topic={child}
                       href={topicHref(user, { kind: 'child', topic: topic.slug, sub: child.slug })}
+                      onDelete={() => {
+                        setDeleteError(null)
+                        setDeleting({ kind: 'child', groupName: topic.slug, topic: child })
+                      }}
                     />
                   ))}
                 </ul>
@@ -161,6 +215,46 @@ export default function TopicListPage() {
       />
 
       <UserDocsDialog user={user} open={docsOpen} onOpenChange={setDocsOpen} />
+
+      <Dialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          // 消している最中に閉じられると、失敗したときの知らせ先が無くなる。
+          if (open || deleteBusy) return
+          setDeleting(null)
+          setDeleteError(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>トピックを削除する</DialogTitle>
+            <DialogDescription>
+              {deleting?.kind === 'group'
+                ? `「${deleting.topic.name}」を削除します。中のチャット ${deleting.topic.children.length} 件も一緒に削除され、元に戻せません。`
+                : deleting?.kind === 'child'
+                  ? `「${topicLabel(deleting.topic)}」を削除します。元に戻せません。`
+                  : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setDeleting(null)
+                setDeleteError(null)
+              }}
+              disabled={deleteBusy}
+            >
+              キャンセル
+            </Button>
+            <Button type="button" variant="destructive" onClick={confirmDelete} disabled={deleteBusy}>
+              削除する
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -193,7 +287,7 @@ function TopicButton({
   )
 }
 
-function TopicCard({ topic, href }: { topic: ChildTopic; href: string }) {
+function TopicCard({ topic, href, onDelete }: { topic: ChildTopic; href: string; onDelete: () => void }) {
   return (
     <li className="flex items-center gap-1">
       <Link
@@ -222,6 +316,17 @@ function TopicCard({ topic, href }: { topic: ChildTopic; href: string }) {
           </span>
         </span>
       </Link>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        title={`${topicLabel(topic)} を削除する`}
+        onClick={onDelete}
+        className="text-muted-foreground shrink-0"
+      >
+        <Trash2 className="size-3.5" />
+        削除
+      </Button>
     </li>
   )
 }

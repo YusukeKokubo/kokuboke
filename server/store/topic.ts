@@ -13,6 +13,7 @@ import { resolveModel } from '../agent'
 import { groupSummaryMd, topicClaudeMd, topicSummaryMd } from '../templates'
 import {
   asTopicName,
+  assertInsideDataDir,
   imagesDir,
   isGroupRef,
   logsDir,
@@ -332,6 +333,22 @@ export async function renameTopic(
   await writeMeta(user, next, meta2)
 
   return toTopic(meta2, next, await readLastEntry(user, next))
+}
+
+/**
+ * 器を消すと中の子も一緒に消える。子を渡したときはその子だけを消す。
+ * 経路の検査に加え、再帰削除の直前にも保存領域の内側かを確かめる。
+ */
+export async function deleteTopic(user: UserName, ref: VerifiedTopicRef): Promise<void> {
+  const dir = assertInsideDataDir(topicDir(user, ref))
+  try {
+    await fs.rm(dir, { recursive: true, force: false })
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new NotFoundError('トピックが見つかりません')
+    }
+    throw error
+  }
 }
 
 /**

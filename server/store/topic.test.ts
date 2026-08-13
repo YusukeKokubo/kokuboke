@@ -9,10 +9,12 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kokuboke-test-'))
 process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 
-const { createTopic, readChildSources, readClaude, writeClaude, writeSummary } =
+const { createTopic, deleteTopic, readChildSources, readClaude, topicExists, writeClaude, writeSummary } =
   await import('./topic')
-const { appendMessage } = await import('./log')
-const { assertTopicName, assertTopicRef, assertUser, topicDir } = await import('./paths')
+const { appendMessage, readAll } = await import('./log')
+const { assertTopicName, assertTopicRef, assertUser, imagesDir, logsDir, topicDir } =
+  await import('./paths')
+const { NotFoundError } = await import('../errors')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
@@ -89,5 +91,78 @@ describe('readChildSources', () => {
   it('中が無ければ空', async () => {
     await createTopic(USER, { name: '器' })
     assert.deepEqual(await readChildSources(USER, assertTopicName('器'), 3), [])
+  })
+})
+
+describe('deleteTopic', () => {
+  it('子トピックだけを削除できる', async () => {
+    const group = `器-削除-${crypto.randomUUID().slice(0, 8)}`
+    await createTopic(USER, { name: group })
+    await createTopic(USER, { name: '子その1' }, assertTopicName(group))
+    await createTopic(USER, { name: '子その2' }, assertTopicName(group))
+
+    await deleteTopic(USER, assertTopicRef(group, '子その1'))
+
+    assert.equal(await topicExists(USER, assertTopicRef(group, '子その1')), false)
+    assert.equal(await topicExists(USER, assertTopicRef(group, '子その2')), true)
+  })
+
+  it('器を削除すると中の子も一緒に消える', async () => {
+    const group = `器-丸ごと-${crypto.randomUUID().slice(0, 8)}`
+    await createTopic(USER, { name: group })
+    await createTopic(USER, { name: '子' }, assertTopicName(group))
+
+    await deleteTopic(USER, assertTopicRef(group))
+
+    assert.equal(await topicExists(USER, assertTopicRef(group)), false)
+    assert.equal(await topicExists(USER, assertTopicRef(group, '子')), false)
+  })
+
+  it('実体が無ければ NotFoundError', async () => {
+    await assert.rejects(
+      () => deleteTopic(USER, assertTopicRef(`器-無い-${crypto.randomUUID().slice(0, 8)}`)),
+      NotFoundError,
+    )
+  })
+
+  it('logs と images の中身まで消える', async () => {
+    const group = `器-残骸-${crypto.randomUUID().slice(0, 8)}`
+    await createTopic(USER, { name: group })
+    await createTopic(USER, { name: '子' }, assertTopicName(group))
+    const ref = assertTopicRef(group, '子')
+
+    await appendMessage(USER, ref, {
+      id: '1',
+      role: 'user',
+      text: '消える発言',
+      images: [],
+      at: new Date().toISOString(),
+    })
+    await fsp.writeFile(path.join(imagesDir(USER, ref), '20260813_120000_ab12.jpg'), 'dummy')
+
+    await deleteTopic(USER, ref)
+
+    await assert.rejects(() => fsp.readdir(logsDir(USER, ref)), { code: 'ENOENT' })
+    await assert.rejects(() => fsp.readdir(imagesDir(USER, ref)), { code: 'ENOENT' })
+  })
+
+  it('同じ名前で作り直しても前の会話は見えない', async () => {
+    const group = `器-作り直し-${crypto.randomUUID().slice(0, 8)}`
+    await createTopic(USER, { name: group })
+    await createTopic(USER, { name: '子' }, assertTopicName(group))
+    const ref = assertTopicRef(group, '子')
+
+    await appendMessage(USER, ref, {
+      id: '1',
+      role: 'assistant',
+      text: '前のトピックの返事',
+      images: [],
+      at: new Date().toISOString(),
+    })
+
+    await deleteTopic(USER, ref)
+    await createTopic(USER, { name: '子' }, assertTopicName(group))
+
+    assert.deepEqual(await readAll(USER, ref), [])
   })
 })

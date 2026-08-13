@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { collectAgent, ENGINES, resolveSummaryModel } from '../agent'
+import { parseName } from '../agent/name'
 import { namePrompt, nameSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
@@ -8,16 +9,10 @@ import { BadRequestError } from '../errors'
 import { readJson } from '../lib/body'
 import { TOPIC_TEMPLATES } from '../templates'
 import { readRecent } from '../store/log'
-import {
-  assertTopicName,
-  assertUser,
-  isGroupRef,
-  normalizeTopicName,
-  topicDir,
-  topicRef,
-} from '../store/paths'
+import { assertTopicName, assertUser, isGroupRef, topicDir, topicRef } from '../store/paths'
 import {
   createTopic,
+  deleteTopic,
   listChildren,
   listTopics,
   markNameTried,
@@ -28,39 +23,6 @@ import {
 import { requireTopic, topicPaths } from './target'
 
 export const topics = new Hono()
-
-/**
- * 命名の返事から名前と絵文字を取り出す。JSON で返すよう頼んでいるが、
- * 前置きやコードブロックが混じることがあるので、緩く拾う。
- */
-function parseName(raw: string): { name: string; emoji?: string } | null {
-  const body = raw.replace(/```[a-z]*\n?/gi, '').trim()
-
-  let name = ''
-  let emoji: string | undefined
-
-  const start = body.indexOf('{')
-  const end = body.lastIndexOf('}')
-  if (start !== -1 && end > start) {
-    try {
-      const parsed = JSON.parse(body.slice(start, end + 1)) as { name?: unknown; emoji?: unknown }
-      if (typeof parsed.name === 'string') name = parsed.name
-      if (typeof parsed.emoji === 'string') emoji = parsed.emoji
-    } catch {
-      // JSON になっていなければ下の行拾いに任せる
-    }
-  }
-
-  // JSON で返ってこなかったときは、最初の行をそのまま名前として扱う。
-  if (!name) name = body.split('\n').find((line) => line.trim())?.trim() ?? ''
-
-  name = normalizeTopicName(name.replace(/^[-*\s"'「『]+|["'」』\s]+$/g, '')).slice(0, 40)
-  if (!name) return null
-
-  // 絵文字は一文字だけ受け取る。判断できない形なら既定に任せる。
-  const first = emoji ? Array.from(emoji)[0] : undefined
-  return { name, emoji: first && /\p{Extended_Pictographic}/u.test(first) ? first : undefined }
-}
 
 interface CreateBody {
   name?: string
@@ -138,6 +100,24 @@ topics.on('PATCH', topicPaths('/model'), async (c) => {
   const { user, ref } = await requireTopic(c)
   const body = await readJson<{ engine?: string; model?: string }>(c.req.raw)
   return c.json(await updateTopic(user, ref, body))
+})
+
+/**
+ * 返事を書いている最中に消されると、書き終わった側が logs を作り直して
+ * 残骸が残る。その人が話している間は limiter が 409 で弾くので、
+ * 削除も同じ待ち行列に入れて重ならないようにする。
+ */
+topics.on('DELETE', topicPaths(), async (c) => {
+  const { user, ref } = await requireTopic(c)
+
+  const release = await limiter.acquire(user)
+  try {
+    await deleteTopic(user, ref)
+  } finally {
+    release()
+  }
+
+  return c.body(null, 204)
 })
 
 /**
