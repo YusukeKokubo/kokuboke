@@ -201,11 +201,11 @@ export function TopicClaudeDialog({ user, target, open, onOpenChange }: TopicCla
     <DocDialog
       open={open && ref !== null}
       onOpenChange={onOpenChange}
-      title="振る舞い"
+      title="CLAUDE.md"
       description={
         sub
           ? 'この話での役割。上の話題の設定も一緒に読まれるよ。'
-          : 'この話題での役割。上の話し方も一緒に読まれるよ。'
+          : 'この話題での役割。上の CLAUDE.md も一緒に読まれるよ。'
       }
       placeholder="まだ書いていないよ。"
       source={`${user}:${topic ?? ''}:${sub ?? ''}`}

@@ -89,7 +89,7 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
       console.error('[summary]', error)
       await send({
         type: 'error',
-        message: error instanceof Error ? error.message : '記憶を整理できませんでした',
+        message: error instanceof Error ? error.message : '要約を整理できませんでした',
       }).catch(() => {})
     } finally {
       release()

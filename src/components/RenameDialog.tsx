@@ -57,7 +57,7 @@ export function RenameDialog({ user, target, topic, open, onOpenChange, onRename
         <DialogHeader>
           <DialogTitle>名前を変える</DialogTitle>
           <DialogDescription>
-            会話と記憶はそのまま。フォルダの名前も一緒に変わるよ。
+            会話と要約はそのまま。フォルダの名前も一緒に変わるよ。
           </DialogDescription>
         </DialogHeader>
 

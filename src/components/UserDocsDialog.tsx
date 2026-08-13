@@ -47,7 +47,7 @@ export function UserDocsDialog({ user, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
       <DialogContent className="flex max-h-[90dvh] flex-col gap-3 sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{tab === 'profile' ? 'プロフィール' : '話し方'}</DialogTitle>
+          <DialogTitle>{tab === 'profile' ? 'プロフィール' : 'CLAUDE.md'}</DialogTitle>
           <DialogDescription>
             {tab === 'profile'
               ? 'どの話題でも覚えておいてほしいこと。会話のたびに読み込まれるよ。'
@@ -72,7 +72,7 @@ export function UserDocsDialog({ user, open, onOpenChange }: Props) {
             onClick={() => setTab('claude')}
             disabled={busy}
           >
-            話し方
+            CLAUDE.md
           </Button>
         </div>
 

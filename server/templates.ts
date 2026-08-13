@@ -59,7 +59,7 @@ export const TOPIC_TEMPLATES: TopicTemplate[] = [
 ]
 
 export function topicClaudeMd(templateId: string, name: string): string {
-  const header = `# ${name}\n\nこのトピックでの振る舞いをここに書く。上の階層の CLAUDE.md も一緒に読まれる。\n\n`
+  const header = `# ${name}\n\nこのトピックでの役割をここに書く。上の階層の CLAUDE.md も一緒に読まれる。\n\n`
 
   switch (templateId) {
     case 'study':
@@ -113,9 +113,9 @@ export function topicClaudeMd(templateId: string, name: string): string {
 }
 
 export function topicSummaryMd(name: string): string {
-  return `# ${name} の記憶
+  return `# ${name} の要約
 
-このトピックで積み重なった内容の覚え書き。ヘッダの「記憶」から読み書きできる。
+このトピックで積み重なった内容の覚え書き。ヘッダの「要約」から読み書きできる。
 AI に整理させることもできるが、保存するかどうかは自分で決める。
 `
 }

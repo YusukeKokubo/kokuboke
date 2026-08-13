@@ -93,22 +93,22 @@ export default function TopicListPage() {
                 </div>
                 <div className="-ml-1.5 flex flex-wrap items-center">
                   <TopicButton
-                    label="振る舞い"
-                    title={`${topic.name} の振る舞い`}
+                    label="CLAUDE.md"
+                    title={`${topic.name} の CLAUDE.md`}
                     onClick={() => setClaudeFor({ topic: topic.slug })}
                   >
                     <ScrollText className="size-3.5" />
                   </TopicButton>
                   <TopicButton
-                    label="記憶"
-                    title={`${topic.name} の記憶`}
+                    label="要約"
+                    title={`${topic.name} の要約`}
                     onClick={() => setMemoryFor({ topic: topic.slug })}
                   >
                     <NotebookPen className="size-3.5" />
                   </TopicButton>
                   <TopicButton
-                    label="話す"
-                    title={`${topic.name} の中で新しく話す`}
+                    label="チャットを始める"
+                    title={`${topic.name} の中で新しくチャットを始める`}
                     onClick={() => start(topic.slug)}
                   >
                     <Plus className="size-3.5" />

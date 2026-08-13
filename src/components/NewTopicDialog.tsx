@@ -67,7 +67,7 @@ export function NewTopicDialog({ open, onOpenChange, onCreate }: Props) {
         <DialogHeader>
           <DialogTitle>新しいトピック</DialogTitle>
           <DialogDescription>
-            ここは記憶の置き場だよ。話しかけるのは、この中に作ったトピック。
+            ここは要約の置き場だよ。話しかけるのは、この中に作ったトピック。
           </DialogDescription>
         </DialogHeader>
 

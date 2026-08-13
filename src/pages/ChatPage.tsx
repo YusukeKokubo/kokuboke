@@ -221,7 +221,7 @@ export default function ChatPage() {
           className="shrink-0"
         >
           <ScrollText className="size-4" />
-          振る舞い
+          CLAUDE.md
         </Button>
         <Button
           size="sm"
@@ -231,7 +231,7 @@ export default function ChatPage() {
           className="shrink-0"
         >
           <NotebookPen className="size-4" />
-          記憶
+          要約
         </Button>
       </header>
 
@@ -301,7 +301,7 @@ export default function ChatPage() {
           <DialogHeader>
             <DialogTitle>このトピックで使うモデル</DialogTitle>
             <DialogDescription>
-              変えても、これまでの会話と記憶はそのまま引き継がれるよ。
+              変えても、これまでの会話と要約はそのまま引き継がれるよ。
             </DialogDescription>
           </DialogHeader>
 

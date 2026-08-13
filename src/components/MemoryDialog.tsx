@@ -94,7 +94,7 @@ export function MemoryDialog({ user, target, open, onOpenChange }: Props) {
       }
     } catch (cause) {
       if (!controller.signal.aborted) {
-        setNotice(cause instanceof Error ? cause.message : '記憶を整理できませんでした')
+        setNotice(cause instanceof Error ? cause.message : '要約を整理できませんでした')
       }
     } finally {
       abort.current = null
@@ -121,7 +121,7 @@ export function MemoryDialog({ user, target, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
       <DialogContent className="flex max-h-[90dvh] flex-col gap-3 sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>記憶</DialogTitle>
+          <DialogTitle>要約</DialogTitle>
           <DialogDescription>
             会話のたびに読み込まれる覚え書き。そのまま直してもいいし、AI に整理させてもいいよ。
           </DialogDescription>
