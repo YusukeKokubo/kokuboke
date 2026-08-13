@@ -1,19 +1,20 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { Summary, SummaryEvent } from '../../shared/types'
-import { resolveModel, resolveSummaryModel, runAgent } from '../agent'
+import { collectAgent, resolveModel, resolveSummaryModel, unfence } from '../agent'
 import { groupSummaryPrompt, summaryPrompt, summarySystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { BadRequestError } from '../errors'
-import { readJson } from '../lib/body'
+import { readJson, readText } from '../lib/body'
+import { sse } from '../lib/sse'
 import { readRecent } from '../store/log'
 import {
   isGroupRef,
   topicDir,
   topicRef,
   type TopicName,
-  type TopicRef,
+  type VerifiedTopicRef,
   type UserName,
 } from '../store/paths'
 import {
@@ -37,13 +38,8 @@ summary.on('GET', topicPaths('/summary'), async (c) => {
 
 summary.on('PUT', topicPaths('/summary'), async (c) => {
   const { user, ref } = await requireTopic(c)
-
-  const body = await readJson<{ summary?: string }>(c.req.raw)
-  if (typeof body.summary !== 'string') {
-    throw new BadRequestError('保存する内容がありません')
-  }
-
-  await writeSummary(user, ref, body.summary)
+  const summaryText = await readText(c.req.raw, 'summary')
+  await writeSummary(user, ref, summaryText)
   return c.json<Summary>({ summary: await readSummary(user, ref) })
 })
 
@@ -72,24 +68,21 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
   const release = await limiter.acquire(user)
 
   return streamSSE(c, async (stream) => {
-    const send = (event: SummaryEvent) => stream.writeSSE({ data: JSON.stringify(event) })
+    const send = sse<SummaryEvent>(stream)
 
     try {
-      const events = runAgent(choice, {
-        cwd: topicDir(user, ref),
-        prompt,
-        systemPrompt: summarySystemPrompt({ user, topicName: meta.name, isGroup }),
-        signal: c.req.raw.signal,
-      })
-
-      let text = ''
-      for await (const event of events) {
-        if (event.type === 'delta') {
-          text += event.text
-          await send({ type: 'delta', text: event.text })
-        }
-        if (event.type === 'done') text = event.text
-      }
+      const text = await collectAgent(
+        choice,
+        {
+          cwd: topicDir(user, ref),
+          prompt,
+          systemPrompt: summarySystemPrompt({ user, topicName: meta.name, isGroup }),
+          signal: c.req.raw.signal,
+        },
+        async (delta) => {
+          await send({ type: 'delta', text: delta })
+        },
+      )
 
       await send({ type: 'done', text: unfence(text), modelLabel: choice.label })
     } catch (error) {
@@ -106,7 +99,7 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
 
 async function topicDraftPrompt(
   user: UserName,
-  ref: TopicRef,
+  ref: VerifiedTopicRef,
   topicName: string,
   days: number,
 ): Promise<string> {
@@ -137,16 +130,4 @@ async function groupDraftPrompt(
     summary: await readSummary(user, topicRef(topic)),
     children,
   })
-}
-
-/**
- * 本文だけを返すよう頼んでも、全体をコードブロックで囲んでくることがある。
- * 中身が丸ごと囲まれている場合だけ剥がす。文中のコードブロックには触らない。
- */
-export function unfence(text: string): string {
-  const body = text.trim()
-  const match = /^```[^\n]*\n([\s\S]*)\n```$/.exec(body)
-  if (!match) return body
-  // 途中で閉じて開き直している場合は、囲みではなく本文の一部。
-  return match[1]!.includes('```') ? body : match[1]!
 }

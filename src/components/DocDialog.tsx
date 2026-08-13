@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import type { TopicRef } from '../../shared/types'
 import { api } from '@/lib/api'
@@ -68,17 +68,22 @@ export function useDoc(open: boolean, source: string, load: () => Promise<string
     }
   }
 
-  return { saved, draft, setDraft, status, notice, dirty, busy, save }
+  return { saved, draft, setDraft, status, notice, setNotice, dirty, busy, save }
 }
 
 interface EditorProps {
   doc: ReturnType<typeof useDoc>
   placeholder?: string
+  /** 外の仕事で塞がっているとき（要約の下書き生成中など）。 */
+  busy?: boolean
+  /** ボタン列の左に差し込むもの。 */
+  actions?: ReactNode
   onSave: () => void
 }
 
-export function DocEditor({ doc, placeholder, onSave }: EditorProps) {
-  const { draft, setDraft, status, notice, dirty, busy } = doc
+export function DocEditor({ doc, placeholder, busy: externalBusy, actions, onSave }: EditorProps) {
+  const { draft, setDraft, status, notice, dirty } = doc
+  const busy = doc.busy || !!externalBusy
 
   return (
     <>
@@ -100,28 +105,32 @@ export function DocEditor({ doc, placeholder, onSave }: EditorProps) {
 
       {notice && <p className="text-muted-foreground text-xs">{notice}</p>}
 
-      <div className="flex items-center justify-end gap-2">
-        {dirty && (
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1">{actions}</div>
+
+        <div className="flex shrink-0 items-center justify-end gap-2">
+          {dirty && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setDraft(doc.saved)}
+              disabled={busy}
+            >
+              元に戻す
+            </Button>
+          )}
+
           <Button
             type="button"
-            variant="ghost"
             size="sm"
-            onClick={() => setDraft(doc.saved)}
-            disabled={busy}
+            onClick={onSave}
+            disabled={busy || !dirty || status === 'loading'}
           >
-            元に戻す
+            {status === 'saving' && <Loader2 className="size-4 animate-spin" />}
+            保存
           </Button>
-        )}
-
-        <Button
-          type="button"
-          size="sm"
-          onClick={onSave}
-          disabled={busy || !dirty || status === 'loading'}
-        >
-          {status === 'saving' && <Loader2 className="size-4 animate-spin" />}
-          保存
-        </Button>
+        </div>
       </div>
     </>
   )
@@ -190,14 +199,14 @@ export function TopicClaudeDialog({ user, target, open, onOpenChange }: TopicCla
   }, [topic, sub])
 
   const load = useCallback(
-    () => (ref ? api.getTopicClaude(user, ref).then((doc) => doc.claude) : Promise.resolve('')),
+    () => (ref ? api.getTopicClaude(user, ref) : Promise.resolve('')),
     [user, ref],
   )
 
   const save = useCallback(
     async (text: string) => {
       if (!ref) return text
-      return (await api.saveTopicClaude(user, ref, text)).claude
+      return api.saveTopicClaude(user, ref, text)
     },
     [user, ref],
   )

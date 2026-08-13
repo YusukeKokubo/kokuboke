@@ -24,11 +24,8 @@ type Tab = 'profile' | 'claude'
 export function UserDocsDialog({ user, open, onOpenChange }: Props) {
   const [tab, setTab] = useState<Tab>('profile')
 
-  const loadProfile = useCallback(
-    () => api.getProfile(user).then((doc) => doc.profile),
-    [user],
-  )
-  const loadClaude = useCallback(() => api.getClaude(user).then((doc) => doc.claude), [user])
+  const loadProfile = useCallback(() => api.getProfile(user), [user])
+  const loadClaude = useCallback(() => api.getClaude(user), [user])
 
   const profile = useDoc(open, `profile:${user}`, loadProfile)
   const claude = useDoc(open, `claude:${user}`, loadClaude)
@@ -37,9 +34,9 @@ export function UserDocsDialog({ user, open, onOpenChange }: Props) {
 
   async function handleSave() {
     if (tab === 'profile') {
-      await profile.save((text) => api.saveProfile(user, text).then((doc) => doc.profile))
+      await profile.save((text) => api.saveProfile(user, text))
     } else {
-      await claude.save((text) => api.saveClaude(user, text).then((doc) => doc.claude))
+      await claude.save((text) => api.saveClaude(user, text))
     }
   }
 

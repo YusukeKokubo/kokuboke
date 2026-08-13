@@ -285,7 +285,8 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | GET | `/api/users/:user/topics` | トピック一覧（直近に話した順）。中のトピックは `children` に入る |
 | POST | `/api/users/:user/topics` | トップレベル（器）の作成 |
 | POST | `/api/users/:user/topics/:topic/sub` | そのトピックの中に作る。話せるのはこちら。`name` は省略できる |
-| PATCH | `/api/users/:user/topics/:topic` | エンジンとモデル、または名前と絵文字を変える |
+| PATCH | `/api/users/:user/topics/:topic/model` | エンジンとモデルを変える |
+| PATCH | `/api/users/:user/topics/:topic/name` | 名前と絵文字を変える。フォルダが動くので返す slug で経路を差し替える |
 | POST | `/api/users/:user/topics/:topic/name` | 会話を読ませて名前を付ける。付いた名前で改名まで行う |
 | GET | `/api/users/:user/topics/:topic/messages` | 保存されている会話すべて |
 | POST | `/api/users/:user/topics/:topic/messages` | 送信。SSE で返答を流す |

@@ -28,6 +28,7 @@ import {
 } from './paths'
 import { localDate, localTime, stamp } from './date'
 import { countUserMessages, readLastEntry, readRecent } from './log'
+import { readMarkdown, writeMarkdown } from './markdown'
 import { ensureAgentsLink, ensureUser } from './user'
 
 interface TopicMeta {
@@ -352,17 +353,8 @@ export async function markNameTried(user: UserName, ref: VerifiedTopicRef): Prom
   await writeMeta(user, ref, { ...meta, nameTried: true })
 }
 
-async function read(file: string): Promise<string> {
-  try {
-    return await fs.readFile(file, 'utf8')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''
-    throw error
-  }
-}
-
 export async function readSummary(user: UserName, ref: VerifiedTopicRef): Promise<string> {
-  return read(path.join(topicDir(user, ref), 'summary.md'))
+  return readMarkdown(path.join(topicDir(user, ref), 'summary.md'))
 }
 
 /** 器の要約を書くときの材料。中のトピックそれぞれの要約と直近の会話。 */
@@ -393,7 +385,7 @@ export async function readChildSources(
 }
 
 export async function readClaude(user: UserName, ref: VerifiedTopicRef): Promise<string> {
-  return read(path.join(topicDir(user, ref), 'CLAUDE.md'))
+  return readMarkdown(path.join(topicDir(user, ref), 'CLAUDE.md'))
 }
 
 /**
@@ -405,16 +397,11 @@ export async function readGroupSummary(user: UserName, ref: VerifiedTopicRef): P
   return readSummary(user, topicRef(ref.topic))
 }
 
-/**
- * summary.md を差し替える。書き換えるのはここだけで、AI 側には書かせない。
- * 末尾の改行を揃えるのは、手で編集した版と AI が返した版で差が出ないようにするため。
- */
+/** summary.md を差し替える。書き換えるのはここだけで、AI 側には書かせない。 */
 export async function writeSummary(user: UserName, ref: VerifiedTopicRef, text: string): Promise<void> {
-  const body = text.trim()
-  await fs.writeFile(path.join(topicDir(user, ref), 'summary.md'), body ? body + '\n' : '')
+  await writeMarkdown(path.join(topicDir(user, ref), 'summary.md'), text)
 }
 
 export async function writeClaude(user: UserName, ref: VerifiedTopicRef, text: string): Promise<void> {
-  const body = text.trim()
-  await fs.writeFile(path.join(topicDir(user, ref), 'CLAUDE.md'), body ? body + '\n' : '')
+  await writeMarkdown(path.join(topicDir(user, ref), 'CLAUDE.md'), text)
 }

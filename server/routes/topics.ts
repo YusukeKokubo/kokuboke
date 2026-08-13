@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import { ENGINES, resolveSummaryModel, runAgent } from '../agent'
+import { collectAgent, ENGINES, resolveSummaryModel } from '../agent'
 import { namePrompt, nameSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
@@ -125,16 +125,18 @@ topics.on('GET', topicPaths(), async (c) => {
   return c.json(topic)
 })
 
-topics.on('PATCH', topicPaths(), async (c) => {
+topics.on('PATCH', topicPaths('/name'), async (c) => {
   const { user, ref } = await requireTopic(c)
-  const body = await readJson<{ engine?: string; model?: string; name?: string; emoji?: string }>(
-    c.req.raw,
-  )
-
-  // 名前を変えるとフォルダが動く。返す slug も変わるので、画面は経路を差し替える。
-  if (typeof body.name === 'string') {
-    return c.json(await renameTopic(user, ref, { name: body.name, emoji: body.emoji }))
+  const body = await readJson<{ name?: string; emoji?: string }>(c.req.raw)
+  if (typeof body.name !== 'string') {
+    throw new BadRequestError('トピック名を入力してください')
   }
+  return c.json(await renameTopic(user, ref, { name: body.name, emoji: body.emoji }))
+})
+
+topics.on('PATCH', topicPaths('/model'), async (c) => {
+  const { user, ref } = await requireTopic(c)
+  const body = await readJson<{ engine?: string; model?: string }>(c.req.raw)
   return c.json(await updateTopic(user, ref, body))
 })
 
@@ -164,16 +166,12 @@ topics.on('POST', topicPaths('/name'), async (c) => {
 
   let text = ''
   try {
-    const events = runAgent(choice, {
+    text = await collectAgent(choice, {
       cwd: topicDir(user, ref),
       prompt: namePrompt({ history, groupName: group.name }),
       systemPrompt: nameSystemPrompt(),
       signal: c.req.raw.signal,
     })
-    for await (const event of events) {
-      if (event.type === 'delta') text += event.text
-      else if (event.text.trim()) text = event.text
-    }
   } catch (error) {
     console.error('[name]', error)
     text = ''

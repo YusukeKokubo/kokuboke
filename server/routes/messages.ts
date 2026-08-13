@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { ChatEvent, Message } from '../../shared/types'
-import { resolveModel, runAgent } from '../agent'
+import { collectAgent, resolveModel } from '../agent'
 import { chatPrompt, chatSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { BadRequestError } from '../errors'
+import { sse } from '../lib/sse'
 import { appendMessage, readAll, readRecent } from '../store/log'
 import { saveImage, withImageUrls } from '../store/image'
 import { isGroupRef, topicDir } from '../store/paths'
@@ -89,28 +90,23 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
   }
 
   return streamSSE(c, async (stream) => {
-    const send = (event: ChatEvent) => stream.writeSSE({ data: JSON.stringify(event) })
+    const send = sse<ChatEvent>(stream)
 
     try {
       await send({ type: 'accepted', message: withImageUrls(user, ref, userMessage) })
 
-      let answer = ''
-      const events = runAgent(choice, {
-        cwd: topicDir(user, ref),
-        prompt,
-        systemPrompt,
-        signal: c.req.raw.signal,
-      })
-
-      for await (const event of events) {
-        if (event.type === 'delta') {
-          answer += event.text
-          await send({ type: 'delta', text: event.text })
-        } else if (event.text.trim()) {
-          // 差分を取りこぼしていても最終結果で辻褄を合わせる。
-          answer = event.text
-        }
-      }
+      const answer = await collectAgent(
+        choice,
+        {
+          cwd: topicDir(user, ref),
+          prompt,
+          systemPrompt,
+          signal: c.req.raw.signal,
+        },
+        async (text) => {
+          await send({ type: 'delta', text })
+        },
+      )
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),

@@ -2,7 +2,8 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { config } from '../config'
 import { userClaudeMd, userProfileMd } from '../templates'
-import { isTopicName, topicsDir, userDir } from './paths'
+import { readMarkdown, writeMarkdown } from './markdown'
+import { assertUser, isTopicName, topicsDir, userDir, type UserName } from './paths'
 
 async function writeIfMissing(file: string, content: string): Promise<void> {
   try {
@@ -41,7 +42,7 @@ export async function ensureAgentsLink(dir: string): Promise<void> {
 }
 
 /** ユーザーのフォルダと雛形を用意する。既にあるファイルは触らない。 */
-export async function ensureUser(user: string): Promise<void> {
+export async function ensureUser(user: UserName): Promise<void> {
   const dir = userDir(user)
   await fs.mkdir(topicsDir(user), { recursive: true })
   await writeIfMissing(path.join(dir, 'CLAUDE.md'), userClaudeMd(user))
@@ -52,7 +53,8 @@ export async function ensureUser(user: string): Promise<void> {
 export async function ensureAllUsers(): Promise<void> {
   await fs.mkdir(config.dataDir, { recursive: true })
 
-  for (const user of config.users) {
+  for (const name of config.users) {
+    const user = assertUser(name)
     await ensureUser(user)
 
     // 先に作られていたトピックにも後からリンクを足す。
@@ -87,33 +89,18 @@ export async function ensureAllUsers(): Promise<void> {
   }
 }
 
-async function read(file: string): Promise<string> {
-  try {
-    return await fs.readFile(file, 'utf8')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''
-    throw error
-  }
+export async function readProfile(user: UserName): Promise<string> {
+  return readMarkdown(path.join(userDir(user), 'profile.md'))
 }
 
-/** 末尾の改行を揃える。空なら空ファイル。 */
-async function write(file: string, text: string): Promise<void> {
-  const body = text.trim()
-  await fs.writeFile(file, body ? body + '\n' : '')
+export async function writeProfile(user: UserName, text: string): Promise<void> {
+  await writeMarkdown(path.join(userDir(user), 'profile.md'), text)
 }
 
-export async function readProfile(user: string): Promise<string> {
-  return read(path.join(userDir(user), 'profile.md'))
+export async function readClaude(user: UserName): Promise<string> {
+  return readMarkdown(path.join(userDir(user), 'CLAUDE.md'))
 }
 
-export async function writeProfile(user: string, text: string): Promise<void> {
-  await write(path.join(userDir(user), 'profile.md'), text)
-}
-
-export async function readClaude(user: string): Promise<string> {
-  return read(path.join(userDir(user), 'CLAUDE.md'))
-}
-
-export async function writeClaude(user: string, text: string): Promise<void> {
-  await write(path.join(userDir(user), 'CLAUDE.md'), text)
+export async function writeClaude(user: UserName, text: string): Promise<void> {
+  await writeMarkdown(path.join(userDir(user), 'CLAUDE.md'), text)
 }
