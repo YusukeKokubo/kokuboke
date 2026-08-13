@@ -75,7 +75,7 @@ export type SummaryEvent =
   | { type: 'done'; text: string; modelLabel: string }
   | { type: 'error'; message: string }
 
-export interface Memory {
+export interface Summary {
   /** summary.md の中身。無ければ空文字。 */
   summary: string
 }

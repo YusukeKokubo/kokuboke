@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
 import { TopicClaudeDialog } from '@/components/DocDialog'
-import { MemoryDialog } from '@/components/MemoryDialog'
+import { SummaryDialog } from '@/components/SummaryDialog'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
 import { RenameDialog } from '@/components/RenameDialog'
@@ -35,7 +35,7 @@ export default function ChatPage() {
   const [status, setStatus] = useState<Status>('idle')
   const [notice, setNotice] = useState<string | null>(null)
   const [modelOpen, setModelOpen] = useState(false)
-  const [memoryOpen, setMemoryOpen] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
   const [claudeOpen, setClaudeOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
 
@@ -226,7 +226,7 @@ export default function ChatPage() {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => setMemoryOpen(true)}
+          onClick={() => setSummaryOpen(true)}
           disabled={status !== 'idle'}
           className="shrink-0"
         >
@@ -319,11 +319,11 @@ export default function ChatPage() {
         </DialogContent>
       </Dialog>
 
-      <MemoryDialog
+      <SummaryDialog
         user={user}
         target={ref}
-        open={memoryOpen}
-        onOpenChange={setMemoryOpen}
+        open={summaryOpen}
+        onOpenChange={setSummaryOpen}
       />
 
       <TopicClaudeDialog

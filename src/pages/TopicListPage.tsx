@@ -9,7 +9,7 @@ import { topicHref } from '@/lib/route'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { TopicClaudeDialog } from '@/components/DocDialog'
-import { MemoryDialog } from '@/components/MemoryDialog'
+import { SummaryDialog } from '@/components/SummaryDialog'
 import { NewTopicDialog } from '@/components/NewTopicDialog'
 import { UserDocsDialog } from '@/components/UserDocsDialog'
 
@@ -19,7 +19,7 @@ export default function TopicListPage() {
   const [topics, setTopics] = useState<Topic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const [memoryFor, setMemoryFor] = useState<TopicRef | null>(null)
+  const [summaryFor, setSummaryFor] = useState<TopicRef | null>(null)
   const [claudeFor, setClaudeFor] = useState<TopicRef | null>(null)
   const [docsOpen, setDocsOpen] = useState(false)
 
@@ -102,7 +102,7 @@ export default function TopicListPage() {
                   <TopicButton
                     label="要約"
                     title={`${topic.name} の要約`}
-                    onClick={() => setMemoryFor({ topic: topic.slug })}
+                    onClick={() => setSummaryFor({ topic: topic.slug })}
                   >
                     <NotebookPen className="size-3.5" />
                   </TopicButton>
@@ -146,11 +146,11 @@ export default function TopicListPage() {
         }}
       />
 
-      <MemoryDialog
+      <SummaryDialog
         user={user}
-        target={memoryFor}
-        open={memoryFor !== null}
-        onOpenChange={(open) => !open && setMemoryFor(null)}
+        target={summaryFor}
+        open={summaryFor !== null}
+        onOpenChange={(open) => !open && setSummaryFor(null)}
       />
 
       <TopicClaudeDialog

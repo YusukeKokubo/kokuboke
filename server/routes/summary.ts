@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { streamSSE } from 'hono/streaming'
-import type { Memory, SummaryEvent, TopicRef } from '../../shared/types'
+import type { Summary, SummaryEvent, TopicRef } from '../../shared/types'
 import { resolveModel, runAgent } from '../agent'
 import { groupSummaryPrompt, summaryPrompt, summarySystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
@@ -23,12 +23,12 @@ export const summary = new Hono()
 /**
  * 要約そのものの読み書き。書き換えるのはここだけで、AI には触らせない。
  */
-summary.on('GET', topicPaths('/memory'), async (c) => {
+summary.on('GET', topicPaths('/summary'), async (c) => {
   const { user, ref } = await requireTopic(c)
-  return c.json<Memory>({ summary: await readSummary(user, ref) })
+  return c.json<Summary>({ summary: await readSummary(user, ref) })
 })
 
-summary.on('PUT', topicPaths('/memory'), async (c) => {
+summary.on('PUT', topicPaths('/summary'), async (c) => {
   const { user, ref } = await requireTopic(c)
 
   const body = await readJson<{ summary?: string }>(c.req.raw)
@@ -37,7 +37,7 @@ summary.on('PUT', topicPaths('/memory'), async (c) => {
   }
 
   await writeSummary(user, ref, body.summary)
-  return c.json<Memory>({ summary: await readSummary(user, ref) })
+  return c.json<Summary>({ summary: await readSummary(user, ref) })
 })
 
 /**

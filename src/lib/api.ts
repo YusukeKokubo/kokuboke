@@ -3,9 +3,9 @@ import type {
   ChatEvent,
   Claude,
   EngineInfo,
-  Memory,
   Message,
   Profile,
+  Summary,
   SummaryEvent,
   Topic,
   TopicRef,
@@ -95,15 +95,15 @@ export const api = {
   listMessages: (user: string, ref: TopicRef) =>
     fetch(topicUrl(user, ref, '/messages')).then((r) => unwrap<Message[]>(r)),
 
-  getMemory: (user: string, ref: TopicRef) =>
-    fetch(topicUrl(user, ref, '/memory')).then((r) => unwrap<Memory>(r)),
+  getSummary: (user: string, ref: TopicRef) =>
+    fetch(topicUrl(user, ref, '/summary')).then((r) => unwrap<Summary>(r)),
 
-  saveMemory: (user: string, ref: TopicRef, summary: string) =>
-    fetch(topicUrl(user, ref, '/memory'), {
+  saveSummary: (user: string, ref: TopicRef, summary: string) =>
+    fetch(topicUrl(user, ref, '/summary'), {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ summary }),
-    }).then((r) => unwrap<Memory>(r)),
+    }).then((r) => unwrap<Summary>(r)),
 
   getProfile: (user: string) =>
     fetch(`/api/users/${path(user)}/profile`).then((r) => unwrap<Profile>(r)),
@@ -232,7 +232,7 @@ export async function* sendMessage(
 
 /**
  * 要約の下書きを作らせる。ここではファイルは変わらない。
- * 保存するのは api.saveMemory を呼んだとき。
+ * 保存するのは api.saveSummary を呼んだとき。
  */
 export async function* draftSummary(
   user: string,

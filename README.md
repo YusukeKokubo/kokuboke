@@ -289,8 +289,8 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | POST | `/api/users/:user/topics/:topic/name` | 会話を読ませて名前を付ける。付いた名前で改名まで行う |
 | GET | `/api/users/:user/topics/:topic/messages` | 保存されている会話すべて |
 | POST | `/api/users/:user/topics/:topic/messages` | 送信。SSE で返答を流す |
-| GET | `/api/users/:user/topics/:topic/memory` | 要約（`summary.md`）を読む |
-| PUT | `/api/users/:user/topics/:topic/memory` | 要約を保存する。書き換えはここだけ |
+| GET | `/api/users/:user/topics/:topic/summary` | 要約（`summary.md`）を読む |
+| PUT | `/api/users/:user/topics/:topic/summary` | 要約を保存する。書き換えはここだけ |
 | POST | `/api/users/:user/topics/:topic/summary` | 要約の下書きを作らせる。SSE で流す（保存はしない） |
 | GET | `/api/users/:user/profile` | プロフィール（`profile.md`）を読む |
 | PUT | `/api/users/:user/profile` | プロフィールを保存する |
