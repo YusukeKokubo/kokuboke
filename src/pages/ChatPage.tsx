@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, NotebookPen, Pencil, ScrollText } from 'lucide-react'
-import { isGroupRef, type Message, type Topic } from '../../shared/types'
+import type { Message, Topic } from '../../shared/types'
 import { api, sendMessage } from '@/lib/api'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
 import { rememberUser } from '@/lib/remember'
@@ -24,13 +24,11 @@ import {
 
 type Status = 'idle' | 'sending'
 
+/** 中のトピック（会話）の画面。入力・履歴・SSE・スクロール追従を持つ。 */
 export default function ChatPage() {
-  const { user = '', topic = '', sub } = useParams()
+  const { user = '', topic = '', sub = '' } = useParams()
   const navigate = useNavigate()
-  const ref = useMemo(
-    () => (sub ? { kind: 'child' as const, topic, sub } : { kind: 'group' as const, topic }),
-    [topic, sub],
-  )
+  const ref = useMemo(() => ({ kind: 'child' as const, topic, sub }), [topic, sub])
 
   const [meta, setMeta] = useState<Topic | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -45,9 +43,6 @@ export default function ChatPage() {
   const content = useRef<HTMLElement>(null)
   const stick = useRef(true)
 
-  // トップレベルは要約の置き場。ここでは話さず、中への入口だけ見せる。
-  const isGroup = isGroupRef(ref)
-
   /**
    * 入力欄は sticky で本文の上に重なる。目印の要素に寄せると入力欄の高さだけ足りないので、
    * 画面そのものを下端まで動かす。
@@ -61,8 +56,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     let cancelled = false
-    // 器には会話がないので、履歴は中のトピックのときだけ読む。
-    Promise.all([api.getTopic(user, ref), sub ? api.listMessages(user, ref) : []])
+    Promise.all([api.getTopic(user, ref), api.listMessages(user, ref)])
       .then(([topicMeta, history]) => {
         if (cancelled) return
         rememberUser(user)
@@ -76,7 +70,7 @@ export default function ChatPage() {
     return () => {
       cancelled = true
     }
-  }, [user, ref, sub, scrollToBottom])
+  }, [user, ref, scrollToBottom])
 
   // 自分で上に遡っている最中は、追記のたびに引き戻さない。
   useEffect(() => {
@@ -184,28 +178,22 @@ export default function ChatPage() {
           {meta?.kind === 'child' && (
             <p className="text-muted-foreground truncate text-[11px]">{meta.group}</p>
           )}
-          {isGroup ? (
-            <h1 className="truncate text-[15px] font-semibold">
-              {meta ? `${meta.emoji} ${meta.name}` : '…'}
-            </h1>
-          ) : (
-            <button
-              type="button"
-              onClick={() => meta && setRenameOpen(true)}
-              className="flex max-w-full items-center gap-1"
+          <button
+            type="button"
+            onClick={() => meta && setRenameOpen(true)}
+            className="flex max-w-full items-center gap-1"
+          >
+            <h1
+              className={cn(
+                'truncate text-[15px] font-semibold',
+                meta && !meta.name && 'text-muted-foreground',
+              )}
             >
-              <h1
-                className={cn(
-                  'truncate text-[15px] font-semibold',
-                  meta && !meta.name && 'text-muted-foreground',
-                )}
-              >
-                {meta ? `${meta.emoji} ${topicLabel(meta)}` : '…'}
-              </h1>
-              <Pencil className="text-muted-foreground size-3 shrink-0" />
-            </button>
-          )}
-          {meta && !isGroup && (
+              {meta ? `${meta.emoji} ${topicLabel(meta)}` : '…'}
+            </h1>
+            <Pencil className="text-muted-foreground size-3 shrink-0" />
+          </button>
+          {meta && (
             <button
               type="button"
               onClick={() => setModelOpen(true)}
@@ -239,55 +227,26 @@ export default function ChatPage() {
       </header>
 
       <main ref={content} className="flex flex-1 flex-col gap-3 px-3 py-4">
-        {isGroup && (
-          <div className="flex flex-col gap-2 py-6">
-            <p className="text-muted-foreground text-center text-sm">
-              {meta?.kind === 'group' && meta.children.length === 0
-                ? 'まだ中に何もないよ。一覧の「話す」から始められるよ。'
-                : 'このトピックの中から、どれで話すか選んでね。'}
-            </p>
-            {meta?.kind === 'group' &&
-              meta.children.map((child) => (
-                <Link
-                  key={child.slug}
-                  to={topicHref(user, { kind: 'child', topic, sub: child.slug })}
-                  className="hover:bg-accent flex items-center gap-3 rounded-xl border p-3"
-                >
-                  <span className="text-xl">{child.emoji}</span>
-                  <span
-                    className={cn(
-                      'truncate text-[15px] font-medium',
-                      child.name || 'text-muted-foreground',
-                    )}
-                  >
-                    {topicLabel(child)}
-                  </span>
-                </Link>
-              ))}
-          </div>
-        )}
-
-        {!isGroup && messages.length === 0 && !draft && (
+        {messages.length === 0 && !draft && (
           <p className="text-muted-foreground py-16 text-center text-sm">
             まだ会話がないよ。話しかけてみて。
           </p>
         )}
 
-        {!isGroup &&
-          messages.map((message, index) => {
-            const previous = messages[index - 1]
-            const newDay = !previous || dayKey(previous.at) !== dayKey(message.at)
-            return (
-              <div key={message.id} className="flex flex-col gap-3">
-                {newDay && (
-                  <div className="text-muted-foreground py-1 text-center text-[11px]">
-                    {dayLabel(message.at)}
-                  </div>
-                )}
-                <MessageBubble message={message} />
-              </div>
-            )
-          })}
+        {messages.map((message, index) => {
+          const previous = messages[index - 1]
+          const newDay = !previous || dayKey(previous.at) !== dayKey(message.at)
+          return (
+            <div key={message.id} className="flex flex-col gap-3">
+              {newDay && (
+                <div className="text-muted-foreground py-1 text-center text-[11px]">
+                  {dayLabel(message.at)}
+                </div>
+              )}
+              <MessageBubble message={message} />
+            </div>
+          )
+        })}
 
         {draft && <MessageBubble message={draft} streaming />}
 
@@ -298,7 +257,7 @@ export default function ChatPage() {
         )}
       </main>
 
-      {!isGroup && <Composer disabled={status !== 'idle'} onSend={handleSend} />}
+      <Composer disabled={status !== 'idle'} onSend={handleSend} />
 
       <Dialog open={modelOpen} onOpenChange={setModelOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">

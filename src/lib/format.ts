@@ -1,3 +1,4 @@
+import { localDate } from '../../shared/date'
 import { NO_NAME } from '../../shared/types'
 
 const TIME = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -10,17 +11,21 @@ export function timeLabel(iso: string): string {
 }
 
 export function dayKey(iso: string): string {
-  return new Date(iso).toLocaleDateString('sv-SE')
+  return localDate(new Date(iso))
+}
+
+/** 端末の「今日」「昨日」を一度だけ求める。dayLabel / relativeLabel で共有する。 */
+function nearbyDays() {
+  const today = localDate()
+  const yesterdayDate = new Date()
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+  return { today, yesterday: localDate(yesterdayDate) }
 }
 
 /** 会話の区切りに出す見出し。今日と昨日は言葉で出す。 */
 export function dayLabel(iso: string): string {
   const key = dayKey(iso)
-  const today = new Date().toLocaleDateString('sv-SE')
-
-  const yesterdayDate = new Date()
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1)
-  const yesterday = yesterdayDate.toLocaleDateString('sv-SE')
+  const { today, yesterday } = nearbyDays()
 
   if (key === today) return '今日'
   if (key === yesterday) return '昨日'
@@ -34,8 +39,6 @@ export function topicLabel(topic: { name: string }): string {
 /** 一覧に出す「いつ話したか」。 */
 export function relativeLabel(iso: string | null): string {
   if (!iso) return ''
-  const key = dayKey(iso)
-  const today = new Date().toLocaleDateString('sv-SE')
-  if (key === today) return timeLabel(iso)
+  if (dayKey(iso) === nearbyDays().today) return timeLabel(iso)
   return DAY.format(new Date(iso))
 }

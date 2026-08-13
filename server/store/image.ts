@@ -5,7 +5,7 @@ import { config } from '../config'
 import { BadRequestError, PayloadTooLargeError } from '../errors'
 import type { Message } from '../../shared/types'
 import { imagesDir, isGroupRef, type VerifiedTopicRef, type UserName } from './paths'
-import { localDate } from './date'
+import { localDate } from '../../shared/date'
 
 export interface SavedImage {
   /** ログに残すファイル名。トピックのフォルダの中で一意。 */

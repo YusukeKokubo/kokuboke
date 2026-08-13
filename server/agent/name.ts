@@ -23,11 +23,12 @@ export function parseName(raw: string): { name: string; emoji?: string } | null 
   }
 
   // JSON から名前が取れなければ、最初の行をそのまま名前として扱う。本文に
-  // 中括弧が混じっているだけの返事もここで拾える。ただし拾った行そのものが
-  // JSON なら（name の無い `{}` など）名前ではないので捨てる。
+  // 中括弧が混じっているだけの返事もここで拾える。捨てるのは行の端に中括弧が
+  // 来た形だけ（整形 JSON の一行目の `{`、name の無い `{}` など）。
+  // 行の途中に混じっているだけなら `集合 {1,2} の話` のような普通の名前なので残す。
   if (!name) {
     const line = body.split('\n').find((l) => l.trim())?.trim() ?? ''
-    name = line.startsWith('{') && line.endsWith('}') ? '' : line
+    name = line.startsWith('{') || line.endsWith('}') ? '' : line
   }
 
   name = normalizeTopicName(name.replace(/^[-*\s"'「『]+|["'」』\s]+$/g, '')).slice(0, 40)

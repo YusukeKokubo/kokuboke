@@ -58,7 +58,7 @@ export async function ensureAllUsers(): Promise<void> {
     await ensureUser(user)
 
     // 先に作られていたトピックにも後からリンクを足す。
-    let names: string[] = []
+    let names: string[]
     try {
       names = await fs.readdir(topicsDir(user))
     } catch {
@@ -70,7 +70,7 @@ export async function ensureAllUsers(): Promise<void> {
       await ensureAgentsLink(dir)
 
       // 中で分けている子トピックにも同じリンクが要る。掘るのは一段だけ。
-      let children: string[] = []
+      let children: string[]
       try {
         children = await fs.readdir(dir)
       } catch {

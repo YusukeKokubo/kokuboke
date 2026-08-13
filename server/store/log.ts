@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { Message } from '../../shared/types'
 import { config } from '../config'
-import { localDate, localTime, stamp } from './date'
+import { localDate, localTime, stamp } from '../../shared/date'
 import { imageName } from './image'
 import { logsDir, type VerifiedTopicRef, type UserName } from './paths'
 
@@ -64,7 +64,10 @@ export async function readRecent(
   return all
 }
 
-/** logs/ 内の jsonl を日付名の古い順に並べる。 */
+/** 日付名のログだけ通す。手置きの notes.jsonl などが文脈に混ざらないようにする。 */
+const DATE_JSONL = /^\d{8}\.jsonl$/
+
+/** logs/ 内の日付名 jsonl を古い順に並べる。 */
 async function listJsonlFiles(user: UserName, ref: VerifiedTopicRef): Promise<string[]> {
   let files: string[]
   try {
@@ -73,7 +76,7 @@ async function listJsonlFiles(user: UserName, ref: VerifiedTopicRef): Promise<st
     return []
   }
   return files
-    .filter((f) => f.endsWith('.jsonl'))
+    .filter((f) => DATE_JSONL.test(f))
     .sort()
     .map((f) => path.join(logsDir(user, ref), f))
 }

@@ -12,7 +12,7 @@ process.env.USERS = 'taro'
 process.env.TZ = 'Asia/Tokyo'
 
 const { appendMessage, countUserMessages, readAll, readLastEntry, readRecent } = await import('./log')
-const { localDate, stamp } = await import('./date')
+const { localDate, stamp } = await import('../../shared/date')
 const { assertTopicRef, assertUser, logsDir } = await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
@@ -101,6 +101,22 @@ describe('readAll', () => {
 
   it('ログが無いトピックは空を返す', async () => {
     assert.deepEqual(await readAll(USER, assertTopicRef('not-yet')), [])
+  })
+  it('日付名でない jsonl は読まない', async () => {
+    await appendMessage(USER, TOPIC, message('正規', new Date()))
+    await fsp.writeFile(
+      path.join(logsDir(USER, TOPIC), 'notes.jsonl'),
+      JSON.stringify(message('手置き', new Date())) + '\n',
+    )
+
+    assert.deepEqual(
+      (await readAll(USER, TOPIC)).map((m) => m.text),
+      ['正規'],
+    )
+    assert.deepEqual(
+      (await readRecent(USER, TOPIC, 1)).map((m) => m.text),
+      ['正規'],
+    )
   })
 })
 

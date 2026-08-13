@@ -165,4 +165,37 @@ describe('deleteTopic', () => {
 
     assert.deepEqual(await readAll(USER, ref), [])
   })
+
+  /**
+   * 削除とすれ違った POST が logs を作り直すと、topic.json の無いフォルダが残る。
+   * そこへ同じ名前で作り直しても、消えた会話までは戻らないことを押さえる。
+   * すれ違い自体は messages 側の topicExists で塞ぐ。
+   */
+  it('消したあとに書かれても、前の会話は作り直したトピックに出てこない', async () => {
+    const group = `器-すれ違い-${crypto.randomUUID().slice(0, 8)}`
+    await createTopic(USER, { name: group })
+    await createTopic(USER, { name: '子' }, assertTopicName(group))
+    const ref = assertTopicRef(group, '子')
+
+    await appendMessage(USER, ref, {
+      id: '1',
+      role: 'assistant',
+      text: '前のトピックの返事',
+      images: [],
+      at: new Date().toISOString(),
+    })
+
+    await deleteTopic(USER, ref)
+    await appendMessage(USER, ref, {
+      id: '2',
+      role: 'user',
+      text: 'すれ違って届いた発言',
+      images: [],
+      at: new Date().toISOString(),
+    })
+    await createTopic(USER, { name: '子' }, assertTopicName(group))
+
+    const texts = (await readAll(USER, ref)).map((m) => m.text)
+    assert.ok(!texts.includes('前のトピックの返事'), `消した会話が残っている: ${texts.join(' / ')}`)
+  })
 })

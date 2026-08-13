@@ -27,7 +27,7 @@ import {
   type VerifiedTopicRef,
   type UserName,
 } from './paths'
-import { localDate, localTime, stamp } from './date'
+import { localDate, localTime, stamp } from '../../shared/date'
 import { countUserMessages, readLastEntry, readRecent } from './log'
 import { readMarkdown, writeMarkdown } from './markdown'
 import { ensureAgentsLink, ensureUser } from './user'

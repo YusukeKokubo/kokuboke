@@ -59,6 +59,16 @@ describe('parseName', () => {
     assert.equal(parseName('{"emoji":"🍚"}'), null)
   })
 
+  it('整形された JSON で name が無いとき、一行目の { を名前にしない', () => {
+    assert.equal(parseName('{\n  "emoji": "🍚"\n}'), null)
+  })
+
+  it('行の途中に中括弧が混じっているだけなら名前として残す', () => {
+    assert.equal(parseName('集合 {1,2} の話')?.name, '集合 {1,2} の話')
+    assert.equal(parseName('テンプレート {name} の使い方')?.name, 'テンプレート {name} の使い方')
+    assert.equal(parseName('数学の {} について')?.name, '数学の {} について')
+  })
+
   it('分かれた濁点を合成済みの形に寄せる', () => {
     assert.equal(parseName('か\u3099っこうの記録')?.name, 'がっこうの記録')
   })

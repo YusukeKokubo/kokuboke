@@ -36,7 +36,9 @@ export function refSlug(ref: VerifiedTopicRef): TopicName {
 /**
  * トピックの名前はそのままフォルダ名になり、URL にも出る。日本語も通す。
  * 弾くのは、パスの区切りになるものと、SMB で共有したときに扱えなくなるもの。
+ * 制御文字を意図的に弾くので no-control-regex は無効にする。
  */
+// eslint-disable-next-line no-control-regex -- ファイル名に制御文字を入れないための検査
 const FORBIDDEN = /[/\\:*?"<>|\u0000-\u001f\u007f]/
 /** 落とすとき用。global な正規表現は test() で lastIndex が残るので分けて持つ。 */
 const FORBIDDEN_ALL = new RegExp(FORBIDDEN.source, 'g')
@@ -134,8 +136,12 @@ export function imagesDir(user: UserName, ref: VerifiedTopicRef): string {
 }
 
 /**
- * 組み立てたパスがデータディレクトリの外へ出ていないか最後に検査する。
- * 名前は個別に検査しているが、二重の歯止めとして置いておく。
+ * 危ない操作の直前だけに置く追加の確認。組み立てたパスがデータディレクトリの
+ * 外へ出ていないかを見る。
+ *
+ * 呼ばれるのは二箇所だけ。(1) media が URL から来た任意のファイル名で実ファイルを
+ * 読む直前、(2) deleteTopic が再帰削除する直前。ブランド型で検証済みの値しか
+ * パス組み立てに入らない仕組みがあるので、通常の読み書きには足さない。
  */
 export function assertInsideDataDir(target: string): string {
   const resolved = path.resolve(target)

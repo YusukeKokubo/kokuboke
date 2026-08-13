@@ -4,7 +4,7 @@ import type { ChatEvent, Message } from '../../shared/types'
 import { collectAgent, resolveModel } from '../agent'
 import { chatPrompt, chatSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
-import { BadRequestError } from '../errors'
+import { BadRequestError, NotFoundError } from '../errors'
 import { sse } from '../lib/sse'
 import { appendMessage, readAll, readRecent } from '../store/log'
 import { saveImage, withImageUrls } from '../store/image'
@@ -53,6 +53,13 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
   let choice: ReturnType<typeof resolveModel>
 
   try {
+    // 入口の requireTopic から順番待ちを抜けるまでの間に削除が挟まりうる。
+    // saveImage も appendMessage も mkdir するので、確かめずに書くと
+    // topic.json の無いフォルダが復活し、同じ名前で作り直したときに紛れ込む。
+    if (!(await topicExists(user, ref))) {
+      throw new NotFoundError('このトピックは削除されたよ')
+    }
+
     const saved = []
     for (const file of files) {
       saved.push(await saveImage(user, ref, file))

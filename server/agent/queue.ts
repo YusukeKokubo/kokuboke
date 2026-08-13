@@ -39,6 +39,14 @@ class Limiter {
     }
   }
 
+  /**
+   * その人がいま返事を書いているか。枠は取らず、待たない。
+   * 削除のように「忙しかったら弾くだけ」の用途向け。acquire とは別口。
+   */
+  isBusy(user: string): boolean {
+    return this.busyUsers.has(user)
+  }
+
   get stats() {
     return { active: this.active, waiting: this.waiting.length, max: this.max }
   }

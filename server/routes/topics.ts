@@ -104,19 +104,21 @@ topics.on('PATCH', topicPaths('/model'), async (c) => {
 
 /**
  * 返事を書いている最中に消されると、書き終わった側が logs を作り直して
- * 残骸が残る。その人が話している間は limiter が 409 で弾くので、
- * 削除も同じ待ち行列に入れて重ならないようにする。
+ * 残骸が残る。その人が話しているあいだだけ 409 で弾く。
+ *
+ * 実行の枠（acquire）は取らない。全体が満員でも削除はすぐ通す。
+ * ただし送信側は requireTopic を通ってから acquire するまでの間が空くので、
+ * そこに削除が挟まる窓は残る。塞ぐのは messages 側で、acquire の直後に
+ * もう一度 topicExists を見る。
  */
 topics.on('DELETE', topicPaths(), async (c) => {
   const { user, ref } = await requireTopic(c)
 
-  const release = await limiter.acquire(user)
-  try {
-    await deleteTopic(user, ref)
-  } finally {
-    release()
+  if (limiter.isBusy(user)) {
+    throw new HTTPException(409, { message: '前の返答をまだ書いています' })
   }
 
+  await deleteTopic(user, ref)
   return c.body(null, 204)
 })
 
@@ -144,7 +146,7 @@ topics.on('POST', topicPaths('/name'), async (c) => {
   const group = await readTopic(user, topicRef(ref.topic))
   const release = await limiter.acquire(user)
 
-  let text = ''
+  let text: string
   try {
     text = await collectAgent(choice, {
       cwd: topicDir(user, ref),

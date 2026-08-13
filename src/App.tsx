@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { rememberUser, rememberedUser } from '@/lib/remember'
 import TopicListPage from './pages/TopicListPage'
+import GroupPage from './pages/GroupPage'
 import ChatPage from './pages/ChatPage'
 import AdminPage from './pages/AdminPage'
 import { Button } from '@/components/ui/button'
@@ -14,7 +15,7 @@ export default function App() {
       <Route path="/" element={<Navigate to="/user" replace />} />
       <Route path="/user" element={<UserPicker />} />
       <Route path="/user/:user" element={<TopicListPage />} />
-      <Route path="/user/:user/:topic" element={<ChatPage />} />
+      <Route path="/user/:user/:topic" element={<GroupPage />} />
       <Route path="/user/:user/:topic/:sub" element={<ChatPage />} />
       {/* 家族の誰の画面でもない。鍵は URL の ?key= で渡す。 */}
       <Route path="/admin" element={<AdminPage />} />
