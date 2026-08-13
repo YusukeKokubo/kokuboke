@@ -108,7 +108,7 @@ export const TOPIC_TEMPLATES: TopicTemplate[] = (
 }))
 
 export function isTemplateId(value: unknown): value is TemplateId {
-  return typeof value === 'string' && value in TEMPLATES
+  return typeof value === 'string' && Object.hasOwn(TEMPLATES, value)
 }
 
 export function topicClaudeMd(templateId: string, name: string): string {
