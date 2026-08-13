@@ -86,12 +86,12 @@ export default function TopicListPage() {
         <ul className="flex flex-col gap-1.5">
           {topics?.map((topic) => (
             <li key={topic.slug} className="pt-1">
-              <div className="flex flex-col gap-0.5 px-1 pb-1.5">
+              <div className="flex items-center justify-between px-1 pb-1.5">
                 <div className="flex items-center gap-2">
                   <span className="text-base">{topic.emoji}</span>
                   <span className="min-w-0 truncate text-sm font-semibold">{topic.name}</span>
                 </div>
-                <div className="-ml-1.5 flex flex-wrap items-center">
+                <div className="flex flex-wrap items-center">
                   <TopicButton
                     label="CLAUDE.md"
                     title={`${topic.name} の CLAUDE.md`}
@@ -108,6 +108,7 @@ export default function TopicListPage() {
                   </TopicButton>
                   <TopicButton
                     label="チャットを始める"
+                    variant="default"
                     title={`${topic.name} の中で新しくチャットを始める`}
                     onClick={() => start(topic.slug)}
                   >
@@ -169,20 +170,22 @@ function TopicButton({
   title,
   onClick,
   children,
+  variant = 'ghost',
 }: {
   label: string
   title: string
+  variant?: 'default' | 'outline' | 'secondary' | 'ghost'
   onClick: () => void
   children: React.ReactNode
 }) {
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant={variant}
       size="sm"
       title={title}
       onClick={onClick}
-      className="text-muted-foreground shrink-0"
+      className={cn('text-muted-foreground shrink-0', variant === 'default' && 'bg-primary text-primary-foreground hover:bg-primary/80')}
     >
       {children}
       {label}
