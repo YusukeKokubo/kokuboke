@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
-import { HTTPException } from 'hono/http-exception'
 import type { Claude, Profile } from '../../shared/types'
+import { BadRequestError } from '../errors'
 import { readJson } from '../lib/body'
 import { assertUser } from '../store/paths'
 import {
@@ -26,7 +26,7 @@ docs.put('/api/users/:user/profile', async (c) => {
   const user = assertUser(c.req.param('user'))
   const body = await readJson<{ profile?: string }>(c.req.raw)
   if (typeof body.profile !== 'string') {
-    throw new HTTPException(400, { message: '保存する内容がありません' })
+    throw new BadRequestError('保存する内容がありません')
   }
 
   await writeProfile(user, body.profile)
@@ -42,7 +42,7 @@ docs.put('/api/users/:user/claude', async (c) => {
   const user = assertUser(c.req.param('user'))
   const body = await readJson<{ claude?: string }>(c.req.raw)
   if (typeof body.claude !== 'string') {
-    throw new HTTPException(400, { message: '保存する内容がありません' })
+    throw new BadRequestError('保存する内容がありません')
   }
 
   await writeUserClaude(user, body.claude)
@@ -58,7 +58,7 @@ docs.on('PUT', topicPaths('/claude'), async (c) => {
   const { user, ref } = await requireTopic(c)
   const body = await readJson<{ claude?: string }>(c.req.raw)
   if (typeof body.claude !== 'string') {
-    throw new HTTPException(400, { message: '保存する内容がありません' })
+    throw new BadRequestError('保存する内容がありません')
   }
 
   await writeTopicClaude(user, ref, body.claude)

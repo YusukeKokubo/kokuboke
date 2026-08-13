@@ -1,13 +1,13 @@
 import { Hono } from 'hono'
-import { HTTPException } from 'hono/http-exception'
 import { streamSSE } from 'hono/streaming'
-import { isGroupRef, type ChatEvent, type Message } from '../../shared/types'
+import type { ChatEvent, Message } from '../../shared/types'
 import { resolveModel, runAgent } from '../agent'
 import { chatPrompt, chatSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
+import { BadRequestError } from '../errors'
 import { appendMessage, readAll, readRecent } from '../store/log'
 import { saveImage, withImageUrls } from '../store/image'
-import { topicDir } from '../store/paths'
+import { isGroupRef, topicDir } from '../store/paths'
 import { readGroupSummary, readSummary, readTopic, shouldAutoName } from '../store/topic'
 import { readProfile } from '../store/user'
 import { requireTopic, topicPaths } from './target'
@@ -26,7 +26,7 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
 
   // トップレベルは要約の置き場なので、話しかける先は必ずその中のトピックになる。
   if (isGroupRef(ref)) {
-    throw new HTTPException(400, { message: 'このトピックの中から選んで話しかけてね' })
+    throw new BadRequestError('このトピックの中から選んで話しかけてね')
   }
 
   const body = await c.req.parseBody({ all: true })
@@ -36,10 +36,10 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
     .filter((f): f is File => f instanceof File && f.size > 0)
 
   if (!text.trim() && files.length === 0) {
-    throw new HTTPException(400, { message: 'メッセージが空です' })
+    throw new BadRequestError('メッセージが空です')
   }
   if (files.length > 4) {
-    throw new HTTPException(400, { message: '画像は一度に 4 枚までです' })
+    throw new BadRequestError('画像は一度に 4 枚までです')
   }
 
   // 空きが無ければここで待つ。同じ人の多重送信はここで 409 になる。

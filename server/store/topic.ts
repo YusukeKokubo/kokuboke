@@ -7,7 +7,6 @@ import {
   type GroupTopic,
   type Message,
   type Topic,
-  type TopicRef,
 } from '../../shared/types'
 import { BadRequestError, ConflictError, NotFoundError } from '../errors'
 import { resolveModel } from '../agent'
@@ -18,9 +17,15 @@ import {
   isTopicName,
   logsDir,
   normalizeTopicName,
+  refSlug,
   toTopicName,
   topicDir,
+  topicRef,
   topicsDir,
+  trustedTopicName,
+  type TopicName,
+  type TopicRef,
+  type UserName,
 } from './paths'
 import { localDate, localTime, stamp } from './date'
 import { countUserMessages, readLastEntry, readRecent } from './log'
@@ -41,52 +46,43 @@ interface TopicMeta {
 /** 本人がこれだけ話したら、会話を読んで名前を付けにいく。 */
 const AUTO_NAME_AFTER = 3
 
-function metaFile(user: string, ref: TopicRef): string {
+function metaFile(user: UserName, ref: TopicRef): string {
   return path.join(topicDir(user, ref), 'topic.json')
 }
 
-async function writeMeta(user: string, ref: TopicRef, meta: TopicMeta): Promise<void> {
+async function writeMeta(user: UserName, ref: TopicRef, meta: TopicMeta): Promise<void> {
   await fs.writeFile(metaFile(user, ref), JSON.stringify(meta, null, 2) + '\n')
 }
 
-/** 同じ並びの中で slug だけ差し替えた ref を作る。 */
-function withSlug(ref: TopicRef, slug: string): TopicRef {
-  return isGroupRef(ref)
-    ? { kind: 'group', topic: slug }
-    : { kind: 'child', topic: ref.topic, sub: slug }
-}
-
 /** 親（器作成なら無し）と slug から完成した ref を作る。 */
-function makeRef(group: string | undefined, slug: string): TopicRef {
-  return group
-    ? { kind: 'child', topic: group, sub: slug }
-    : { kind: 'group', topic: slug }
+function makeRef(group: TopicName | undefined, slug: TopicName): TopicRef {
+  return group ? topicRef(group, slug) : topicRef(slug)
 }
 
 /** 空いている名前になるまで、末尾の数字を増やしていく。 */
 async function uniqueSlug(
-  user: string,
-  group: string | undefined,
-  base: string,
-): Promise<string> {
+  user: UserName,
+  group: TopicName | undefined,
+  base: TopicName,
+): Promise<TopicName> {
   let candidate = base
   for (let i = 2; await topicExists(user, makeRef(group, candidate)); i++) {
-    candidate = `${base}-${i}`
+    candidate = `${base}-${i}` as TopicName
   }
   return candidate
 }
 
 /** 名前なしで始めたときのフォルダ名。NAS を覗いたときに順番が分かるよう日付を入れる。 */
-function placeholderSlug(): string {
+function placeholderSlug(): TopicName {
   const now = new Date()
-  return `untitled-${stamp(localDate(now))}-${localTime(now).replace(':', '')}`
+  return `untitled-${stamp(localDate(now))}-${localTime(now).replace(':', '')}` as TopicName
 }
 
-async function readMeta(user: string, ref: TopicRef): Promise<TopicMeta> {
+async function readMeta(user: UserName, ref: TopicRef): Promise<TopicMeta> {
   try {
     const raw = await fs.readFile(metaFile(user, ref), 'utf8')
     const parsed = JSON.parse(raw) as Partial<TopicMeta>
-    const slug = isGroupRef(ref) ? ref.topic : ref.sub
+    const slug = refSlug(ref)
     return {
       slug,
       name: parsed.name ?? slug,
@@ -127,13 +123,13 @@ function toTopic(
   return { ...fields, kind: 'child', group: ref.topic }
 }
 
-export async function readTopic(user: string, ref: TopicRef): Promise<Topic> {
+export async function readTopic(user: UserName, ref: TopicRef): Promise<Topic> {
   // トップレベルは器なので自分では話さない。読むログもない。
   const last = isGroupRef(ref) ? null : await readLastEntry(user, ref)
   return toTopic(await readMeta(user, ref), ref, last)
 }
 
-export async function topicExists(user: string, ref: TopicRef): Promise<boolean> {
+export async function topicExists(user: UserName, ref: TopicRef): Promise<boolean> {
   try {
     await fs.stat(metaFile(user, ref))
     return true
@@ -143,20 +139,21 @@ export async function topicExists(user: string, ref: TopicRef): Promise<boolean>
 }
 
 /** そのフォルダの直下にある、topic.json を持つフォルダの名前。 */
-async function childNames(user: string, topic: string): Promise<string[]> {
+async function childNames(user: UserName, topic: TopicName): Promise<TopicName[]> {
   let entries: string[]
   try {
-    entries = await fs.readdir(topicDir(user, { kind: 'group', topic }))
+    entries = await fs.readdir(topicDir(user, topicRef(topic)))
   } catch {
     return []
   }
 
-  const names: string[] = []
+  const names: TopicName[] = []
   for (const name of entries) {
     // logs や images は topic.json を持たないので、ここで自然に外れる。
     if (!isTopicName(name)) continue
-    if (!(await topicExists(user, { kind: 'child', topic, sub: name }))) continue
-    names.push(name)
+    const sub = trustedTopicName(name)
+    if (!(await topicExists(user, topicRef(topic, sub)))) continue
+    names.push(sub)
   }
   return names
 }
@@ -166,17 +163,17 @@ function byRecency(a: Topic, b: Topic): number {
   return (b.lastMessageAt ?? b.createdAt).localeCompare(a.lastMessageAt ?? a.createdAt)
 }
 
-export async function listChildren(user: string, topic: string): Promise<ChildTopic[]> {
+export async function listChildren(user: UserName, topic: TopicName): Promise<ChildTopic[]> {
   const children: ChildTopic[] = []
   for (const sub of await childNames(user, topic)) {
-    const child = await readTopic(user, { kind: 'child', topic, sub })
+    const child = await readTopic(user, topicRef(topic, sub))
     if (child.kind !== 'child') continue
     children.push(child)
   }
   return children.sort(byRecency)
 }
 
-export async function listTopics(user: string): Promise<GroupTopic[]> {
+export async function listTopics(user: UserName): Promise<GroupTopic[]> {
   await ensureUser(user)
 
   let names: string[]
@@ -190,12 +187,13 @@ export async function listTopics(user: string): Promise<GroupTopic[]> {
   for (const name of names) {
     // 手で置かれた不正な名前のフォルダは黙って無視する。
     if (!isTopicName(name)) continue
-    if (!(await topicExists(user, { kind: 'group', topic: name }))) continue
+    const slug = trustedTopicName(name)
+    if (!(await topicExists(user, topicRef(slug)))) continue
 
-    const topic = await readTopic(user, { kind: 'group', topic: name })
+    const topic = await readTopic(user, topicRef(slug))
     if (topic.kind !== 'group') continue
 
-    const children = await listChildren(user, name)
+    const children = await listChildren(user, slug)
     // 器自身は話さないので、一覧に出す時刻と抜粋は一番新しい子から借りる。
     const newest = children[0]
     topics.push({
@@ -214,9 +212,9 @@ export async function listTopics(user: string): Promise<GroupTopic[]> {
  * 器に会話がありえないので、器に変えられるかどうかを気にする必要もない。
  */
 export async function createTopic(
-  user: string,
+  user: UserName,
   input: { name?: string; emoji?: string; template?: string; engine?: string; model?: string },
-  group?: string,
+  group?: TopicName,
 ): Promise<Topic> {
   const name = (input.name ?? '').trim()
   // 名前なしで始められるのはサブトピックだけ。器は人が名前を付けて作る。
@@ -232,11 +230,11 @@ export async function createTopic(
   // group は所属先の器。ある＝子を作る、無い＝器そのものを作る。
   const isChild = Boolean(group)
 
-  if (group && !(await topicExists(user, { kind: 'group', topic: group }))) {
+  if (group && !(await topicExists(user, topicRef(group)))) {
     throw new NotFoundError('トピックが見つかりません')
   }
 
-  let slug: string
+  let slug: TopicName
   if (name) {
     slug = toTopicName(name)
     if (await topicExists(user, makeRef(group, slug))) {
@@ -282,7 +280,7 @@ export async function createTopic(
 
 /** エンジンとモデルだけを差し替える。名前を変えるのは renameTopic。 */
 export async function updateTopic(
-  user: string,
+  user: UserName,
   ref: TopicRef,
   input: { engine?: string; model?: string },
 ): Promise<Topic> {
@@ -301,7 +299,7 @@ export async function updateTopic(
  * CLAUDE.md への相対なので、動かしても切れない。
  */
 export async function renameTopic(
-  user: string,
+  user: UserName,
   ref: TopicRef,
   input: { name: string; emoji?: string },
 ): Promise<Topic> {
@@ -322,11 +320,11 @@ export async function renameTopic(
     // 同じ器の中で名前がぶつかったら、末尾に数字を足して避ける。
     const group = isGroupRef(ref) ? undefined : ref.topic
     const slug = await uniqueSlug(user, group, desired)
-    next = withSlug(ref, slug)
+    next = makeRef(group, slug)
     await fs.rename(topicDir(user, ref), topicDir(user, next))
   }
 
-  const slug = isGroupRef(next) ? next.topic : next.sub
+  const slug = refSlug(next)
   const meta2: TopicMeta = { ...meta, slug, name, emoji, nameTried: true }
   await writeMeta(user, next, meta2)
 
@@ -337,7 +335,7 @@ export async function renameTopic(
  * 会話を読んで名前を付ける頃合いかどうか。名前が付いた後や、
  * 一度試して失敗した後には二度と立たない。
  */
-export async function shouldAutoName(user: string, ref: TopicRef): Promise<boolean> {
+export async function shouldAutoName(user: UserName, ref: TopicRef): Promise<boolean> {
   if (isGroupRef(ref)) return false
 
   const meta = await readMeta(user, ref)
@@ -347,7 +345,7 @@ export async function shouldAutoName(user: string, ref: TopicRef): Promise<boole
 }
 
 /** 名前が付かなかったときも、試したことだけは残す。 */
-export async function markNameTried(user: string, ref: TopicRef): Promise<void> {
+export async function markNameTried(user: UserName, ref: TopicRef): Promise<void> {
   const meta = await readMeta(user, ref)
   await writeMeta(user, ref, { ...meta, nameTried: true })
 }
@@ -361,7 +359,7 @@ async function read(file: string): Promise<string> {
   }
 }
 
-export async function readSummary(user: string, ref: TopicRef): Promise<string> {
+export async function readSummary(user: UserName, ref: TopicRef): Promise<string> {
   return read(path.join(topicDir(user, ref), 'summary.md'))
 }
 
@@ -373,14 +371,14 @@ export interface ChildSource {
 }
 
 export async function readChildSources(
-  user: string,
-  topic: string,
+  user: UserName,
+  topic: TopicName,
   days: number,
 ): Promise<ChildSource[]> {
   const children = await listChildren(user, topic)
   const sources: ChildSource[] = []
   for (const child of children) {
-    const ref: TopicRef = { kind: 'child', topic, sub: child.slug }
+    const ref = topicRef(topic, trustedTopicName(child.slug))
     sources.push({
       name: child.name || NO_NAME,
       summary: await readSummary(user, ref),
@@ -390,7 +388,7 @@ export async function readChildSources(
   return sources
 }
 
-export async function readClaude(user: string, ref: TopicRef): Promise<string> {
+export async function readClaude(user: UserName, ref: TopicRef): Promise<string> {
   return read(path.join(topicDir(user, ref), 'CLAUDE.md'))
 }
 
@@ -398,21 +396,21 @@ export async function readClaude(user: string, ref: TopicRef): Promise<string> {
  * 子で話すときは、器の要約も一緒に効かせる。
  * 器には全体で共有する前提を、子にはその話に閉じた要約を置く。
  */
-export async function readGroupSummary(user: string, ref: TopicRef): Promise<string> {
+export async function readGroupSummary(user: UserName, ref: TopicRef): Promise<string> {
   if (isGroupRef(ref)) return ''
-  return readSummary(user, { kind: 'group', topic: ref.topic })
+  return readSummary(user, topicRef(ref.topic))
 }
 
 /**
  * summary.md を差し替える。書き換えるのはここだけで、AI 側には書かせない。
  * 末尾の改行を揃えるのは、手で編集した版と AI が返した版で差が出ないようにするため。
  */
-export async function writeSummary(user: string, ref: TopicRef, text: string): Promise<void> {
+export async function writeSummary(user: UserName, ref: TopicRef, text: string): Promise<void> {
   const body = text.trim()
   await fs.writeFile(path.join(topicDir(user, ref), 'summary.md'), body ? body + '\n' : '')
 }
 
-export async function writeClaude(user: string, ref: TopicRef, text: string): Promise<void> {
+export async function writeClaude(user: UserName, ref: TopicRef, text: string): Promise<void> {
   const body = text.trim()
   await fs.writeFile(path.join(topicDir(user, ref), 'CLAUDE.md'), body ? body + '\n' : '')
 }

@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import { Hono } from 'hono'
-import { HTTPException } from 'hono/http-exception'
+import { BadRequestError, NotFoundError } from '../errors'
 import { imageAbsPath } from '../store/image'
 import { assertInsideDataDir, assertTopicRef, assertUser } from '../store/paths'
 
@@ -13,7 +13,7 @@ media.on('GET', ['/media/:user/:topic/:file', '/media/:user/:topic/sub/:sub/:fil
 
   const target = imageAbsPath(user, ref, c.req.param('file'))
   if (!target) {
-    throw new HTTPException(400, { message: 'ファイル名が不正です' })
+    throw new BadRequestError('ファイル名が不正です')
   }
   assertInsideDataDir(target)
 
@@ -21,7 +21,7 @@ media.on('GET', ['/media/:user/:topic/:file', '/media/:user/:topic/sub/:sub/:fil
   try {
     body = await fs.readFile(target)
   } catch {
-    throw new HTTPException(404, { message: '画像が見つかりません' })
+    throw new NotFoundError('画像が見つかりません')
   }
 
   return c.body(new Uint8Array(body), 200, {

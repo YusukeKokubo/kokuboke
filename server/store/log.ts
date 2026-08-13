@@ -4,7 +4,7 @@ import type { Message } from '../../shared/types'
 import { config } from '../config'
 import { localDate, localTime, stamp } from './date'
 import { imageName } from './image'
-import { logsDir, type TopicRef } from './paths'
+import { logsDir, type TopicRef, type UserName } from './paths'
 
 /** その日から n 日前までの日付を新しい順に並べる。 */
 function recentDates(days: number): string[] {
@@ -18,11 +18,11 @@ function recentDates(days: number): string[] {
   return out
 }
 
-function jsonlFile(user: string, ref: TopicRef, date: string): string {
+function jsonlFile (user: UserName, ref: TopicRef, date: string): string {
   return path.join(logsDir(user, ref), `${stamp(date)}.jsonl`)
 }
 
-function markdownFile(user: string, ref: TopicRef, date: string): string {
+function markdownFile (user: UserName, ref: TopicRef, date: string): string {
   return path.join(logsDir(user, ref), `${stamp(date)}.md`)
 }
 
@@ -49,7 +49,7 @@ async function readJsonl(file: string): Promise<Message[]> {
 
 /** 当日を含めて days 日分を古い順に返す。AI の文脈用。 */
 export async function readRecent(
-  user: string,
+  user: UserName,
   ref: TopicRef,
   days = config.contextDays,
 ): Promise<Message[]> {
@@ -62,7 +62,7 @@ export async function readRecent(
 }
 
 /** logs/ 内の jsonl を日付名の古い順に並べる。 */
-async function listJsonlFiles(user: string, ref: TopicRef): Promise<string[]> {
+async function listJsonlFiles (user: UserName, ref: TopicRef): Promise<string[]> {
   let files: string[]
   try {
     files = await fs.readdir(logsDir(user, ref))
@@ -76,7 +76,7 @@ async function listJsonlFiles(user: string, ref: TopicRef): Promise<string[]> {
 }
 
 /** 保存されている会話を全部、古い順に返す。画面の履歴用。 */
-export async function readAll(user: string, ref: TopicRef): Promise<Message[]> {
+export async function readAll (user: UserName, ref: TopicRef): Promise<Message[]> {
   const all: Message[] = []
   for (const file of await listJsonlFiles(user, ref)) {
     all.push(...(await readJsonl(file)))
@@ -88,7 +88,7 @@ export async function readAll(user: string, ref: TopicRef): Promise<Message[]> {
  * このトピックで本人が話した回数。名前を付ける頃合いの判断に使う。
  * 日付をまたいでも数えたいので、直近何日ではなくログを全部見る。
  */
-export async function countUserMessages(user: string, ref: TopicRef): Promise<number> {
+export async function countUserMessages (user: UserName, ref: TopicRef): Promise<number> {
   let count = 0
   for (const file of await listJsonlFiles(user, ref)) {
     for (const message of await readJsonl(file)) {
@@ -98,7 +98,7 @@ export async function countUserMessages(user: string, ref: TopicRef): Promise<nu
   return count
 }
 
-export async function readLastEntry(user: string, ref: TopicRef): Promise<Message | null> {
+export async function readLastEntry (user: UserName, ref: TopicRef): Promise<Message | null> {
   // 直近 30 日だけ遡る。それ以上前だと一覧では「まだ話していない」扱いでよい。
   for (const date of recentDates(30)) {
     const messages = await readJsonl(jsonlFile(user, ref, date))
@@ -124,7 +124,7 @@ function renderMarkdown(message: Message): string {
  * 会話を 2 通りに書き出す。md は人が読むため、jsonl は次回の読み戻しのため。
  * 片方が壊れても、もう片方から復旧できるようにしている。
  */
-export async function appendMessage(user: string, ref: TopicRef, message: Message): Promise<void> {
+export async function appendMessage (user: UserName, ref: TopicRef, message: Message): Promise<void> {
   const date = localDate(new Date(message.at))
   const dir = logsDir(user, ref)
   await fs.mkdir(dir, { recursive: true })

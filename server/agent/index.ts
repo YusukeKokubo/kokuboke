@@ -1,4 +1,4 @@
-import { HTTPException } from 'hono/http-exception'
+import { BadRequestError } from '../errors'
 import type { EngineId } from '../../shared/types'
 import { config } from '../config'
 import { claudeCode } from './claude-code'
@@ -56,7 +56,7 @@ export function resolveSummaryModel(): ModelChoice {
 export function runAgent(choice: ModelChoice, request: Omit<RunRequest, 'model'>): AsyncGenerator<AgentEvent> {
   const engine = IMPLEMENTATIONS[choice.engine]
   if (!engine) {
-    throw new HTTPException(400, { message: '選べないモデルです' })
+    throw new BadRequestError('選べないモデルです')
   }
   return engine.run({ ...request, model: choice.model })
 }

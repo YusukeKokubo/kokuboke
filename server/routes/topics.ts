@@ -1,14 +1,21 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import { isGroupRef } from '../../shared/types'
 import { ENGINES, resolveSummaryModel, runAgent } from '../agent'
 import { namePrompt, nameSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
+import { BadRequestError } from '../errors'
 import { readJson } from '../lib/body'
 import { TOPIC_TEMPLATES } from '../templates'
 import { readRecent } from '../store/log'
-import { assertTopicName, assertUser, normalizeTopicName, topicDir } from '../store/paths'
+import {
+  assertTopicName,
+  assertUser,
+  isGroupRef,
+  normalizeTopicName,
+  topicDir,
+  topicRef,
+} from '../store/paths'
 import {
   createTopic,
   listChildren,
@@ -138,7 +145,7 @@ topics.on('PATCH', topicPaths(), async (c) => {
 topics.on('POST', topicPaths('/name'), async (c) => {
   const { user, ref } = await requireTopic(c)
   if (isGroupRef(ref)) {
-    throw new HTTPException(400, { message: '名前を付けられるのは中のトピックだけです' })
+    throw new BadRequestError('名前を付けられるのは中のトピックだけです')
   }
 
   const current = await readTopic(user, ref)
@@ -147,12 +154,12 @@ topics.on('POST', topicPaths('/name'), async (c) => {
 
   const history = await readRecent(user, ref, Math.max(config.contextDays, 14))
   if (history.length === 0) {
-    throw new HTTPException(400, { message: 'まだ記録がありません' })
+    throw new BadRequestError('まだ記録がありません')
   }
 
   const choice = resolveSummaryModel()
 
-  const group = await readTopic(user, { kind: 'group', topic: ref.topic })
+  const group = await readTopic(user, topicRef(ref.topic))
   const release = await limiter.acquire(user)
 
   let text = ''

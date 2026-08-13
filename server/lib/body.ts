@@ -1,4 +1,4 @@
-import { HTTPException } from 'hono/http-exception'
+import { BadRequestError } from '../errors'
 
 /**
  * JSON のボディを読む。空のまま送られてくる経路もあるので、
@@ -11,6 +11,6 @@ export async function readJson<T>(request: Request): Promise<T> {
   try {
     return JSON.parse(raw) as T
   } catch {
-    throw new HTTPException(400, { message: 'リクエストの形式が不正です' })
+    throw new BadRequestError('リクエストの形式が不正です')
   }
 }

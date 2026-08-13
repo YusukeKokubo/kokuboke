@@ -1,14 +1,21 @@
 import { Hono } from 'hono'
-import { HTTPException } from 'hono/http-exception'
 import { streamSSE } from 'hono/streaming'
-import { isGroupRef, type Summary, type SummaryEvent, type TopicRef } from '../../shared/types'
+import type { Summary, SummaryEvent } from '../../shared/types'
 import { resolveModel, resolveSummaryModel, runAgent } from '../agent'
 import { groupSummaryPrompt, summaryPrompt, summarySystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
+import { BadRequestError } from '../errors'
 import { readJson } from '../lib/body'
 import { readRecent } from '../store/log'
-import { topicDir } from '../store/paths'
+import {
+  isGroupRef,
+  topicDir,
+  topicRef,
+  type TopicName,
+  type TopicRef,
+  type UserName,
+} from '../store/paths'
 import {
   readChildSources,
   readGroupSummary,
@@ -33,7 +40,7 @@ summary.on('PUT', topicPaths('/summary'), async (c) => {
 
   const body = await readJson<{ summary?: string }>(c.req.raw)
   if (typeof body.summary !== 'string') {
-    throw new HTTPException(400, { message: '保存する内容がありません' })
+    throw new BadRequestError('保存する内容がありません')
   }
 
   await writeSummary(user, ref, body.summary)
@@ -98,14 +105,14 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
 })
 
 async function topicDraftPrompt(
-  user: string,
+  user: UserName,
   ref: TopicRef,
   topicName: string,
   days: number,
 ): Promise<string> {
   const history = await readRecent(user, ref, days)
   if (history.length === 0) {
-    throw new HTTPException(400, { message: 'まだ記録がありません' })
+    throw new BadRequestError('まだ記録がありません')
   }
   return summaryPrompt({
     history,
@@ -116,18 +123,18 @@ async function topicDraftPrompt(
 }
 
 async function groupDraftPrompt(
-  user: string,
-  topic: string,
+  user: UserName,
+  topic: TopicName,
   topicName: string,
   days: number,
 ): Promise<string> {
   const children = await readChildSources(user, topic, days)
   if (children.every((child) => child.history.length === 0)) {
-    throw new HTTPException(400, { message: '中のトピックでまだ話していないよ' })
+    throw new BadRequestError('中のトピックでまだ話していないよ')
   }
   return groupSummaryPrompt({
     topicName,
-    summary: await readSummary(user, { kind: 'group', topic }),
+    summary: await readSummary(user, topicRef(topic)),
     children,
   })
 }
@@ -141,5 +148,5 @@ export function unfence(text: string): string {
   const match = /^```[^\n]*\n([\s\S]*)\n```$/.exec(body)
   if (!match) return body
   // 途中で閉じて開き直している場合は、囲みではなく本文の一部。
-  return match[1].includes('```') ? body : match[1]
+  return match[1]!.includes('```') ? body : match[1]!
 }
