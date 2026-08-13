@@ -13,12 +13,12 @@ process.env.TZ = 'Asia/Tokyo'
 
 const { appendMessage, readAll, readLastEntry, readRecent } = await import('./log')
 const { localDate } = await import('./date')
-const { logsDir } = await import('./paths')
+const { assertTopicRef, assertUser, logsDir } = await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
-const USER = 'taro'
-const TOPIC = { topic: 'math' }
+const USER = assertUser('taro')
+const TOPIC = assertTopicRef('math')
 
 function message(text: string, at: Date, images: string[] = []): Message {
   return { id: crypto.randomUUID(), role: 'user', text, images, at: at.toISOString() }
@@ -69,7 +69,7 @@ describe('appendMessage と readRecent', () => {
   })
 
   it('ログが無いトピックは空を返す', async () => {
-    assert.deepEqual(await readRecent(USER, { topic: 'not-yet' }, 3), [])
+    assert.deepEqual(await readRecent(USER, assertTopicRef('not-yet'), 3), [])
   })
 
   it('壊れた行は捨てて残りを読む', async () => {
@@ -100,7 +100,7 @@ describe('readAll', () => {
   })
 
   it('ログが無いトピックは空を返す', async () => {
-    assert.deepEqual(await readAll(USER, { topic: 'not-yet' }), [])
+    assert.deepEqual(await readAll(USER, assertTopicRef('not-yet')), [])
   })
 })
 
@@ -113,7 +113,7 @@ describe('readLastEntry', () => {
   })
 
   it('まだ話していないトピックは null', async () => {
-    assert.equal(await readLastEntry(USER, { topic: 'not-yet' }), null)
+    assert.equal(await readLastEntry(USER, assertTopicRef('not-yet')), null)
   })
 })
 

@@ -1,6 +1,6 @@
 import type { Context } from 'hono'
 import { NotFoundError } from '../errors'
-import { assertTopicRef, assertUser, type TopicRef, type UserName } from '../store/paths'
+import { assertTopicRef, assertUser, type VerifiedTopicRef, type UserName } from '../store/paths'
 import { topicExists } from '../store/topic'
 
 /**
@@ -12,7 +12,7 @@ export function topicPaths(suffix = ''): string[] {
   return [`${base}${suffix}`, `${base}/sub/:sub${suffix}`]
 }
 
-export function target(c: Context): { user: UserName; ref: TopicRef } {
+export function target(c: Context): { user: UserName; ref: VerifiedTopicRef } {
   // 経路を配列で渡すと Hono が名前を推論できないので、空文字に落として検査に回す。
   return {
     user: assertUser(c.req.param('user') ?? ''),
@@ -21,7 +21,7 @@ export function target(c: Context): { user: UserName; ref: TopicRef } {
 }
 
 /** 経路から取り出したうえで、実体があることまで確かめる。 */
-export async function requireTopic(c: Context): Promise<{ user: UserName; ref: TopicRef }> {
+export async function requireTopic(c: Context): Promise<{ user: UserName; ref: VerifiedTopicRef }> {
   const found = target(c)
   if (!(await topicExists(found.user, found.ref))) {
     throw new NotFoundError('トピックが見つかりません')

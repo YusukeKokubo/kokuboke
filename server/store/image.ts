@@ -4,7 +4,7 @@ import sharp from 'sharp'
 import { config } from '../config'
 import { BadRequestError, PayloadTooLargeError } from '../errors'
 import type { Message } from '../../shared/types'
-import { imagesDir, isGroupRef, type TopicRef } from './paths'
+import { imagesDir, isGroupRef, type VerifiedTopicRef, type UserName } from './paths'
 import { localDate } from './date'
 
 export interface SavedImage {
@@ -27,7 +27,7 @@ function filename(at: Date): string {
  * 受け取った画像を JPEG に正規化して保存する。
  * 原寸のまま渡すとトークンを無駄に食うので長辺を縮める。
  */
-export async function saveImage(user: string, ref: TopicRef, file: File): Promise<SavedImage> {
+export async function saveImage(user: UserName, ref: VerifiedTopicRef, file: File): Promise<SavedImage> {
   if (file.size > config.uploadMaxBytes) {
     throw new PayloadTooLargeError('画像が大きすぎます')
   }
@@ -83,7 +83,7 @@ export function imageName(stored: string): string {
  * 素で入れると `#` から先が断片として切り落とされる。
  * 子トピックの分は、経路の途中に `sub` を挟んで親と区別する。
  */
-export function mediaUrl(user: string, ref: TopicRef, stored: string): string {
+export function mediaUrl(user: UserName, ref: VerifiedTopicRef, stored: string): string {
   const segments = isGroupRef(ref)
     ? [user, ref.topic]
     : [user, ref.topic, 'sub', ref.sub]
@@ -92,13 +92,13 @@ export function mediaUrl(user: string, ref: TopicRef, stored: string): string {
 }
 
 /** API で返す形に直す。ログにはファイル名しか入っていない。 */
-export function withImageUrls(user: string, ref: TopicRef, message: Message): Message {
+export function withImageUrls(user: UserName, ref: VerifiedTopicRef, message: Message): Message {
   if (message.images.length === 0) return message
   return { ...message, images: message.images.map((name) => mediaUrl(user, ref, name)) }
 }
 
 /** 保存済み画像のファイル名から実ファイルの位置を割り出す。 */
-export function imageAbsPath(user: string, ref: TopicRef, name: string): string | null {
+export function imageAbsPath(user: UserName, ref: VerifiedTopicRef, name: string): string | null {
   if (!/^[\w.-]+\.jpg$/.test(name)) return null
   return path.join(imagesDir(user, ref), name)
 }

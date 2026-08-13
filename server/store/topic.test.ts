@@ -12,12 +12,12 @@ process.env.USERS = 'taro'
 const { createTopic, readChildSources, readClaude, writeClaude, writeSummary } =
   await import('./topic')
 const { appendMessage } = await import('./log')
-const { topicDir } = await import('./paths')
+const { assertTopicName, assertTopicRef, assertUser, topicDir } = await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
-const USER = 'taro'
-const REF = { topic: 'math' }
+const USER = assertUser('taro')
+const REF = assertTopicRef('math')
 
 beforeEach(async () => {
   const dir = topicDir(USER, REF)
@@ -38,7 +38,7 @@ describe('トピックの CLAUDE.md', () => {
   })
 
   it('子トピックも同じ関数で読める', async () => {
-    const child = { topic: 'math', sub: '分数' }
+    const child = assertTopicRef('math', '分数')
     await fsp.mkdir(topicDir(USER, child), { recursive: true })
     await writeClaude(USER, child, '途中式を見る')
     assert.equal(await readClaude(USER, child), '途中式を見る\n')
@@ -47,7 +47,7 @@ describe('トピックの CLAUDE.md', () => {
 })
 
 describe('readChildSources', () => {
-  const parent = { topic: '器' }
+  const parent = assertTopicRef('器')
 
   beforeEach(async () => {
     await fsp.rm(topicDir(USER, parent), { recursive: true, force: true })
@@ -55,8 +55,8 @@ describe('readChildSources', () => {
 
   it('中のトピックの要約と直近の会話を返す', async () => {
     const group = await createTopic(USER, { name: '器' })
-    const child = await createTopic(USER, { name: '買い物' }, group.slug)
-    const ref = { topic: group.slug, sub: child.slug }
+    const child = await createTopic(USER, { name: '買い物' }, assertTopicName(group.slug))
+    const ref = assertTopicRef(group.slug, child.slug)
 
     await writeSummary(USER, ref, '牛乳が切れている')
     await appendMessage(USER, ref, {
@@ -67,7 +67,7 @@ describe('readChildSources', () => {
       at: new Date().toISOString(),
     })
 
-    const sources = await readChildSources(USER, group.slug, 3)
+    const sources = await readChildSources(USER, assertTopicName(group.slug), 3)
     assert.equal(sources.length, 1)
     assert.equal(sources[0]?.name, '買い物')
     assert.equal(sources[0]?.summary.trim(), '牛乳が切れている')
@@ -79,15 +79,15 @@ describe('readChildSources', () => {
 
   it('会話が無い子は history が空', async () => {
     await createTopic(USER, { name: '器' })
-    await createTopic(USER, { name: '買い物' }, '器')
+    await createTopic(USER, { name: '買い物' }, assertTopicName('器'))
 
-    const sources = await readChildSources(USER, '器', 3)
+    const sources = await readChildSources(USER, assertTopicName('器'), 3)
     assert.equal(sources.length, 1)
     assert.deepEqual(sources[0]?.history, [])
   })
 
   it('中が無ければ空', async () => {
     await createTopic(USER, { name: '器' })
-    assert.deepEqual(await readChildSources(USER, '器', 3), [])
+    assert.deepEqual(await readChildSources(USER, assertTopicName('器'), 3), [])
   })
 })

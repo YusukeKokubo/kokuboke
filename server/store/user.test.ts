@@ -10,11 +10,11 @@ process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 
 const { ensureUser, readClaude, readProfile, writeClaude, writeProfile } = await import('./user')
-const { userDir } = await import('./paths')
+const { assertUser, userDir } = await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
-const USER = 'taro'
+const USER = assertUser('taro')
 
 beforeEach(async () => {
   await fsp.rm(userDir(USER), { recursive: true, force: true })
