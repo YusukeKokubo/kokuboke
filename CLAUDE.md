@@ -17,7 +17,6 @@
 
 - `mise exec -- npm run dev` — Vite 5173 + API 3000。`.env` を読む（`USERS` は必須）
 - `mise exec -- npm run typecheck` / `... npm run lint` / `... npm test` / `... npm run build`
-- lint は `--max-warnings 0`。`exhaustive-deps` は warn だが、これで落ちる
 - テストは `server/store/` と `server/agent/`。`node --test` を tsx 経由で走らせる。
   それ以外の確認は typecheck と build、あとは実際に動かして見る
 - テストは環境変数を差し込んでから `await import` する。`config` は読み込んだ時点で
@@ -46,12 +45,8 @@
 - `server/config.ts` — 環境変数と既定値はここに集約。増やすときもここ
 - `shared/types.ts` — フロントとサーバーで共有する型。`Message.images` に入るのは
   ファイル名だけ。URL は返すときに `withImageUrls` で組み立てる（保存しない）
-- `shared/date.ts` — ログのファイル名と表示の日付。サーバーは `TZ`、画面は端末の
-  タイムゾーンに従う。それぞれの土地の時刻が正しいので揃えなくてよい
-- `server/agent/model.ts` `engines.ts` — エンジンとモデルの一覧、および指定の検証。
-  知らない組み合わせは黙って既定に落ちる。モデルを増やすときは `engines.ts` に足す
-- `src/pages/` — 一覧・グループ・チャット・管理の 4 つ。`src/lib/api.ts` が
-  API 呼び出しと SSE の受けの入口
+- `shared/date.ts` — 日付の整形。`server/agent/engines.ts` — エンジンとモデルの一覧
+- `src/pages/` — 画面。`src/lib/api.ts` が API 呼び出しと SSE の受けの入口
 - `src/components/markdown/` — Markdown と数式の描画。`src/components/ui/` は shadcn だが
   style が `base-nova` で中身は `@base-ui/react`。Radix 前提の書き方は通らない
 - `android/` — Capacitor の WebView 殻。`CAPACITOR_SERVER_URL` 先の NAS UI を開く。
@@ -64,9 +59,7 @@
 - `data/**/CLAUDE.md` はアプリが読むユーザー人格ファイル。プロジェクトへの指示ではない
 - 各フォルダの `AGENTS.md` は `CLAUDE.md` へのシンボリックリンク（cursor-agent 用）
 - 手元の `data/` は実際の会話が入る。動作確認で作ったトピックは消しておく
-- フロントの経路は 3 階層。`/user/:user` が一覧、`/user/:user/:topic` がグループ、
-  チャットは `/user/:user/:topic/:sub`。`/:user` は 404 になる。トピックは親（group）と
-  子（child）に分かれ、判別は `store/paths.ts` の `TopicRef`
+- フロントの経路は `/user/` から始まる。`/:user` は 404 になる
 - トピック名はそのままフォルダ名で、日本語が入る。URL に埋めるときは
   `encodeURIComponent` を通す。比較と保存の前に `normalizeTopicName` で NFC に寄せる
 - `package.json` の `dependencies` はサーバーが実行時に読むものだけ。画面側は
@@ -78,14 +71,10 @@
   実体が Chrome のままなので、画面時間の切り分けには使えない
 - Android ビルドは cmdline-tools + JDK。`ANDROID_HOME` の既定は
   `/opt/homebrew/share/android-commandlinetools`。Studio は開けても使わない
-- PWA の更新は `registerType: 'autoUpdate'` だけでは回らない。プラグインが
-  `skipWaiting` / `clientsClaim` を足すのは `injectRegister` が auto のときだけで、
-  こちらは false にしている。書き忘れると新しい sw.js は待機したまま残り、
-  普通のリロードでは古い `index.html` が返り続ける（スーパーリロードだけ通る）
-- 古い画面が頼むハッシュ付きのファイルは、差し替え後のイメージには無い。
-  実ファイルに当たらないパスを何でも `index.html` に落とすと、JavaScript を
-  頼まれて HTML を返して MIME 違いになり、画面が真っ白になる。`/assets/` の
-  取りこぼしは 404 で返す（`server/index.ts`）
+- 差し替えたのに古い画面が出る（スーパーリロードだけ通る）なら `vite.config.ts` の
+  workbox。`registerType: 'autoUpdate'` だけでは回らない
+- 差し替えた直後に画面が真っ白なら `server/index.ts` の SPA フォールバック。
+  古い画面が頼むハッシュ付きのファイルはもう無く、`/assets/` の取りこぼしは 404 で返す
 
 ## 進め方
 
