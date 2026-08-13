@@ -17,7 +17,7 @@
 
 - `mise exec -- npm run dev` — Vite 5173 + API 3000。`.env` を読む（`USERS` は必須）
 - `mise exec -- npm run typecheck` / `... npm test` / `... npm run build`
-- テストは `server/store/` だけ。`node --test` を tsx 経由で走らせる。
+- テストは `server/store/` と `server/agent/`。`node --test` を tsx 経由で走らせる。
   それ以外の確認は typecheck と build、あとは実際に動かして見る
 - テストは環境変数を差し込んでから `await import` する。`config` は読み込んだ時点で
   環境変数を見るため。`process.loadEnvFile` は既にある値を上書きしないので `.env` には負けない

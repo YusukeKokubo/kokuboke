@@ -76,7 +76,7 @@ interface EditorProps {
   placeholder?: string
   /** 外の仕事で塞がっているとき（要約の下書き生成中など）。 */
   busy?: boolean
-  /** ボタン列の左に差し込むもの。 */
+  /** 保存ボタン列の上に差し込むもの。 */
   actions?: ReactNode
   onSave: () => void
 }
@@ -105,32 +105,30 @@ export function DocEditor({ doc, placeholder, busy: externalBusy, actions, onSav
 
       {notice && <p className="text-muted-foreground text-xs">{notice}</p>}
 
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1">{actions}</div>
+      {actions && <div className="flex min-w-0 items-center gap-1">{actions}</div>}
 
-        <div className="flex shrink-0 items-center justify-end gap-2">
-          {dirty && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setDraft(doc.saved)}
-              disabled={busy}
-            >
-              元に戻す
-            </Button>
-          )}
-
+      <div className="flex items-center justify-end gap-2">
+        {dirty && (
           <Button
             type="button"
+            variant="ghost"
             size="sm"
-            onClick={onSave}
-            disabled={busy || !dirty || status === 'loading'}
+            onClick={() => setDraft(doc.saved)}
+            disabled={busy}
           >
-            {status === 'saving' && <Loader2 className="size-4 animate-spin" />}
-            保存
+            元に戻す
           </Button>
-        </div>
+        )}
+
+        <Button
+          type="button"
+          size="sm"
+          onClick={onSave}
+          disabled={busy || !dirty || status === 'loading'}
+        >
+          {status === 'saving' && <Loader2 className="size-4 animate-spin" />}
+          保存
+        </Button>
       </div>
     </>
   )
