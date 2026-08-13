@@ -43,7 +43,7 @@ export function chatSystemPrompt(input: { user: string; topicName: string }): st
 
 export function chatPrompt(input: {
   profile: string
-  /** 親トピックの要約。中で分けているときだけ入る。 */
+  /** 器の要約。中で分けているときだけ入る。 */
   groupSummary: string
   summary: string
   history: Message[]
@@ -122,7 +122,7 @@ export function summaryPrompt(input: {
   history: Message[]
   topicName: string
   summary: string
-  /** 親トピックの要約。書き換える対象ではなく、重複を避けるための参考。 */
+  /** 器の要約。書き換える対象ではなく、重複を避けるための参考。 */
   groupSummary: string
 }): string {
   const parts: string[] = []

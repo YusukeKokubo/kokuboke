@@ -11,7 +11,7 @@ import { readRecent } from '../store/log'
 import { topicDir } from '../store/paths'
 import {
   readChildSources,
-  readParentSummary,
+  readGroupSummary,
   readSummary,
   readTopic,
   writeSummary,
@@ -113,7 +113,7 @@ async function topicDraftPrompt(
     history,
     topicName,
     summary: await readSummary(user, ref),
-    groupSummary: await readParentSummary(user, ref),
+    groupSummary: await readGroupSummary(user, ref),
   })
 }
 

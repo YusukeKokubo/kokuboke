@@ -28,7 +28,7 @@
             ├── summary.md     共有の要約（画面から読み書きする）
             └── 肌の記録/        ここで話す
                 ├── topic.json
-                ├── CLAUDE.md   このトピックでの振る舞い
+                ├── CLAUDE.md   この話での役割
                 ├── summary.md  この話に閉じた覚え書き
                 ├── logs/       YYYYMMDD.md（閲覧用） / YYYYMMDD.jsonl（読み戻し用）
                 └── images/     YYYYMMDD_HHMMSS.jpg
@@ -294,10 +294,10 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | POST | `/api/users/:user/topics/:topic/summary` | 要約の下書きを作らせる。SSE で流す（保存はしない） |
 | GET | `/api/users/:user/profile` | プロフィール（`profile.md`）を読む |
 | PUT | `/api/users/:user/profile` | プロフィールを保存する |
-| GET | `/api/users/:user/claude` | 話し方（ユーザーの `CLAUDE.md`）を読む |
-| PUT | `/api/users/:user/claude` | 話し方を保存する |
-| GET | `/api/users/:user/topics/:topic/claude` | 振る舞い（トピックの `CLAUDE.md`）を読む |
-| PUT | `/api/users/:user/topics/:topic/claude` | 振る舞いを保存する |
+| GET | `/api/users/:user/claude` | ユーザーの `CLAUDE.md` を読む |
+| PUT | `/api/users/:user/claude` | ユーザーの `CLAUDE.md` を保存する |
+| GET | `/api/users/:user/topics/:topic/claude` | トピックの `CLAUDE.md` を読む |
+| PUT | `/api/users/:user/topics/:topic/claude` | トピックの `CLAUDE.md` を保存する |
 | GET | `/media/:user/:topic/:file` | 保存済み画像 |
 
 トピックを指す経路はどれも、`:topic` のうしろに `/sub/:sub` を足すと中で分けたほうを指す。

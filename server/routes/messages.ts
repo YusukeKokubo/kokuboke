@@ -8,7 +8,7 @@ import { limiter } from '../agent/queue'
 import { appendMessage, readAll, readRecent } from '../store/log'
 import { topicDir } from '../store/paths'
 import { saveImage, withImageUrls } from '../store/image'
-import { readParentSummary, readSummary, readTopic, shouldAutoName } from '../store/topic'
+import { readGroupSummary, readSummary, readTopic, shouldAutoName } from '../store/topic'
 import { readProfile } from '../store/user'
 import { requireTopic, topicPaths } from './target'
 
@@ -76,7 +76,7 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
     systemPrompt = chatSystemPrompt({ user, topicName: meta.name })
     prompt = chatPrompt({
       profile: await readProfile(user),
-      groupSummary: await readParentSummary(user, ref),
+      groupSummary: await readGroupSummary(user, ref),
       summary: await readSummary(user, ref),
       // いま追記した分は current_message として別に渡すので履歴から外す。
       history: history.filter((m) => m.id !== userMessage.id),

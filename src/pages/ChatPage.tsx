@@ -178,8 +178,8 @@ export default function ChatPage() {
         </Link>
 
         <div className="min-w-0 flex-1">
-          {meta?.parent && (
-            <p className="text-muted-foreground truncate text-[11px]">{meta.parent}</p>
+          {meta?.group && (
+            <p className="text-muted-foreground truncate text-[11px]">{meta.group}</p>
           )}
           {isGroup ? (
             <h1 className="truncate text-[15px] font-semibold">

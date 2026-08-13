@@ -88,7 +88,7 @@ topics.post('/api/users/:user/topics', async (c) => {
 /** トピックの中をさらに分ける。作れるのは一段までなので、子の下には作れない。 */
 topics.post('/api/users/:user/topics/:topic/sub', async (c) => {
   const user = assertUser(c.req.param('user'))
-  const parent = assertTopicName(c.req.param('topic'))
+  const group = assertTopicName(c.req.param('topic'))
   const body = await readJson<CreateBody>(c.req.raw)
 
   const topic = await createTopic(
@@ -100,7 +100,7 @@ topics.post('/api/users/:user/topics/:topic/sub', async (c) => {
       engine: body.engine,
       model: body.model,
     },
-    parent,
+    group,
   )
 
   return c.json(topic, 201)

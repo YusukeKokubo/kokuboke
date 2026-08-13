@@ -94,7 +94,7 @@ function toTopic(
   const choice = resolveModel(meta.engine, meta.model)
   return {
     slug: meta.slug,
-    parent: ref.sub ? ref.topic : null,
+    group: ref.sub ? ref.topic : null,
     name: meta.name,
     emoji: meta.emoji,
     createdAt: meta.createdAt,
@@ -187,16 +187,16 @@ export async function listTopics(user: string): Promise<Topic[]> {
 
 /**
  * トップレベルは常に要約を置く器で、会話は必ずその中に作る。
- * 親に会話がありえないので、器に変えられるかどうかを気にする必要もない。
+ * 器に会話がありえないので、器に変えられるかどうかを気にする必要もない。
  */
 export async function createTopic(
   user: string,
   input: { name?: string; emoji?: string; template?: string; engine?: string; model?: string },
-  parent?: string,
+  group?: string,
 ): Promise<Topic> {
   const name = (input.name ?? '').trim()
   // 名前なしで始められるのはサブトピックだけ。器は人が名前を付けて作る。
-  if (!name && !parent) {
+  if (!name && !group) {
     throw new HTTPException(400, { message: 'トピック名を入力してください' })
   }
   if (name.length > 40) {
@@ -205,11 +205,11 @@ export async function createTopic(
 
   await ensureUser(user)
 
-  if (parent && !(await topicExists(user, { topic: parent }))) {
+  if (group && !(await topicExists(user, { topic: group }))) {
     throw new HTTPException(404, { message: 'トピックが見つかりません' })
   }
 
-  const base: TopicRef = parent ? { topic: parent, sub: '' } : { topic: '' }
+  const base: TopicRef = group ? { topic: group, sub: '' } : { topic: '' }
   let ref: TopicRef
   if (name) {
     ref = withSlug(base, toTopicName(name))
@@ -223,7 +223,7 @@ export async function createTopic(
   const slug = ref.sub ?? ref.topic
 
   const dir = topicDir(user, ref)
-  if (parent) {
+  if (group) {
     await fs.mkdir(logsDir(user, ref), { recursive: true })
     await fs.mkdir(imagesDir(user, ref), { recursive: true })
   } else {
@@ -247,7 +247,7 @@ export async function createTopic(
   await fs.writeFile(path.join(dir, 'CLAUDE.md'), topicClaudeMd(input.template ?? 'plain', label))
   await fs.writeFile(
     path.join(dir, 'summary.md'),
-    parent ? topicSummaryMd(label) : groupSummaryMd(label),
+    group ? topicSummaryMd(label) : groupSummaryMd(label),
   )
   await ensureAgentsLink(dir)
 
@@ -368,10 +368,10 @@ export async function readClaude(user: string, ref: TopicRef): Promise<string> {
 }
 
 /**
- * 子で話すときは、親の要約も一緒に効かせる。
- * 親には全体で共有する前提を、子にはその話に閉じた要約を置く。
+ * 子で話すときは、器の要約も一緒に効かせる。
+ * 器には全体で共有する前提を、子にはその話に閉じた要約を置く。
  */
-export async function readParentSummary(user: string, ref: TopicRef): Promise<string> {
+export async function readGroupSummary(user: string, ref: TopicRef): Promise<string> {
   if (!ref.sub) return ''
   return readSummary(user, { topic: ref.topic })
 }
