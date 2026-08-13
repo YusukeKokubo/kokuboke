@@ -205,6 +205,9 @@ export async function createTopic(
 
   await ensureUser(user)
 
+  // group は所属先の器。ある＝子を作る、無い＝器そのものを作る。
+  const isChild = Boolean(group)
+
   if (group && !(await topicExists(user, { topic: group }))) {
     throw new HTTPException(404, { message: 'トピックが見つかりません' })
   }
@@ -223,7 +226,7 @@ export async function createTopic(
   const slug = ref.sub ?? ref.topic
 
   const dir = topicDir(user, ref)
-  if (group) {
+  if (isChild) {
     await fs.mkdir(logsDir(user, ref), { recursive: true })
     await fs.mkdir(imagesDir(user, ref), { recursive: true })
   } else {
@@ -247,7 +250,7 @@ export async function createTopic(
   await fs.writeFile(path.join(dir, 'CLAUDE.md'), topicClaudeMd(input.template ?? 'plain', label))
   await fs.writeFile(
     path.join(dir, 'summary.md'),
-    group ? topicSummaryMd(label) : groupSummaryMd(label),
+    isChild ? topicSummaryMd(label) : groupSummaryMd(label),
   )
   await ensureAgentsLink(dir)
 
