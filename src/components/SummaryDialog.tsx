@@ -123,7 +123,9 @@ export function SummaryDialog({ user, target, open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle>要約</DialogTitle>
           <DialogDescription>
-            会話のたびに読み込まれる覚え書き。そのまま直してもいいし、AI に整理させてもいいよ。
+            {sub
+              ? '会話のたびに読み込まれる覚え書き。そのまま直してもいいし、AI に整理させてもいいよ。'
+              : '中のどれで話しても効く共有の覚え書き。そのまま直してもいいし、AI に整理させてもいいよ。'}
           </DialogDescription>
         </DialogHeader>
 

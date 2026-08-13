@@ -3,7 +3,7 @@ import path from 'node:path'
 import { HTTPException } from 'hono/http-exception'
 import type { EngineId, Message, Topic } from '../../shared/types'
 import { resolveModel } from '../agent'
-import { topicClaudeMd, topicSummaryMd } from '../templates'
+import { groupSummaryMd, topicClaudeMd, topicSummaryMd } from '../templates'
 import {
   imagesDir,
   isTopicName,
@@ -245,7 +245,10 @@ export async function createTopic(
   const label = name || NO_NAME
   await writeMeta(user, ref, meta)
   await fs.writeFile(path.join(dir, 'CLAUDE.md'), topicClaudeMd(input.template ?? 'plain', label))
-  await fs.writeFile(path.join(dir, 'summary.md'), topicSummaryMd(label))
+  await fs.writeFile(
+    path.join(dir, 'summary.md'),
+    parent ? topicSummaryMd(label) : groupSummaryMd(label),
+  )
   await ensureAgentsLink(dir)
 
   return toTopic(meta, ref, null)
