@@ -78,7 +78,8 @@ npm run dev           # http://localhost:5173（API は 3000 で並走）
 
 ```sh
 npm run typecheck
-npm test              # server/store/ の読み書きとパスの検査
+npm run lint          # 警告ひとつで落ちる（--max-warnings 0）
+npm test              # server/store/ の読み書きと server/agent/ の出力の解釈
 npm run build         # dist/client と dist/server を吐く
 npm start             # ビルド済みを本番モードで起動
 npm run android:sync  # Capacitor Android へ同期（CAPACITOR_SERVER_URL 必須）
@@ -355,8 +356,11 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 ## 画面
 
 - `/user/:user` — トピック一覧。直近に話した順に並び、最後の発言を抜粋で出す。
-- `/user/:user/:topic` — チャット。日付の区切り、画像付きの吹き出し、
+- `/user/:user/:topic` — 器（トップレベル）。ここでは話さず、中への入口と
+  `CLAUDE.md` / 要約の置き場だけを見せる。
+- `/user/:user/:topic/:sub` — チャット。日付の区切り、画像付きの吹き出し、
   返答が届くにつれて伸びていく表示、ヘッダの「要約」。
+- `/admin` — イメージの差し替え。
 
 返答を作っているあいだは、ファイルを開いたりウェブを見に行ったりしていることを
 吹き出しの下に一言で出す。一文字目が届くまで数十秒かかる回があり、

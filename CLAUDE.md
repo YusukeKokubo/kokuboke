@@ -16,7 +16,8 @@
 すべて `mise exec --` を頭に付けて実行する。
 
 - `mise exec -- npm run dev` — Vite 5173 + API 3000。`.env` を読む（`USERS` は必須）
-- `mise exec -- npm run typecheck` / `... npm test` / `... npm run build`
+- `mise exec -- npm run typecheck` / `... npm run lint` / `... npm test` / `... npm run build`
+- lint は `--max-warnings 0`。`exhaustive-deps` は warn だが、これで落ちる
 - テストは `server/store/` と `server/agent/`。`node --test` を tsx 経由で走らせる。
   それ以外の確認は typecheck と build、あとは実際に動かして見る
 - テストは環境変数を差し込んでから `await import` する。`config` は読み込んだ時点で
@@ -45,7 +46,12 @@
 - `server/config.ts` — 環境変数と既定値はここに集約。増やすときもここ
 - `shared/types.ts` — フロントとサーバーで共有する型。`Message.images` に入るのは
   ファイル名だけ。URL は返すときに `withImageUrls` で組み立てる（保存しない）
-- `src/pages/` — 画面は 2 つだけ。`src/lib/api.ts` が API 呼び出しと SSE の受けの入口
+- `shared/date.ts` — ログのファイル名と表示の日付。サーバーは `TZ`、画面は端末の
+  タイムゾーンに従う。それぞれの土地の時刻が正しいので揃えなくてよい
+- `server/agent/model.ts` `engines.ts` — エンジンとモデルの一覧、および指定の検証。
+  知らない組み合わせは黙って既定に落ちる。モデルを増やすときは `engines.ts` に足す
+- `src/pages/` — 一覧・グループ・チャット・管理の 4 つ。`src/lib/api.ts` が
+  API 呼び出しと SSE の受けの入口
 - `src/components/markdown/` — Markdown と数式の描画。`src/components/ui/` は shadcn だが
   style が `base-nova` で中身は `@base-ui/react`。Radix 前提の書き方は通らない
 - `android/` — Capacitor の WebView 殻。`CAPACITOR_SERVER_URL` 先の NAS UI を開く。
@@ -58,12 +64,13 @@
 - `data/**/CLAUDE.md` はアプリが読むユーザー人格ファイル。プロジェクトへの指示ではない
 - 各フォルダの `AGENTS.md` は `CLAUDE.md` へのシンボリックリンク（cursor-agent 用）
 - 手元の `data/` は実際の会話が入る。動作確認で作ったトピックは消しておく
-- フロントの経路は `/user/:user` と `/user/:user/:topic`。`/:user` は 404 になる
+- フロントの経路は 3 階層。`/user/:user` が一覧、`/user/:user/:topic` がグループ、
+  チャットは `/user/:user/:topic/:sub`。`/:user` は 404 になる。トピックは親（group）と
+  子（child）に分かれ、判別は `store/paths.ts` の `TopicRef`
 - トピック名はそのままフォルダ名で、日本語が入る。URL に埋めるときは
   `encodeURIComponent` を通す。比較と保存の前に `normalizeTopicName` で NFC に寄せる
-- `package.json` の `dependencies` はサーバーが実行時に読むものだけ（hono / sharp /
-  heic-convert）。画面側は vite が `dist` に畳み込むので `devDependencies` に置く。
-  新しく入れるときは、どちら側で使うかで置き場所を決める
+- `package.json` の `dependencies` はサーバーが実行時に読むものだけ。画面側は
+  `devDependencies`（vite が `dist` に畳み込む）。理由は `package.json` の `"//"` に
 - `DATA_DIR` と `DATA_PATH` は別物。前者は手元で直接動かすときの保存先、
   後者は compose がマウント元に使う。`.env` に両方あるで取り違えやすい
 - Android 殻は `server.url` で NAS を開く。APK に焼かれる URL は
@@ -98,9 +105,7 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
 - 途中の様子（何を読んでいるか）は cursor は `tool_call` の `started`、
   Claude Code は `content_block_start` の `tool_use` で分かる。札の文言は
   `server/agent/activity.ts` に集約。道具は増えるので、知らない名前は丸める
-- cursor は `--force` を付けると `--sandbox` が無効になる
 - remark-math が独立した式として扱うのは `$$` が行頭と行末に来た形だけ
-- `node:22-slim` には UID 1000 の `node` ユーザーが既にいる
 - cursor の認証は二か所に分かれる。`~/.cursor/cli-config.json` にあるのは素性の情報で、
   トークン本体は `~/.config/cursor/auth.json`。前者だけ永続化してもコンテナを
   作り直すたびに再ログインになる。切り分けは `docker diff`（ボリュームの中身は出ない）
@@ -118,7 +123,7 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
 - イメージは Actions が作って GHCR に置く。差し替えるのは NAS に同居する Watchtower で、
   `/admin` から頼まれたときだけ動く（定期の見回りはさせていない。話している最中に
   入れ替わると返事の流れが切れるため）。手元でコミットしただけでは何も起きないので、
-  まず push する。`deploy.sh` を通すのは初回と compose を直したときだけ
+  まず push する。`scripts/deploy.sh` を通すのは初回と compose を直したときだけ
 - Watchtower が差し替えるのはイメージだけで、コンテナの設定は今のものを引き継ぐ。
   `docker-compose.yml` を直した回は見た目は正常に上がってくるのに設定が古いまま残る。
   管理画面は GitHub の compare で `docker-compose.yml` の変更を見つけて知らせる
@@ -139,8 +144,7 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
 - Dockerfile の runtime は、CLI のインストールより下に依存とビルド成果物を置く。
   依存を上に置くと `package.json` を触るたびに cursor が入り直し、そのとき版が
   上がってログインが切れる。実行時の依存は deps ステージで揃えて持ってくる。
-  build ステージで `npm prune` すると、コードを一行直すたびに走って無駄になる
-- 層のどこが崩れるかは頭で予想せず、ビルドログの CACHED を見て確かめる。
-  Dockerfile を直したとき、崩れる範囲は思ったより狭いことが多い
+  build ステージで `npm prune` すると、コードを一行直すたびに走って無駄になる。
+  崩れる範囲は予想せずビルドログの CACHED で確かめる。思ったより狭いことが多い
 - NAS の管理画面が `docker-compose.yaml` を横に作ることがある。`.yml` と両方あると
   Compose がファイルを決められずに止まる
