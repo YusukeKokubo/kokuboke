@@ -344,7 +344,7 @@ export async function shouldAutoName(user: UserName, ref: VerifiedTopicRef): Pro
   const meta = await readMeta(user, ref)
   if (meta.name || meta.nameTried) return false
 
-  return (await countUserMessages(user, ref)) >= AUTO_NAME_AFTER
+  return (await countUserMessages(user, ref, AUTO_NAME_AFTER)) >= AUTO_NAME_AFTER
 }
 
 /** 名前が付かなかったときも、試したことだけは残す。 */

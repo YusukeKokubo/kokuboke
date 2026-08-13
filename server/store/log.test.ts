@@ -11,8 +11,8 @@ process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 process.env.TZ = 'Asia/Tokyo'
 
-const { appendMessage, readAll, readLastEntry, readRecent } = await import('./log')
-const { localDate } = await import('./date')
+const { appendMessage, countUserMessages, readAll, readLastEntry, readRecent } = await import('./log')
+const { localDate, stamp } = await import('./date')
 const { assertTopicRef, assertUser, logsDir } = await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
@@ -114,6 +114,52 @@ describe('readLastEntry', () => {
 
   it('まだ話していないトピックは null', async () => {
     assert.equal(await readLastEntry(USER, assertTopicRef('not-yet')), null)
+  })
+
+  it('最新のファイルが空でも、その前のファイルから最後の一件を拾う', async () => {
+    await appendMessage(USER, TOPIC, message('きのうのさいご', daysAgo(1)))
+    const empty = path.join(logsDir(USER, TOPIC), `${stamp(localDate())}.jsonl`)
+    await fsp.writeFile(empty, '')
+
+    assert.equal((await readLastEntry(USER, TOPIC))?.text, 'きのうのさいご')
+  })
+
+  it('最新が壊れた行だけでも、その前のファイルから拾う', async () => {
+    await appendMessage(USER, TOPIC, message('きのうのさいご', daysAgo(1)))
+    const broken = path.join(logsDir(USER, TOPIC), `${stamp(localDate())}.jsonl`)
+    await fsp.writeFile(broken, '{壊れた行\n\n')
+
+    assert.equal((await readLastEntry(USER, TOPIC))?.text, 'きのうのさいご')
+  })
+
+  it('30 日より前のログでも拾える', async () => {
+    await appendMessage(USER, TOPIC, message('むかしのさいご', daysAgo(60)))
+
+    assert.equal((await readLastEntry(USER, TOPIC))?.text, 'むかしのさいご')
+  })
+})
+
+describe('countUserMessages', () => {
+  it('本人の発言だけを数える', async () => {
+    await appendMessage(USER, TOPIC, message('いち', daysAgo(2)))
+    await appendMessage(USER, TOPIC, {
+      ...message('へんじ', daysAgo(2)),
+      role: 'assistant',
+    })
+    await appendMessage(USER, TOPIC, message('に', daysAgo(1)))
+
+    assert.equal(await countUserMessages(USER, TOPIC), 2)
+  })
+
+  it('stopAt に達したら残りのファイルは読まない', async () => {
+    await appendMessage(USER, TOPIC, message('いち', daysAgo(2)))
+    await appendMessage(USER, TOPIC, message('に', daysAgo(2)))
+    await appendMessage(USER, TOPIC, message('さん', daysAgo(1)))
+    await appendMessage(USER, TOPIC, message('よん', daysAgo(1)))
+    await appendMessage(USER, TOPIC, message('ご', new Date()))
+
+    assert.equal(await countUserMessages(USER, TOPIC), 5)
+    assert.equal(await countUserMessages(USER, TOPIC, 3), 3)
   })
 })
 
