@@ -72,8 +72,10 @@ export interface Topic {
   children: Topic[]
 }
 
+export type TemplateId = 'study' | 'advice' | 'recipe' | 'plain'
+
 export interface TopicTemplate {
-  id: string
+  id: TemplateId
   label: string
   description: string
   emoji: string

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { TopicTemplate } from '../../shared/types'
+import type { TemplateId, TopicTemplate } from '../../shared/types'
 import { api } from '@/lib/api'
 import { EMOJI } from '@/lib/emoji'
 import { cn } from '@/lib/utils'
@@ -20,7 +20,7 @@ interface Props {
   onCreate: (input: {
     name: string
     emoji: string
-    template: string
+    template: TemplateId
     engine: string
     model: string
   }) => Promise<void>
@@ -30,7 +30,7 @@ export function NewTopicDialog({ open, onOpenChange, onCreate }: Props) {
   const [templates, setTemplates] = useState<TopicTemplate[]>([])
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('💬')
-  const [template, setTemplate] = useState('plain')
+  const [template, setTemplate] = useState<TemplateId>('plain')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

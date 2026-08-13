@@ -20,6 +20,19 @@ function list(value: string | undefined): string[] {
     .filter(Boolean)
 }
 
+/** 空なら空のまま。値があるのに一覧外なら起動時に落とす。 */
+function oneOf<T extends string>(
+  value: string | undefined,
+  allowed: readonly T[],
+  name: string,
+): T | '' {
+  if (!value) return ''
+  if ((allowed as readonly string[]).includes(value)) return value as T
+  throw new Error(`${name} が不正です。使えるのは ${allowed.join(' | ')}`)
+}
+
+const CLAUDE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+
 export const config = {
   port: num(process.env.PORT, 3000),
 
@@ -67,7 +80,7 @@ export const config = {
   summaryModel: process.env.SUMMARY_MODEL ?? 'claude-sonnet-5',
 
   /** low | medium | high | xhigh | max。未指定なら CLI の既定に任せる。 */
-  claudeEffort: process.env.CLAUDE_EFFORT ?? '',
+  claudeEffort: oneOf(process.env.CLAUDE_EFFORT, CLAUDE_EFFORTS, 'CLAUDE_EFFORT'),
 
   /**
    * このイメージを作った元のコミット。Dockerfile が GIT_SHA から焼き込む。

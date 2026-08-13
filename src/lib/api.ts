@@ -11,6 +11,7 @@ import {
   type Topic,
   type TopicRef,
   type TopicTemplate,
+  type TemplateId,
   type UpdateResult,
   type UpdateStatus,
 } from '../../shared/types'
@@ -44,7 +45,7 @@ function topicUrl(user: string, ref: TopicRef, suffix = ''): string {
 interface NewTopic {
   name: string
   emoji: string
-  template: string
+  template: TemplateId
   engine: string
   model: string
 }

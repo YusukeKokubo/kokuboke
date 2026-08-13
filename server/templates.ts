@@ -1,4 +1,4 @@
-import type { TopicTemplate } from '../shared/types'
+import type { TemplateId, TopicTemplate } from '../shared/types'
 
 /** ユーザーフォルダ直下に置く、人物そのものの設定。手で書き換える前提。 */
 export function userClaudeMd(user: string): string {
@@ -31,6 +31,9 @@ export function userProfileMd(user: string): string {
 `
 }
 
+/**
+ * 画面に出す雛形。足すときは TemplateId と CLAUDE_BODIES を一緒に直す。
+ */
 export const TOPIC_TEMPLATES: TopicTemplate[] = [
   {
     id: 'study',
@@ -58,14 +61,13 @@ export const TOPIC_TEMPLATES: TopicTemplate[] = [
   },
 ]
 
-export function topicClaudeMd(templateId: string, name: string): string {
-  const header = `# ${name}\n\nこのトピックでの役割をここに書く。上の階層の CLAUDE.md も一緒に読まれる。\n\n`
+export function isTemplateId(value: unknown): value is TemplateId {
+  return typeof value === 'string' && TOPIC_TEMPLATES.some((item) => item.id === value)
+}
 
-  switch (templateId) {
-    case 'study':
-      return (
-        header +
-        `## 役割
+/** 雛形ごとの役割の本文。TemplateId を増やすとここに型で迫られる。 */
+const CLAUDE_BODIES: Record<TemplateId, string> = {
+  study: `## 役割
 
 学習を手伝う家庭教師として振る舞う。
 
@@ -75,12 +77,8 @@ export function topicClaudeMd(templateId: string, name: string): string {
 - 解き方が分かったら、similar な問題を一問だけ出して定着を確かめる。
 - 途中式や図がある写真を送られたら、どこまで合っているかを先に伝える。
 - 間違いを責めない。惜しかった部分を先に言う。
-`
-      )
-    case 'advice':
-      return (
-        header +
-        `## 役割
+`,
+  advice: `## 役割
 
 継続して相談に乗る相手として振る舞う。
 
@@ -90,12 +88,8 @@ export function topicClaudeMd(templateId: string, name: string): string {
 - 医療や健康に関わる判断が必要なときは、受診をすすめることをためらわない。
 - 前回からの変化があれば、それに触れてから本題に入る。
 - 写真を送られたら、見て取れることだけを述べ、断定はしない。
-`
-      )
-    case 'recipe':
-      return (
-        header +
-        `## 役割
+`,
+  recipe: `## 役割
 
 日々の料理を一緒に考える相手として振る舞う。
 
@@ -105,11 +99,17 @@ export function topicClaudeMd(templateId: string, name: string): string {
 - 提案は三つまで。手間と時間の目安を添える。
 - 足りない材料があるときは、代わりに使えるものも書く。
 - 手順は番号を振って、一手順を一行で。
-`
-      )
-    default:
-      return header + `## 役割\n\n（ここに書く）\n`
-  }
+`,
+  plain: `## 役割
+
+（ここに書く）
+`,
+}
+
+export function topicClaudeMd(templateId: string, name: string): string {
+  const header = `# ${name}\n\nこのトピックでの役割をここに書く。上の階層の CLAUDE.md も一緒に読まれる。\n\n`
+  const id = isTemplateId(templateId) ? templateId : 'plain'
+  return header + CLAUDE_BODIES[id]
 }
 
 export function topicSummaryMd(name: string): string {
