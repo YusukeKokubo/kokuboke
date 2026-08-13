@@ -4,6 +4,8 @@ export type { EngineId }
 
 export type AgentEvent =
   | { type: 'delta'; text: string }
+  /** 道具を使い始めたところ。本文ではないので、集めるときは足さない。 */
+  | { type: 'activity'; label: string }
   | { type: 'done'; text: string }
 
 export interface RunRequest {

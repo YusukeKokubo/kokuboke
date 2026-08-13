@@ -314,7 +314,7 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 
 | | Claude Code | cursor-agent |
 | --- | --- | --- |
-| 選べるモデル | Opus 5 / Sonnet 5 / Haiku 4.5 | GPT-5.x、Grok、Composer、Claude 各種 |
+| 選べるモデル | Opus 5 / Sonnet 5 / Haiku 4.5 | GPT-5.x、Grok、Composer、Kimi、Claude 各種 |
 | 既定のモデル | Opus 5 | おまかせ（auto） |
 | 人格の定義 | `CLAUDE.md` を親まで遡って読む | `AGENTS.md` を親まで遡って読む |
 | 役割の指示 | `--append-system-prompt` | 本文の先頭に積む |
@@ -357,6 +357,10 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 - `/user/:user` — トピック一覧。直近に話した順に並び、最後の発言を抜粋で出す。
 - `/user/:user/:topic` — チャット。日付の区切り、画像付きの吹き出し、
   返答が届くにつれて伸びていく表示、ヘッダの「要約」。
+
+返答を作っているあいだは、ファイルを開いたりウェブを見に行ったりしていることを
+吹き出しの下に一言で出す。一文字目が届くまで数十秒かかる回があり、
+点が三つ弾んでいるだけでは止まって見えるため。
 
 「要約」はそのトピックの `summary.md` を開く画面。そのまま手で直せるし、モデルを選んで
 AI に整理させることもできる。AI が返すのは案で、保存を押すまでファイルは変わらない。

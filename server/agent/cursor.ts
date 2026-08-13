@@ -1,4 +1,5 @@
 import { config } from '../config'
+import { cursorActivity } from './activity'
 import { ensureWebSearchApproved } from './cursor-config'
 import { runProcess } from './process'
 import type { AgentEvent, Engine, RunRequest } from './types'
@@ -37,6 +38,40 @@ function buildPrompt(request: RunRequest): string {
   return `<instructions>\n${request.systemPrompt}\n</instructions>\n\n${request.prompt}`
 }
 
+/**
+ * assistant の行の見分け。
+ *
+ * 道具を挟むと本文はいくつかの区切りに分かれ、区切りの終わりに、そこまでの差分を
+ * 丸ごと繰り返した言い直しが一つ届く。「timestamp_ms が無いのが完成形」が当てはまるのは
+ * いちばん最後の区切りだけで、途中の区切りの言い直しは差分と同じ形のまま来る
+ * （キーも中身の並びも変わらない。2026.08.11-e8db854 で確認）。見分けずに全部つなぐと、
+ * 道具を使った回だけ前半が二重になる。
+ *
+ * 頼れるのは「それまで流した分と丸ごと同じ」という形だけなので、そこで見分ける。
+ * ただし短い区切りでは、たまたま同じ文字が続いただけの差分とも区別が付かない。
+ * そこで、ここでは repeat（言い直しかもしれない）と告げるにとどめ、続く行を見て
+ * 呼び出し側が決める。言い直しなら次に来るのは道具か終わりで、差分なら次も差分になる。
+ */
+export type AssistantKind = 'delta' | 'complete' | 'repeat'
+
+export function assistantSegment(
+  line: Record<string, unknown>,
+  /** 今の区切りでそこまでに流した分。 */
+  pending: string,
+): { kind: AssistantKind; text: string } {
+  const message = line.message as { content?: Array<{ type?: string; text?: string }> } | undefined
+  const text = (message?.content ?? [])
+    .filter((block) => block.type === 'text' && block.text)
+    .map((block) => block.text)
+    .join('')
+
+  if (line.timestamp_ms === undefined || line.model_call_id !== undefined) {
+    return { kind: 'complete', text }
+  }
+  if (text !== '' && text === pending) return { kind: 'repeat', text }
+  return { kind: 'delta', text }
+}
+
 export const cursorAgent: Engine = {
   id: 'cursor',
 
@@ -45,9 +80,30 @@ export const cursorAgent: Engine = {
     // 起動のたびに確かめる。立っていれば読むだけで済む。
     await ensureWebSearchApproved()
 
-    let finalText = ''
+    /** 閉じた区切りをつないだもの。 */
+    let segments = ''
+    /** 今の区切りでそこまでに流した分。 */
+    let pending = ''
+    /** 言い直しかもしれないので、次の行が来るまで流さずに預かっている分。 */
+    let held: string | null = null
+    let resultText = ''
     let finished = false
     let error: string | null = null
+
+    /** 預かった分は言い直しではなかった。今からでも流す。 */
+    const flushHeld = (emit: (event: AgentEvent) => void): void => {
+      if (held === null) return
+      pending += held
+      emit({ type: 'delta', text: held })
+      held = null
+    }
+
+    /** 区切りを閉じる。預かった分は言い直しだったので捨てる。 */
+    const closeSegment = (text: string): void => {
+      segments += text || pending
+      pending = ''
+      held = null
+    }
 
     yield* runProcess({
       bin: config.cursorBin,
@@ -58,28 +114,53 @@ export const cursorAgent: Engine = {
 
       onLine(line, emit) {
         if (line.type === 'assistant') {
-          // 差分には timestamp_ms が付き、最後に届く完成形には付かない。
-          // 見分けずに全部つなぐと本文が二重になる。
-          if (line.timestamp_ms === undefined) return
+          const segment = assistantSegment(line, pending)
 
-          const message = line.message as { content?: Array<{ type?: string; text?: string }> }
-          for (const block of message?.content ?? []) {
-            if (block.type === 'text' && block.text) emit({ type: 'delta', text: block.text })
+          // 最後の区切りの完成形。本文はこちらの言い方を採る。
+          if (segment.kind === 'complete') {
+            closeSegment(segment.text)
+            return
           }
+          // 言い直しらしい。次の行を見るまで決めずに預かる。
+          if (segment.kind === 'repeat') {
+            flushHeld(emit)
+            held = segment.text
+            return
+          }
+          // 差分が続いたということは、預かっていた分は言い直しではなかった。
+          flushHeld(emit)
+          if (segment.text) {
+            pending += segment.text
+            emit({ type: 'delta', text: segment.text })
+          }
+          return
+        }
+
+        // 読み込みや検索は数秒かかる。何をしているかを横に流して、
+        // 一文字目が来るまでのあいだ画面が黙り込まないようにする。
+        if (line.type === 'tool_call' && line.subtype === 'started') {
+          // 道具に移ったということは、預かっていた分は区切りの言い直しだった。
+          if (held !== null) closeSegment('')
+          const label = cursorActivity((line.tool_call ?? {}) as Record<string, unknown>)
+          if (label) emit({ type: 'activity', label })
           return
         }
 
         if (line.type === 'result') {
           finished = true
+          if (held !== null) closeSegment('')
           if (line.is_error) {
             error = String(line.result ?? 'cursor-agent がエラーを返しました')
             return
           }
-          finalText = String(line.result ?? '')
+          resultText = String(line.result ?? '')
         }
       },
 
-      finalText: () => finalText,
+      // 閉じ切らずに終わった区切りも本文に含める。
+      // 拾えたものが何も無いときだけ result に頼る（result が持っているのは
+      // 最後の区切りだけなので、道具を挟んだ回はこれだと前置きが落ちる）。
+      finalText: () => segments + pending || resultText,
       finished: () => finished,
       reportedError: () => error,
     })

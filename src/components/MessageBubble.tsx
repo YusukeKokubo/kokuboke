@@ -7,6 +7,11 @@ interface Props {
   message: Message
   /** 生成中は時刻を出さず、カーソルを点滅させる。 */
   streaming?: boolean
+  /**
+   * 「ファイルを見ています」のような途中の様子。時刻と同じ場所に出す。
+   * 生成中しか届かないので、時刻と入れ替わることはない。
+   */
+  activity?: string | null
 }
 
 /**
@@ -27,7 +32,7 @@ function Thinking() {
   )
 }
 
-export function MessageBubble({ message, streaming }: Props) {
+export function MessageBubble({ message, streaming, activity }: Props) {
   const mine = message.role === 'user'
 
   return (
@@ -71,7 +76,17 @@ export function MessageBubble({ message, streaming }: Props) {
           </div>
         )}
 
-        {!streaming && (
+        {streaming ? (
+          activity && (
+            <span
+              role="status"
+              aria-live="polite"
+              className="text-muted-foreground animate-pulse px-1 text-[11px]"
+            >
+              {activity}
+            </span>
+          )
+        ) : (
           <span className="text-muted-foreground px-1 text-[11px]">{timeLabel(message.at)}</span>
         )}
       </div>

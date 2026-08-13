@@ -85,6 +85,11 @@ export interface TopicTemplate {
 export type ChatEvent =
   | { type: 'accepted'; message: Message }
   | { type: 'delta'; text: string }
+  /**
+   * 「ファイルを見ています」のような途中の様子。本文ではないので溜めずに、
+   * 届いた最後の一つだけを出す。
+   */
+  | { type: 'activity'; label: string }
   /** shouldName が立っていたら、画面から名前付けを頼む頃合い。 */
   | { type: 'done'; message: Message; shouldName?: boolean }
   | { type: 'error'; message: string }
@@ -95,6 +100,8 @@ export type ChatEvent =
  */
 export type SummaryEvent =
   | { type: 'delta'; text: string }
+  /** ChatEvent の同名と同じ扱い。届いた最後の一つだけを出す。 */
+  | { type: 'activity'; label: string }
   | { type: 'done'; text: string; modelLabel: string }
   | { type: 'error'; message: string }
 

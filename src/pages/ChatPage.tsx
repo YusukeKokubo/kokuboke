@@ -33,6 +33,8 @@ export default function ChatPage() {
   const [meta, setMeta] = useState<Topic | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState<Message | null>(null)
+  /** 返答を作っているあいだの「いま何をしているか」。届いた最後の一つだけ出す。 */
+  const [activity, setActivity] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [notice, setNotice] = useState<string | null>(null)
   const [modelOpen, setModelOpen] = useState(false)
@@ -126,6 +128,7 @@ export default function ChatPage() {
   async function handleSend(input: { text: string; images: File[] }) {
     setStatus('sending')
     setNotice(null)
+    setActivity(null)
     stick.current = true
 
     try {
@@ -144,6 +147,9 @@ export default function ChatPage() {
           case 'delta':
             setDraft((prev) => (prev ? { ...prev, text: prev.text + event.text } : prev))
             break
+          case 'activity':
+            setActivity(event.label)
+            break
           case 'done':
             setDraft(null)
             setMessages((prev) => [...prev, event.message])
@@ -160,6 +166,7 @@ export default function ChatPage() {
       setNotice(cause instanceof Error ? cause.message : '送信できませんでした')
     } finally {
       setStatus('idle')
+      setActivity(null)
     }
   }
 
@@ -248,7 +255,7 @@ export default function ChatPage() {
           )
         })}
 
-        {draft && <MessageBubble message={draft} streaming />}
+        {draft && <MessageBubble message={draft} streaming activity={activity} />}
 
         {notice && (
           <p className="text-muted-foreground bg-secondary mx-auto rounded-full px-3 py-1.5 text-center text-xs">

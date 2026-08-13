@@ -79,8 +79,13 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
           systemPrompt: summarySystemPrompt({ user, topicName: meta.name, isGroup }),
           signal: c.req.raw.signal,
         },
-        async (delta) => {
-          await send({ type: 'delta', text: delta })
+        {
+          onDelta: async (delta) => {
+            await send({ type: 'delta', text: delta })
+          },
+          onActivity: async (label) => {
+            await send({ type: 'activity', label })
+          },
         },
       )
 

@@ -1,4 +1,5 @@
 import { config } from '../config'
+import { claudeActivity } from './activity'
 import { runProcess } from './process'
 import type { AgentEvent, Engine, RunRequest } from './types'
 
@@ -51,10 +52,20 @@ export const claudeCode: Engine = {
 
       onLine(line, emit) {
         if (line.type === 'stream_event') {
-          const inner = line.event as { type?: string; delta?: { type?: string; text?: string } }
+          const inner = line.event as {
+            type?: string
+            delta?: { type?: string; text?: string }
+            content_block?: { type?: string; name?: string }
+          }
           // thinking_delta / input_json_delta は本文ではないので拾わない。
           if (inner?.type === 'content_block_delta' && inner.delta?.type === 'text_delta') {
             emit({ type: 'delta', text: inner.delta.text ?? '' })
+            return
+          }
+          // 道具を使い始めたところ。何をしているかを横に流して、
+          // 一文字目が来るまでのあいだ画面が黙り込まないようにする。
+          if (inner?.type === 'content_block_start' && inner.content_block?.type === 'tool_use') {
+            emit({ type: 'activity', label: claudeActivity(inner.content_block.name ?? '') })
           }
           return
         }

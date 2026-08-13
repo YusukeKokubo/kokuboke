@@ -1,6 +1,13 @@
 import { runAgent, type ModelChoice } from './model'
 import type { RunRequest } from './types'
 
+/** 途中の様子を横に流したいときに渡す。要らない呼び出し側は省ける。 */
+export interface AgentHandlers {
+  onDelta?: (text: string) => Promise<void>
+  /** 道具を使い始めたときの一言。本文の前にも途中にも届く。 */
+  onActivity?: (label: string) => Promise<void>
+}
+
 /**
  * エージェントを回して全文を集める。途中の差分は要れば横に流す。
  * 最終結果が空なら、差分の積み上げを守る。
@@ -8,13 +15,15 @@ import type { RunRequest } from './types'
 export async function collectAgent(
   choice: ModelChoice,
   request: Omit<RunRequest, 'model'>,
-  onDelta?: (text: string) => Promise<void>,
+  handlers: AgentHandlers = {},
 ): Promise<string> {
   let text = ''
   for await (const event of runAgent(choice, request)) {
     if (event.type === 'delta') {
       text += event.text
-      await onDelta?.(event.text)
+      await handlers.onDelta?.(event.text)
+    } else if (event.type === 'activity') {
+      await handlers.onActivity?.(event.label)
     } else if (event.text.trim()) {
       // 差分を取りこぼしていても最終結果で辻褄を合わせる。空なら積み上げを守る。
       text = event.text

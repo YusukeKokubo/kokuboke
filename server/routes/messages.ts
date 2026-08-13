@@ -110,8 +110,13 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
           systemPrompt,
           signal: c.req.raw.signal,
         },
-        async (text) => {
-          await send({ type: 'delta', text })
+        {
+          onDelta: async (text) => {
+            await send({ type: 'delta', text })
+          },
+          onActivity: async (label) => {
+            await send({ type: 'activity', label })
+          },
         },
       )
 

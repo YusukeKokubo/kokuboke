@@ -68,6 +68,9 @@ export function SummaryDialog({ user, target, open, onOpenChange }: Props) {
           text += event.text
           doc.setDraft(text)
         }
+        // 要約は会話より時間がかかる。何をしているかは知らせ書きの場所を借りて出す。
+        // 下書きの本文が流れ始めれば、そちらが進んでいるのが見えるので上書きしない。
+        if (event.type === 'activity' && !text) doc.setNotice(event.label)
         if (event.type === 'done') {
           doc.setDraft(event.text)
           doc.setNotice(`${event.modelLabel} が下書きしたよ。よければ保存してね。`)

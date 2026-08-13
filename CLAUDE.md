@@ -82,8 +82,18 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
 このプロジェクトで実際に踏んだ落とし穴:
 
 - Claude Code は `AGENTS.md` を読まない。cursor-agent は親まで遡って読む
-- cursor の `assistant` イベントは `timestamp_ms` 付きが差分、無しが完成形。
-  見分けずに連結すると本文が二重になる
+- cursor の `assistant` イベントは、道具を挟むと本文がいくつかの区切りに分かれ、
+  区切りの終わりに、そこまでの差分を丸ごと繰り返した言い直しが一つ届く。
+  `timestamp_ms` が無いのはいちばん最後の区切りだけで、途中の区切りの言い直しは
+  キーも中身の並びも差分とまったく同じ形で来る（`model_call_id` が付く回もあるが、
+  付かない回もある）。見分けずにつなぐと、道具を使った回だけ前半が二重になる。
+  頼れるのは「それまで流した分と丸ごと同じ」という形だけで、短い区切りでは
+  たまたま同じ差分とも区別が付かないため、いったん預かって次の行で決めている
+  （`server/agent/cursor.ts` の `assistantSegment`）。`result` が持つのは
+  最後の区切りだけなので、本文は区切りをつないだ方を採る
+- 途中の様子（何を読んでいるか）は cursor は `tool_call` の `started`、
+  Claude Code は `content_block_start` の `tool_use` で分かる。札の文言は
+  `server/agent/activity.ts` に集約。道具は増えるので、知らない名前は丸める
 - cursor は `--force` を付けると `--sandbox` が無効になる
 - remark-math が独立した式として扱うのは `$$` が行頭と行末に来た形だけ
 - `node:22-slim` には UID 1000 の `node` ユーザーが既にいる
