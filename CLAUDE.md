@@ -21,6 +21,10 @@
   それ以外の確認は typecheck と build、あとは実際に動かして見る
 - テストは環境変数を差し込んでから `await import` する。`config` は読み込んだ時点で
   環境変数を見るため。`process.loadEnvFile` は既にある値を上書きしないので `.env` には負けない
+- CLI の出力の読み方は、記録を流し込んで通しで確かめる。`CURSOR_BIN` を
+  `server/agent/__fixtures__/cursor/replay.sh` に向けると、`CURSOR_FIXTURE` の記録を
+  そのまま吐くのでエンジンをそっくり動かせる。記録の取り直しは本物の出力を保存して
+  中の絶対パスを均すだけ。増やしたら `cursor-replay.test.ts` の一覧にも足す
 - 更新まわりの確認は、手元で compose を上げて中から叩く。ホストの 3000 は
   開発中のサーバーが握っているので、ポートと `DATA_PATH` を上書きする別の
   compose ファイルを scratchpad に置いて `-f` で重ねる。ただし `DATA_PATH` は
