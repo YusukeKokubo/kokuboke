@@ -24,7 +24,7 @@ messages.on('GET', topicPaths('/messages'), async (c) => {
 messages.on('POST', topicPaths('/messages'), async (c) => {
   const { user, ref } = await requireTopic(c)
 
-  // トップレベルは記憶の置き場なので、話しかける先は必ずその中のトピックになる。
+  // トップレベルは要約の置き場なので、話しかける先は必ずその中のトピックになる。
   if (!ref.sub) {
     throw new HTTPException(400, { message: 'このトピックの中から選んで話しかけてね' })
   }

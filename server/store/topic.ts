@@ -186,7 +186,7 @@ export async function listTopics(user: string): Promise<Topic[]> {
 }
 
 /**
- * トップレベルは常に記憶を置く器で、会話は必ずその中に作る。
+ * トップレベルは常に要約を置く器で、会話は必ずその中に作る。
  * 親に会話がありえないので、器に変えられるかどうかを気にする必要もない。
  */
 export async function createTopic(
@@ -335,7 +335,7 @@ export async function readSummary(user: string, ref: TopicRef): Promise<string> 
   return read(path.join(topicDir(user, ref), 'summary.md'))
 }
 
-/** 器の要約を書くときの材料。中のトピックそれぞれの記憶と直近の会話。 */
+/** 器の要約を書くときの材料。中のトピックそれぞれの要約と直近の会話。 */
 export interface ChildSource {
   name: string
   summary: string
@@ -365,8 +365,8 @@ export async function readClaude(user: string, ref: TopicRef): Promise<string> {
 }
 
 /**
- * 子で話すときは、親の記憶も一緒に効かせる。
- * 親には全体で共有する前提を、子にはその話に閉じた記憶を置く。
+ * 子で話すときは、親の要約も一緒に効かせる。
+ * 親には全体で共有する前提を、子にはその話に閉じた要約を置く。
  */
 export async function readParentSummary(user: string, ref: TopicRef): Promise<string> {
   if (!ref.sub) return ''

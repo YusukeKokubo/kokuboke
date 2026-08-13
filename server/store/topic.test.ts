@@ -53,7 +53,7 @@ describe('readChildSources', () => {
     await fsp.rm(topicDir(USER, parent), { recursive: true, force: true })
   })
 
-  it('中のトピックの記憶と直近の会話を返す', async () => {
+  it('中のトピックの要約と直近の会話を返す', async () => {
     const group = await createTopic(USER, { name: '器' })
     const child = await createTopic(USER, { name: '買い物' }, group.slug)
     const ref = { topic: group.slug, sub: child.slug }

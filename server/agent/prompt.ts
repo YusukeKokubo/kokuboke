@@ -43,7 +43,7 @@ export function chatSystemPrompt(input: { user: string; topicName: string }): st
 
 export function chatPrompt(input: {
   profile: string
-  /** 親トピックの記憶。中で分けているときだけ入る。 */
+  /** 親トピックの要約。中で分けているときだけ入る。 */
   groupSummary: string
   summary: string
   history: Message[]
@@ -56,10 +56,10 @@ export function chatPrompt(input: {
     parts.push(`<profile>\n${input.profile.trim()}\n</profile>`)
   }
   if (input.groupSummary.trim()) {
-    parts.push(`<group_memory>\n${input.groupSummary.trim()}\n</group_memory>`)
+    parts.push(`<group_summary>\n${input.groupSummary.trim()}\n</group_summary>`)
   }
   if (input.summary.trim()) {
-    parts.push(`<topic_memory>\n${input.summary.trim()}\n</topic_memory>`)
+    parts.push(`<topic_summary>\n${input.summary.trim()}\n</topic_summary>`)
   }
 
   parts.push(`<conversation>\n${renderHistory(input.history)}\n</conversation>`)
@@ -103,7 +103,7 @@ ${renderHistory(input.history)}
 export function summarySystemPrompt(input: {
   user: string
   topicName: string
-  /** 器の共有記憶を書くとき。会話は中のトピック側にある。 */
+  /** 器の共有の要約を書くとき。会話は中のトピック側にある。 */
   group?: boolean
 }): string {
   const where = input.group
@@ -122,15 +122,15 @@ export function summaryPrompt(input: {
   history: Message[]
   topicName: string
   summary: string
-  /** 親トピックの記憶。書き換える対象ではなく、重複を避けるための参考。 */
+  /** 親トピックの要約。書き換える対象ではなく、重複を避けるための参考。 */
   groupSummary: string
 }): string {
   const parts: string[] = []
 
   if (input.groupSummary.trim()) {
     parts.push(
-      `<group_memory>\n${input.groupSummary.trim()}\n</group_memory>`,
-      'これは一つ上のトピックの記憶です。書き換える対象ではありません。' +
+      `<group_summary>\n${input.groupSummary.trim()}\n</group_summary>`,
+      'これは一つ上のトピックの要約です。書き換える対象ではありません。' +
         'ここに既に書かれていることは繰り返さないでください。',
     )
   }
@@ -183,7 +183,7 @@ export function groupSummaryPrompt(input: {
   parts.push(`上の中のトピックの記録を踏まえて、「${input.topicName}」トピックの summary.md を書き直してください。
 
 - ここに書くのは、中のどれで話しても効かせたい共有の前提です。
-- 一つの話に閉じた経緯はそれぞれの記憶に任せ、ここでは繰り返さないでください。
+- 一つの話に閉じた経緯はそれぞれの要約に任せ、ここでは繰り返さないでください。
 - すでに書かれている内容は消さずに、変わったところだけ直し、新しく分かったことを足します。
 - 会話のたびに読み込まれるので、簡潔に保ってください。
 - そのままファイルに保存できる形で、本文だけを返します。全体をコードブロックで

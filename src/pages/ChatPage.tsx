@@ -42,7 +42,7 @@ export default function ChatPage() {
   const content = useRef<HTMLElement>(null)
   const stick = useRef(true)
 
-  // トップレベルは記憶の置き場。ここでは話さず、中への入口だけ見せる。
+  // トップレベルは要約の置き場。ここでは話さず、中への入口だけ見せる。
   const isGroup = !sub
 
   /**

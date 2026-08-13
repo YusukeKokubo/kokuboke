@@ -6,7 +6,7 @@ import type { AgentEvent, Engine, RunRequest } from './types'
 function args(request: RunRequest): string[] {
   // ask モードは読み取り専用。ファイル作成もシェル実行も、道具そのものが無い。
   // cursor-agent にはツール単位の許可リストが無いので、守りはこのモードだけが頼り。
-  // 記憶の整理も読み取りだけで済ませることで、そこに触れずに済ませている。
+  // 要約の整理も読み取りだけで済ませることで、そこに触れずに済ませている。
   return [
     '--print',
     '--output-format',

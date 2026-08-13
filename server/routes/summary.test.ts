@@ -10,7 +10,7 @@ process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 
 const { unfence } = await import('./summary')
-const { groupSummaryPrompt } = await import('../agent/prompt')
+const { groupSummaryPrompt, summaryPrompt } = await import('../agent/prompt')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
@@ -70,5 +70,27 @@ describe('groupSummaryPrompt', () => {
     assert.match(text, /<name>コストコ<\/name>/)
     assert.match(text, /卵を買う/)
     assert.match(text, /牛乳も足して/)
+    assert.equal(text.includes('記憶'), false)
+  })
+})
+
+describe('summaryPrompt', () => {
+  it('記憶という言い方をしない', () => {
+    const text = summaryPrompt({
+      topicName: 'コストコ',
+      summary: '卵を買う',
+      groupSummary: '週一で行く',
+      history: [
+        {
+          id: '1',
+          role: 'user',
+          text: '牛乳も足して',
+          images: [],
+          at: '2026-08-13T02:00:00.000Z',
+        },
+      ],
+    })
+    assert.match(text, /一つ上のトピックの要約/)
+    assert.equal(text.includes('記憶'), false)
   })
 })

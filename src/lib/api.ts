@@ -231,7 +231,7 @@ export async function* sendMessage(
 }
 
 /**
- * 記憶の下書きを作らせる。ここではファイルは変わらない。
+ * 要約の下書きを作らせる。ここではファイルは変わらない。
  * 保存するのは api.saveMemory を呼んだとき。
  */
 export async function* draftSummary(

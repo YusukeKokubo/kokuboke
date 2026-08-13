@@ -15,7 +15,7 @@ import {
 
 interface Props {
   user: string
-  /** どのトピックの記憶か。閉じている間は null になりうる。 */
+  /** どのトピックの要約か。閉じている間は null になりうる。 */
   target: TopicRef | null
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -24,7 +24,7 @@ interface Props {
 type Status = 'loading' | 'idle' | 'drafting' | 'saving'
 
 /**
- * 記憶（summary.md）の確認と編集。AI に整理させても、保存を押すまでファイルは変わらない。
+ * 要約（summary.md）の確認と編集。AI に整理させても、保存を押すまでファイルは変わらない。
  */
 export function MemoryDialog({ user, target, open, onOpenChange }: Props) {
   const [saved, setSaved] = useState('')

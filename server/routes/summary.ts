@@ -21,7 +21,7 @@ import { requireTopic, topicPaths } from './target'
 export const summary = new Hono()
 
 /**
- * 記憶そのものの読み書き。書き換えるのはここだけで、AI には触らせない。
+ * 要約そのものの読み書き。書き換えるのはここだけで、AI には触らせない。
  */
 summary.on('GET', topicPaths('/memory'), async (c) => {
   const { user, ref } = await requireTopic(c)
@@ -41,7 +41,7 @@ summary.on('PUT', topicPaths('/memory'), async (c) => {
 })
 
 /**
- * 記憶の下書きを作る。ファイルは書き換えず、新しい summary.md の全文を流すだけ。
+ * 要約の下書きを作る。ファイルは書き換えず、新しい summary.md の全文を流すだけ。
  * 保存は画面で確かめたあと PUT で行う。
  */
 summary.on('POST', topicPaths('/summary'), async (c) => {

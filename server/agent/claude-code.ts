@@ -6,7 +6,7 @@ import type { AgentEvent, Engine, RunRequest } from './types'
 const ALWAYS_DENIED = ['Bash', 'Task', 'WebFetch', 'WebSearch', 'NotebookEdit', 'KillShell', 'BashOutput']
 
 function args(request: RunRequest): string[] {
-  // 会話も記憶の整理も読み取りだけで足りる。記憶は AI に書かせず、
+  // 会話も要約の整理も読み取りだけで足りる。要約は AI に書かせず、
   // 返ってきた全文を人が確かめてからサーバーが保存する。
   const list = [
     '--print',

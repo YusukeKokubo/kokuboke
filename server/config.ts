@@ -57,7 +57,7 @@ export const config = {
   cursorModel: process.env.CURSOR_MODEL ?? 'auto',
 
   /**
-   * 記憶の更新に使うエンジン。会話と違ってファイルを書き換えるので、
+   * 要約の更新に使うエンジン。会話と違ってファイルを書き換えるので、
    * ツール単位で権限を絞れる Claude Code を既定にしている。
    */
   summaryEngine: process.env.SUMMARY_ENGINE === 'cursor' ? ('cursor' as const) : ('claude' as const),

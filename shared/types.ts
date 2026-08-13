@@ -39,7 +39,7 @@ export interface Topic {
   preview: string | null
   /**
    * 中で分けている子トピック。一つでもあれば、そのトピック自身では会話せず、
-   * 記憶の置き場として扱う。子トピックの側では常に空。
+   * 要約の置き場として扱う。子トピックの側では常に空。
    */
   children: Topic[]
 }
@@ -67,7 +67,7 @@ export type ChatEvent =
   | { type: 'error'; message: string }
 
 /**
- * 記憶の下書き。AI はファイルを書き換えず、summary.md の新しい全文を返すだけ。
+ * 要約の下書き。AI はファイルを書き換えず、summary.md の新しい全文を返すだけ。
  * 保存するかどうかは画面で決める。
  */
 export type SummaryEvent =

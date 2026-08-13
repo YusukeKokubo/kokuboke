@@ -25,7 +25,7 @@
         └── スキンケア/          トップレベル。ここでは話さない
             ├── topic.json     表示名・絵文字・作成日
             ├── CLAUDE.md      下のどれで話しても効く
-            ├── summary.md     共有の記憶（画面から読み書きする）
+            ├── summary.md     共有の要約（画面から読み書きする）
             └── 肌の記録/        ここで話す
                 ├── topic.json
                 ├── CLAUDE.md   このトピックでの振る舞い
@@ -35,8 +35,8 @@
 ```
 
 階層は二段で固定。トップレベルは `CLAUDE.md` と `summary.md` を置く器で、会話は必ず
-その中のトピックで行う。共有したい前提を上に、その話に閉じた記憶を下に置くと、
-中のどれで話しても上の記憶が一緒に読み込まれる。器では話さないので、
+その中のトピックで行う。共有したい前提を上に、その話に閉じた要約を下に置くと、
+中のどれで話しても上の要約が一緒に読み込まれる。器では話さないので、
 `logs/` と `images/` も作らない。
 
 ## 名前は後から付く
@@ -46,7 +46,7 @@
 会話を読ませ、短い名前と絵文字を付けてフォルダごと改名する。同じ器の中で名前が
 ぶつかったら、末尾に `-2` を足して避ける。
 
-命名に使うのは記憶と同じエンジン・モデル（`SUMMARY_ENGINE` / `SUMMARY_MODEL`）。
+命名に使うのは要約と同じエンジン・モデル（`SUMMARY_ENGINE` / `SUMMARY_MODEL`）。
 一度走らせたら `topic.json` に `nameTried` が立ち、名前が付かなくても二度は試さない。
 気に入らなければ、チャット画面のタイトルを押していつでも変えられる。
 
@@ -194,7 +194,7 @@ Dockerfile を書き換えて、下の「二つのログイン」をやり直す
 
 ### 二つのログイン
 
-会話は既定で Cursor、記憶の更新は Claude Code で走るので、どちらの認証も通しておく。
+会話は既定で Cursor、要約の更新は Claude Code で走るので、どちらの認証も通しておく。
 
 ```sh
 sudo docker exec -it kokuboke claude
@@ -289,9 +289,9 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | POST | `/api/users/:user/topics/:topic/name` | 会話を読ませて名前を付ける。付いた名前で改名まで行う |
 | GET | `/api/users/:user/topics/:topic/messages` | 保存されている会話すべて |
 | POST | `/api/users/:user/topics/:topic/messages` | 送信。SSE で返答を流す |
-| GET | `/api/users/:user/topics/:topic/memory` | 記憶（`summary.md`）を読む |
-| PUT | `/api/users/:user/topics/:topic/memory` | 記憶を保存する。書き換えはここだけ |
-| POST | `/api/users/:user/topics/:topic/summary` | 記憶の下書きを作らせる。SSE で流す（保存はしない） |
+| GET | `/api/users/:user/topics/:topic/memory` | 要約（`summary.md`）を読む |
+| PUT | `/api/users/:user/topics/:topic/memory` | 要約を保存する。書き換えはここだけ |
+| POST | `/api/users/:user/topics/:topic/summary` | 要約の下書きを作らせる。SSE で流す（保存はしない） |
 | GET | `/api/users/:user/profile` | プロフィール（`profile.md`）を読む |
 | PUT | `/api/users/:user/profile` | プロフィールを保存する |
 | GET | `/api/users/:user/claude` | 話し方（ユーザーの `CLAUDE.md`）を読む |
@@ -309,7 +309,7 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 ## モデルの選び方
 
 トピックごとに「どのエンジンのどのモデルで話すか」を持つ。チャット画面のタイトル下に
-出ている名前を押すと変えられる。会話の記録と記憶はそのまま引き継がれる。
+出ている名前を押すと変えられる。会話の記録と要約はそのまま引き継がれる。
 
 | | Claude Code | cursor-agent |
 | --- | --- | --- |
@@ -321,7 +321,7 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 
 新しいトピックの既定は **Cursor のおまかせ**。`DEFAULT_ENGINE` と `CURSOR_MODEL` で変えられる。
 
-会話も記憶の整理も読み取りだけで走る。記憶を整理させるときのモデルは「記憶」の画面で
+会話も要約の整理も読み取りだけで走る。要約を整理させるときのモデルは「要約」の画面で
 その場で選べて、選ばなければ `SUMMARY_ENGINE` と `SUMMARY_MODEL` の既定に落ちる。
 既定は Claude Code の Sonnet で、会話より軽いモデルを充てている。
 
@@ -331,8 +331,8 @@ cursor-agent はイメージにも入れてあるが、`cursor-agent login` を�
 
 ## 安全側に倒してあるところ
 
-- AI に渡すのはファイルの読み取りだけ。会話でも記憶の整理でも、書き込みもシェル実行もできない。
-- 記憶を整理させても、返ってくるのは新しい本文の案だけ。人が確かめて保存を押したときに、
+- AI に渡すのはファイルの読み取りだけ。会話でも要約の整理でも、書き込みもシェル実行もできない。
+- 要約を整理させても、返ってくるのは新しい本文の案だけ。人が確かめて保存を押したときに、
   サーバーが `summary.md` を書き換える。承認しなければ何も起きない。
 - ユーザー名は `USERS` に列挙したものだけ、トピック名は英数字とハイフンだけを受け付ける。
   組み立てたパスがデータディレクトリの外に出ていないかを最後にもう一度確かめる。
@@ -355,9 +355,9 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 
 - `/user/:user` — トピック一覧。直近に話した順に並び、最後の発言を抜粋で出す。
 - `/user/:user/:topic` — チャット。日付の区切り、画像付きの吹き出し、
-  返答が届くにつれて伸びていく表示、ヘッダの「記憶」。
+  返答が届くにつれて伸びていく表示、ヘッダの「要約」。
 
-「記憶」はそのトピックの `summary.md` を開く画面。そのまま手で直せるし、モデルを選んで
+「要約」はそのトピックの `summary.md` を開く画面。そのまま手で直せるし、モデルを選んで
 AI に整理させることもできる。AI が返すのは案で、保存を押すまでファイルは変わらない。
 気に入らなければ「元に戻す」で開いたときの内容に戻る。
 
