@@ -1,17 +1,20 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom'
-import { isGroupRef, type TopicRef } from '../../shared/types'
 import { spaceApi, type SpaceApi } from '@/lib/api'
 import { rememberUser, rememberedUser } from '@/lib/remember'
 
 /**
  * 画面がどのスペースに居るか。個人と家族共有スペースの違いをここに集める。
- * 一覧・器・会話の三画面は、この値の中身が変わるだけで同じものを使う。
+ * 一覧・会話・タグの三画面は、この値の中身が変わるだけで同じものを使う。
  */
 export interface Space {
   kind: 'personal' | 'family'
-  /** トピック一覧の URL。会話画面の戻り先。 */
+  /** 会話一覧の URL。会話画面の戻り先。 */
   home: string
+  /** タグ一覧の URL。 */
+  tags: string
+  /** 一つのタグ本文への経路。 */
+  tagHref(tag: string): string
   title: string
   subtitle: string
   /** まだ何も無いときの誘い文。 */
@@ -21,10 +24,10 @@ export interface Space {
   /** このスペースの持ち主。共有スペースは誰のものでもないので undefined。 */
   owner?: string
   api: SpaceApi
-  /** トピック画面への経路。子なら器の下に続ける。 */
-  href(ref: TopicRef): string
-  /** 文書を読み直す目印。スペースやトピックが変われば読み直させる。 */
-  docKey(ref?: TopicRef | null): string
+  /** 会話画面への経路。 */
+  href(id: string): string
+  /** 文書を読み直す目印。スペースが変われば読み直させる。 */
+  docKey(): string
   /**
    * 順番待ちで弾かれたときの言い換え。共有スペースでは「誰か」が話しているので、
    * サーバーの言い方のままだと自分が待たされている理由が分からない。
@@ -45,28 +48,24 @@ export function useSpace(): Space {
   return space
 }
 
-function refKey(ref?: TopicRef | null): string {
-  if (!ref) return ':'
-  return isGroupRef(ref) ? `${ref.topic}:` : `${ref.topic}:${ref.sub}`
-}
-
-/** その人のトピック一覧の URL。スペースの外（管理画面）からも組み立てる。 */
+/** その人の会話一覧の URL。スペースの外（管理画面）からも組み立てる。 */
 export function personalHome(user: string): string {
   return `/user/${encodeURIComponent(user)}`
 }
 
-/** トピック画面への経路。子なら器の下に続ける。`home` は一覧の URL。 */
-export function topicHref(home: string, ref: TopicRef): string {
-  const base = `${home}/${encodeURIComponent(ref.topic)}`
-  return isGroupRef(ref) ? base : `${base}/${encodeURIComponent(ref.sub)}`
+/** 会話画面への経路。`home` は一覧の URL。 */
+export function topicHref(home: string, id: string): string {
+  return `${home}/${encodeURIComponent(id)}`
 }
 
-/**
- * 器そのものの画面は持たない。中の一覧・要約・CLAUDE.md はどれもトピック一覧の
- * 器の行から開けるので、画面を分けても導線が生えなかった。古いブックマークだけ流す。
- */
-export function SpaceHomeRedirect() {
-  return <Navigate to={useSpace().home} replace />
+/** タグ一覧への経路。会話 id より先に置くので、`:id` に食われない。 */
+export function tagsHref(home: string): string {
+  return `${home}/tags`
+}
+
+/** 一つのタグ本文への経路。ファイルは `tags/{tag}.md`。 */
+export function tagHref(home: string, tag: string): string {
+  return `${tagsHref(home)}/${encodeURIComponent(tag)}.md`
 }
 
 /** 個人のスペース。`/user/:user` の下。 */
@@ -78,19 +77,21 @@ export function PersonalSpace() {
     return {
       kind: 'personal',
       home,
+      tags: tagsHref(home),
+      tagHref: (tag) => tagHref(home, tag),
       title: user,
-      subtitle: 'トピック',
+      subtitle: '会話',
       owner: user,
       emptyHint: (
         <>
-          「数学学習」「スキンケア」みたいに、
+          話しかけてみて。
           <br />
-          話題ごとに作ってみて。
+          名前とタグは、あとから付くよ。
         </>
       ),
       api: spaceApi(`/api/users/${encodeURIComponent(user)}`),
-      href: (ref) => topicHref(home, ref),
-      docKey: (ref) => `${user}:${refKey(ref)}`,
+      href: (id) => topicHref(home, id),
+      docKey: () => user,
       busyNotice: (message) => message,
       confirm: () => rememberUser(user),
     }
@@ -116,19 +117,21 @@ export function FamilySpace() {
     return {
       kind: 'family',
       home: '/family',
+      tags: tagsHref('/family'),
+      tagHref: (tag) => tagHref('/family', tag),
       title: '共有スペース',
       subtitle: '家族のメモ・買い物',
       emptyHint: (
         <>
           買い物リストや旅行のメモなど、
           <br />
-          家族みんなの話題を作ってみて。
+          家族みんなの話を始めてみて。
         </>
       ),
       author,
       api: spaceApi('/api/family', author),
-      href: (ref) => topicHref('/family', ref),
-      docKey: (ref) => `family:${refKey(ref)}`,
+      href: (id) => topicHref('/family', id),
+      docKey: () => 'family',
       busyNotice: (message) =>
         message.includes('前の返答をまだ書いています')
           ? 'いま誰かが話しとる。少し待ってから試してね'

@@ -3,9 +3,10 @@ import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-rou
 import { Capacitor } from '@capacitor/core'
 import { api } from '@/lib/api'
 import { rememberUser, rememberedUser } from '@/lib/remember'
-import { FamilySpace, PersonalSpace, SpaceHomeRedirect } from '@/lib/space'
+import { FamilySpace, PersonalSpace } from '@/lib/space'
 import TopicListPage from './pages/TopicListPage'
 import ChatPage from './pages/ChatPage'
+import TagsPage from './pages/TagsPage'
 import AdminPage from './pages/AdminPage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,16 +22,18 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/user" replace />} />
       <Route path="/user" element={<UserPicker />} />
-      {/* 一覧・器・会話の三画面は、どちらのスペースでも同じものを使う。 */}
+      {/* 一覧・会話・タグは、どちらのスペースでも同じものを使う。 */}
       <Route path="/user/:user" element={<PersonalSpace />}>
         <Route index element={<TopicListPage />} />
-        <Route path=":topic" element={<SpaceHomeRedirect />} />
-        <Route path=":topic/:sub" element={<ChatPage />} />
+        <Route path="tags" element={<TagsPage />} />
+        <Route path="tags/:tag" element={<TagsPage />} />
+        <Route path=":id" element={<ChatPage />} />
       </Route>
       <Route path="/family" element={<FamilySpace />}>
         <Route index element={<TopicListPage />} />
-        <Route path=":topic" element={<SpaceHomeRedirect />} />
-        <Route path=":topic/:sub" element={<ChatPage />} />
+        <Route path="tags" element={<TagsPage />} />
+        <Route path="tags/:tag" element={<TagsPage />} />
+        <Route path=":id" element={<ChatPage />} />
       </Route>
       {/* 家族の誰の画面でもない。鍵は URL の ?key= で渡す。 */}
       <Route path="/admin" element={<AdminPage />} />

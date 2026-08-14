@@ -228,18 +228,14 @@ export default function AdminPage() {
               {entries.map((entry) => (
                 <li key={entry.user} className="border-b last:border-b-0">
                   <Link
-                    to={topicHref(personalHome(entry.user), {
-                      kind: 'child',
-                      topic: entry.topic,
-                      sub: entry.sub,
-                    })}
+                    to={topicHref(personalHome(entry.user), entry.slug)}
                     className="hover:bg-muted/50 -mx-2 flex flex-col gap-0.5 rounded-md px-2 py-2.5"
                   >
                     <div className="text-muted-foreground flex items-baseline justify-between gap-3 text-xs">
                       <span className="min-w-0 truncate">
                         {entry.user}
                         <span className="mx-1.5 opacity-40">·</span>
-                        {entry.emoji} {entry.topicName} / {topicLabel({ name: entry.subName })}
+                        {entry.emoji} {topicLabel(entry)}
                       </span>
                       <span className="shrink-0">{relativeLabel(entry.at)}</span>
                     </div>

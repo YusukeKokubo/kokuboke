@@ -1,23 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
-import type { TopicRef } from '../../shared/types'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
 type Status = 'loading' | 'idle' | 'saving'
-
-/**
- * 親が毎回作り直した TopicRef を、中身が同じなら同じものとして扱う。
- * 挟まないと描画のたびに読み直しが走る。
- */
-export function useStableRef(target: TopicRef | null): TopicRef | null {
-  const topic = target?.topic
-  const sub = target?.kind === 'child' ? target.sub : undefined
-  return useMemo(() => {
-    if (!topic) return null
-    return sub === undefined ? { kind: 'group', topic } : { kind: 'child', topic, sub }
-  }, [topic, sub])
-}
 
 export function useDoc(open: boolean, source: string, load: () => Promise<string>) {
   const [saved, setSaved] = useState('')
@@ -79,7 +65,7 @@ export function useDoc(open: boolean, source: string, load: () => Promise<string
 interface EditorProps {
   doc: ReturnType<typeof useDoc>
   placeholder?: string
-  /** 外の仕事で塞がっているとき（要約の下書き生成中など）。 */
+  /** 外の仕事で塞がっているとき（タグ本文の下書き生成中など）。 */
   busy?: boolean
   /** 保存ボタン列の上に差し込むもの。 */
   actions?: ReactNode

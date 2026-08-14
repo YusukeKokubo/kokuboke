@@ -1,19 +1,16 @@
-import {
-  isGroupRef,
-  type ActivityEntry,
-  type ChatEvent,
-  type Claude,
-  type EngineInfo,
-  type FamilyActivityEntry,
-  type GroupTopic,
-  type Message,
-  type Profile,
-  type Summary,
-  type SummaryEvent,
-  type Topic,
-  type TopicRef,
-  type UpdateResult,
-  type UpdateStatus,
+import type {
+  ActivityEntry,
+  ChatEvent,
+  Claude,
+  EngineInfo,
+  FamilyActivityEntry,
+  Message,
+  Profile,
+  SummaryEvent,
+  Tag,
+  Topic,
+  UpdateResult,
+  UpdateStatus,
 } from '../../shared/types'
 
 async function unwrap<T>(res: Response): Promise<T> {
@@ -37,7 +34,7 @@ function path(segment: string): string {
   return encodeURIComponent(segment)
 }
 
-/** `{ summary: … }` のように一つだけ包んで返る口から、中身を取り出す。 */
+/** `{ text: … }` のように一つだけ包んで返る口から、中身を取り出す。 */
 function only<K extends string>(key: K) {
   return (doc: Record<K, string>) => doc[key]
 }
@@ -57,10 +54,10 @@ const json = {
 }
 
 interface NewTopic {
-  name: string
-  emoji: string
-  engine: string
-  model: string
+  name?: string
+  emoji?: string
+  engine?: string
+  model?: string
 }
 
 /** fetch のボディから SSE の data 行だけを取り出す。 */
@@ -99,61 +96,62 @@ async function* readSSE<T>(res: Response): AsyncGenerator<T> {
 
 /**
  * スペースに縛った API の面。どのスペースかは経路の根（`base`）だけの違いなので、
- * 呼ぶ側はトピックの位置だけ渡せばよい。共有スペースでは発言に名前が付く。
+ * 呼ぶ側は会話の id だけ渡せばよい。共有スペースでは発言に名前が付く。
  */
 export function spaceApi(base: string, author?: string) {
-  /** 子トピックは経路の途中に sub を挟んで親と区別する。 */
-  const at = (ref: TopicRef, suffix = ''): string => {
-    const head = `${base}/topics/${path(ref.topic)}`
-    return (isGroupRef(ref) ? head : `${head}/sub/${path(ref.sub)}`) + suffix
-  }
+  const at = (id: string, suffix = ''): string => `${base}/topics/${path(id)}${suffix}`
+  const tagAt = (tag: string, suffix = ''): string => `${base}/tags/${path(tag)}${suffix}`
 
   return {
-    listTopics: () => json.get<GroupTopic[]>(`${base}/topics`),
+    listTopics: () => json.get<Topic[]>(`${base}/topics`),
 
-    getTopic: (ref: TopicRef) => json.get<Topic>(at(ref)),
+    getTopic: (id: string) => json.get<Topic>(at(id)),
 
-    createTopic: (input: NewTopic) => json.send<Topic>('POST', `${base}/topics`, input),
+    createTopic: (input: NewTopic = {}) => json.send<Topic>('POST', `${base}/topics`, input),
 
-    /** 名前を決めずに始める。フォルダ名は仮のもので、あとから付け直される。 */
-    startChild: (topic: string) =>
-      json.send<Topic>('POST', `${base}/topics/${path(topic)}/sub`, {}),
+    updateTopic: (id: string, input: { engine: string; model: string }) =>
+      json.send<Topic>('PATCH', at(id, '/model'), input),
 
-    updateTopic: (ref: TopicRef, input: { engine: string; model: string }) =>
-      json.send<Topic>('PATCH', at(ref, '/model'), input),
+    /** 見出しだけ変える。フォルダも URL も動かない。 */
+    renameTopic: (id: string, input: { name: string; emoji?: string }) =>
+      json.send<Topic>('PATCH', at(id, '/name'), input),
 
-    /** 名前を付け直す。フォルダごと動くので、返ってきた slug で経路を差し替える。 */
-    renameTopic: (ref: TopicRef, input: { name: string; emoji?: string }) =>
-      json.send<Topic>('PATCH', at(ref, '/name'), input),
+    autoName: (id: string) => json.send<Topic>('POST', at(id, '/name')),
 
-    /** 会話を読んで名前を付けてもらう。こちらも slug が変わる。 */
-    autoName: (ref: TopicRef) => json.send<Topic>('POST', at(ref, '/name')),
+    writeTags: (id: string, tags: string[]) =>
+      json.send<Topic>('PATCH', at(id, '/tags'), { tags }),
 
-    deleteTopic: (ref: TopicRef) => json.send<void>('DELETE', at(ref)),
+    autoTag: (id: string) => json.send<Topic>('POST', at(id, '/tags')),
 
-    listMessages: (ref: TopicRef) => json.get<Message[]>(at(ref, '/messages')),
+    deleteTopic: (id: string) => json.send<void>('DELETE', at(id)),
 
-    getSummary: (ref: TopicRef) => json.get<Summary>(at(ref, '/summary')).then(only('summary')),
+    listMessages: (id: string) => json.get<Message[]>(at(id, '/messages')),
 
-    saveSummary: (ref: TopicRef, summary: string) =>
-      json.send<Summary>('PUT', at(ref, '/summary'), { summary }).then(only('summary')),
+    listTags: () => json.get<Tag[]>(`${base}/tags`),
+
+    createTag: (input: { name: string; text?: string }) =>
+      json.send<Tag>('POST', `${base}/tags`, input),
+
+    getTag: (tag: string) => json.get<{ text: string }>(tagAt(tag)).then(only('text')),
+
+    saveTag: (tag: string, text: string) =>
+      json.send<{ text: string }>('PUT', tagAt(tag), { text }).then(only('text')),
+
+    renameTag: (tag: string, name: string) => json.send<Tag>('PATCH', tagAt(tag), { name }),
+
+    deleteTag: (tag: string) => json.send<void>('DELETE', tagAt(tag)),
 
     getClaude: () => json.get<Claude>(`${base}/claude`).then(only('claude')),
 
     saveClaude: (claude: string) =>
       json.send<Claude>('PUT', `${base}/claude`, { claude }).then(only('claude')),
 
-    getTopicClaude: (ref: TopicRef) => json.get<Claude>(at(ref, '/claude')).then(only('claude')),
-
-    saveTopicClaude: (ref: TopicRef, claude: string) =>
-      json.send<Claude>('PUT', at(ref, '/claude'), { claude }).then(only('claude')),
-
     /**
      * 発言を送って、返答を受け取りながら流す。
      * 返答中に重ねて送ると 409 が返り、readSSE がその文言のまま投げる。
      */
     sendMessage: async function* (
-      ref: TopicRef,
+      id: string,
       input: { text: string; images: File[] },
       signal?: AbortSignal,
     ): AsyncGenerator<ChatEvent> {
@@ -162,19 +160,16 @@ export function spaceApi(base: string, author?: string) {
       if (author) form.set('author', author)
       for (const image of input.images) form.append('images', image)
 
-      const res = await fetch(at(ref, '/messages'), { method: 'POST', body: form, signal })
+      const res = await fetch(at(id, '/messages'), { method: 'POST', body: form, signal })
       yield* readSSE<ChatEvent>(res)
     },
 
     /**
-     * 要約の下書きを作らせる。ここではファイルは変わらない。
-     * 保存するのは saveSummary を呼んだとき。モデルはトピックのものを使う。
+     * タグ本文の下書きを作らせる。ここではファイルは変わらない。
+     * 保存するのは saveTag を呼んだとき。
      */
-    draftSummary: async function* (
-      ref: TopicRef,
-      signal?: AbortSignal,
-    ): AsyncGenerator<SummaryEvent> {
-      const res = await fetch(at(ref, '/summary'), { method: 'POST', signal })
+    draftTag: async function* (tag: string, signal?: AbortSignal): AsyncGenerator<SummaryEvent> {
+      const res = await fetch(tagAt(tag, '/draft'), { method: 'POST', signal })
       yield* readSSE<SummaryEvent>(res)
     },
   }
@@ -186,7 +181,7 @@ export type SpaceApi = ReturnType<typeof spaceApi>
 export const api = {
   engines: () => json.get<EngineInfo[]>('/api/engines'),
 
-  /** 共有スペースの直近の一行。個人のトピック一覧の入口に出す。 */
+  /** 共有スペースの直近の一行。個人の会話一覧の入口に出す。 */
   familyActivity: () =>
     json
       .get<{ entry: FamilyActivityEntry | null }>('/api/family/activity')

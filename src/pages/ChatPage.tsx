@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Bot, ChevronLeft, NotebookPen, Pencil } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { ChevronLeft, Pencil, RefreshCw, X } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
-import { TopicDocsDialog } from '@/components/DocsDialog'
 import { EmojiNameDialog } from '@/components/EmojiNameDialog'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -18,73 +18,56 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-
 type Status = 'idle' | 'sending'
 
-/** 中のトピック（会話）の画面。入力・履歴・SSE・スクロール追従を持つ。 */
 export default function ChatPage() {
   const space = useSpace()
-  const { topic = '', sub = '' } = useParams()
-  const navigate = useNavigate()
-  const ref = useMemo(() => ({ kind: 'child' as const, topic, sub }), [topic, sub])
+  const { id = '' } = useParams()
 
   const [meta, setMeta] = useState<Topic | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState<Message | null>(null)
-  /** 返答を作っているあいだの「いま何をしているか」。届いた最後の一つだけ出す。 */
   const [activity, setActivity] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [notice, setNotice] = useState<string | null>(null)
   const [modelOpen, setModelOpen] = useState(false)
-  const [docTab, setDocTab] = useState<'summary' | 'claude' | null>(null)
   const [renameOpen, setRenameOpen] = useState(false)
+  const [knownTags, setKnownTags] = useState<string[]>([])
+  const [tagDraft, setTagDraft] = useState('')
+  const [tagBusy, setTagBusy] = useState(false)
 
   const content = useRef<HTMLElement>(null)
   const stick = useRef(true)
-  // 取り直しを送信中に割り込ませないための札。描画には関わらないので ref で持つ。
   const busy = useRef(false)
 
-  /**
-   * 入力欄は sticky で本文の上に重なる。目印の要素に寄せると入力欄の高さだけ足りないので、
-   * 画面そのものを下端まで動かす。
-   *
-   * なめらかに動かさないのは、動いている途中の位置が下の見張りに「自分で上に戻った」と
-   * 見えてしまうため。追いかけるのをそこでやめてしまう。
-   */
   const scrollToBottom = useCallback(() => {
     window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })
   }, [])
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([space.api.getTopic(ref), space.api.listMessages(ref)])
-      .then(([topicMeta, history]) => {
+    Promise.all([space.api.getTopic(id), space.api.listMessages(id), space.api.listTags()])
+      .then(([topicMeta, history, tags]) => {
         if (cancelled) return
         space.confirm()
         setMeta(topicMeta)
         setMessages(history)
-        // 初回は履歴の一番下から始める。ただしここで測れる高さはまだ仮のもので、
-        // 画像や数式が入るぶん後から伸びる。追いかけるのは下の見張りの役。
+        setKnownTags(tags.map((tag) => tag.name))
         requestAnimationFrame(scrollToBottom)
       })
       .catch((cause: Error) => !cancelled && setNotice(cause.message))
     return () => {
       cancelled = true
     }
-  }, [space, ref, scrollToBottom])
+  }, [space, id, scrollToBottom])
 
-  /**
-   * 共有スペースは他の人も書き込む。開いたときの写しのままだと相手の発言が
-   * いつまでも出てこないので、戻ってきたときと送り終わったときに取り直す。
-   * 個人のスペースでも別の端末から書いた分がここで揃う。
-   */
   const reload = useCallback(async () => {
     try {
-      setMessages(await space.api.listMessages(ref))
+      setMessages(await space.api.listMessages(id))
     } catch {
       // 取り直せなくても、出ているものはそのまま使える。
     }
-  }, [space, ref])
+  }, [space, id])
 
   useEffect(() => {
     const onReturn = () => {
@@ -99,7 +82,6 @@ export default function ChatPage() {
     }
   }, [reload])
 
-  // 自分で上に遡っている最中は、追記のたびに引き戻さない。
   useEffect(() => {
     const onScroll = () => {
       const gap = document.documentElement.scrollHeight - window.scrollY - window.innerHeight
@@ -113,10 +95,6 @@ export default function ChatPage() {
     if (stick.current) scrollToBottom()
   }, [messages, draft, scrollToBottom])
 
-  /**
-   * 画像や数式は描いた後から高さが決まる。飛んだ時点の一番下は本当の一番下ではないので、
-   * 本文が伸びるたびに追い直す。下に張り付いているときだけなのは追記と同じ扱い。
-   */
   useEffect(() => {
     const el = content.current
     if (!el) return
@@ -127,28 +105,49 @@ export default function ChatPage() {
     return () => observer.disconnect()
   }, [scrollToBottom])
 
-  /** 名前が変わるとフォルダも動く。経路を新しい slug に差し替える。 */
-  const moveTo = useCallback(
-    (next: Topic) => {
-      setMeta(next)
-      if (next.slug !== sub) {
-        navigate(space.href({ kind: 'child', topic, sub: next.slug }), { replace: true })
-      }
-    },
-    [navigate, space, sub, topic],
-  )
-
-  /**
-   * 会話を読んで名前を付けてもらう。時間はかかるが返事を待たせるものではないので、
-   * 失敗しても画面には出さず、名前なしのままにしておく。
-   */
   const putName = useCallback(async () => {
     try {
-      moveTo(await space.api.autoName(ref))
+      setMeta(await space.api.autoName(id))
     } catch (cause) {
       console.warn('[name]', cause)
     }
-  }, [moveTo, space, ref])
+  }, [space, id])
+
+  const putTags = useCallback(async () => {
+    setTagBusy(true)
+    try {
+      const next = await space.api.autoTag(id)
+      setMeta(next)
+      setKnownTags((prev) => [...new Set([...prev, ...next.tags])])
+    } catch (cause) {
+      console.warn('[tags]', cause)
+    } finally {
+      setTagBusy(false)
+    }
+  }, [space, id])
+
+  async function saveTags(tags: string[]) {
+    setTagBusy(true)
+    try {
+      const next = await space.api.writeTags(id, tags)
+      setMeta(next)
+      setKnownTags((prev) => [...new Set([...prev, ...next.tags])])
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : 'タグを変えられませんでした')
+    } finally {
+      setTagBusy(false)
+    }
+  }
+
+  async function addTag(name: string) {
+    const tag = name.trim()
+    if (!tag || !meta || meta.tags.includes(tag)) {
+      setTagDraft('')
+      return
+    }
+    setTagDraft('')
+    await saveTags([...meta.tags, tag])
+  }
 
   async function handleSend(input: { text: string; images: File[] }) {
     setStatus('sending')
@@ -157,12 +156,10 @@ export default function ChatPage() {
     setActivity(null)
     stick.current = true
 
-    // 受け取られた時点で発言はもう記録されている。あとで失敗しても打ち直させない
-    // （もう一度送ると同じ発言が二つ並ぶ）。
     let accepted = false
 
     try {
-      for await (const event of space.api.sendMessage(ref, input)) {
+      for await (const event of space.api.sendMessage(id, input)) {
         switch (event.type) {
           case 'accepted':
             accepted = true
@@ -185,6 +182,7 @@ export default function ChatPage() {
             setDraft(null)
             setMessages((prev) => [...prev, event.message])
             if (event.shouldName) void putName()
+            if (event.shouldTag) void putTags()
             break
           case 'error':
             setDraft(null)
@@ -194,82 +192,112 @@ export default function ChatPage() {
     } catch (cause) {
       setDraft(null)
       setNotice(cause instanceof Error ? space.busyNotice(cause.message) : '送信できませんでした')
-      // 受け取られる前に落ちたのなら、打った文は入力欄に戻す。
       if (!accepted) throw cause
     } finally {
       setStatus('idle')
       busy.current = false
       setActivity(null)
-      // 自分の分は継ぎ足してあるが、その間に誰かが書いた分は入っていない。
       if (accepted) void reload()
     }
   }
 
+  const unused = knownTags.filter((tag) => !meta?.tags.includes(tag))
+
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center gap-2 border-b px-2 py-2 pt-[calc(0.5rem+var(--safe-top))] backdrop-blur">
-        <Link
-          to={space.home}
-          aria-label="トピック一覧に戻る"
-          className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'size-9 shrink-0' })}
-        >
-          <ChevronLeft className="size-5" />
-        </Link>
-
-        <div className="min-w-0 flex-1">
-          {meta?.kind === 'child' && (
-            <p className="text-muted-foreground truncate text-[11px]">{meta.group}</p>
-          )}
-          <button
-            type="button"
-            onClick={() => meta && setRenameOpen(true)}
-            className="flex max-w-full items-center gap-1"
+      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex flex-col gap-1.5 border-b px-2 py-2 pt-[calc(0.5rem+var(--safe-top))] backdrop-blur">
+        <div className="flex items-center gap-2">
+          <Link
+            to={space.home}
+            aria-label="会話一覧に戻る"
+            className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'size-9 shrink-0' })}
           >
-            <h1
-              className={cn(
-                'truncate text-[15px] font-semibold',
-                meta && !meta.name && 'text-muted-foreground',
-              )}
-            >
-              {meta ? `${meta.emoji} ${topicLabel(meta)}` : '…'}
-            </h1>
-            <Pencil className="text-muted-foreground size-3 shrink-0" />
-          </button>
-          {meta && (
+            <ChevronLeft className="size-5" />
+          </Link>
+
+          <div className="min-w-0 flex-1">
             <button
               type="button"
-              onClick={() => setModelOpen(true)}
-              className="text-muted-foreground truncate text-[11px] underline-offset-2 hover:underline"
+              onClick={() => meta && setRenameOpen(true)}
+              className="flex max-w-full items-center gap-1"
             >
-              {meta.modelLabel}
+              <h1
+                className={cn(
+                  'truncate text-[15px] font-semibold',
+                  meta && !meta.name && 'text-muted-foreground',
+                )}
+              >
+                {meta ? `${meta.emoji} ${topicLabel(meta)}` : '…'}
+              </h1>
+              <Pencil className="text-muted-foreground size-3 shrink-0" />
             </button>
-          )}
+            {meta && (
+              <button
+                type="button"
+                onClick={() => setModelOpen(true)}
+                className="text-muted-foreground truncate text-[11px] underline-offset-2 hover:underline"
+              >
+                {meta.modelLabel}
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* 題名とモデル名で横が詰まるが、絵札だけだと何の口か分からんので名前を出す。 */}
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setDocTab('summary')}
-          disabled={status !== 'idle'}
-          title="このトピックの要約"
-          className="shrink-0"
-        >
-          <NotebookPen className="size-4" />
-          要約
-        </Button>
-
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setDocTab('claude')}
-          disabled={status !== 'idle'}
-          title="このトピックの CLAUDE.md"
-          className="shrink-0"
-        >
-          <Bot className="size-4" />
-          CLAUDE.md
-        </Button>
+        {meta && (
+          <div className="flex flex-wrap items-center gap-1 px-1">
+            {meta.tags.map((tag) => (
+              <span
+                key={tag}
+                className="bg-secondary text-muted-foreground inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px]"
+              >
+                <Link to={space.tagHref(tag)} className="hover:underline">
+                  {tag}
+                </Link>
+                <button
+                  type="button"
+                  disabled={tagBusy || status !== 'idle'}
+                  onClick={() => void saveTags(meta.tags.filter((item) => item !== tag))}
+                  aria-label={`${tag} を外す`}
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            ))}
+            <form
+              className="flex min-w-24 flex-1 items-center gap-1"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void addTag(tagDraft)
+              }}
+            >
+              <Input
+                value={tagDraft}
+                onChange={(event) => setTagDraft(event.target.value)}
+                list="known-tags"
+                placeholder="タグを付ける"
+                disabled={tagBusy || status !== 'idle'}
+                className="h-7 min-w-0 flex-1 text-[12px]"
+              />
+              <datalist id="known-tags">
+                {unused.map((tag) => (
+                  <option key={tag} value={tag} />
+                ))}
+              </datalist>
+            </form>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={tagBusy || status !== 'idle'}
+              onClick={() => void putTags()}
+              title="会話を読んでタグを付け直す"
+              className="text-muted-foreground h-7 shrink-0 px-2 text-[11px]"
+            >
+              <RefreshCw className={cn('size-3', tagBusy && 'animate-spin')} />
+              付け直す
+            </Button>
+          </div>
+        )}
       </header>
 
       <main ref={content} className="flex flex-1 flex-col gap-3 px-3 py-4">
@@ -310,17 +338,15 @@ export default function ChatPage() {
       <Dialog open={modelOpen} onOpenChange={setModelOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>このトピックで使うモデル</DialogTitle>
-            <DialogDescription>
-              変えても、これまでの会話と要約はそのまま引き継がれるよ。
-            </DialogDescription>
+            <DialogTitle>この会話で使うモデル</DialogTitle>
+            <DialogDescription>変えても、これまでの会話はそのまま引き継がれるよ。</DialogDescription>
           </DialogHeader>
 
           <ModelPicker
             value={meta ? { engine: meta.engine, model: meta.model } : null}
             onChange={async (next) => {
               try {
-                setMeta(await space.api.updateTopic(ref, next))
+                setMeta(await space.api.updateTopic(id, next))
                 setModelOpen(false)
               } catch (cause) {
                 setNotice(cause instanceof Error ? cause.message : 'モデルを変えられませんでした')
@@ -330,23 +356,16 @@ export default function ChatPage() {
         </DialogContent>
       </Dialog>
 
-      <TopicDocsDialog
-        target={ref}
-        tab={docTab ?? 'summary'}
-        open={docTab !== null}
-        onOpenChange={(open) => !open && setDocTab(null)}
-      />
-
       <EmojiNameDialog
         open={renameOpen}
         onOpenChange={setRenameOpen}
         title="名前を変える"
-        description="会話と要約はそのまま。フォルダの名前も一緒に変わるよ。"
+        description="会話はそのまま。フォルダの名前は変わらないよ。"
         submitLabel="変える"
         placeholder="例: 肌の記録"
         initial={meta ? { name: meta.name, emoji: meta.emoji } : undefined}
         onSubmit={async ({ name, emoji }) => {
-          moveTo(await space.api.renameTopic(ref, { name, emoji }))
+          setMeta(await space.api.renameTopic(id, { name, emoji }))
         }}
       />
     </div>
