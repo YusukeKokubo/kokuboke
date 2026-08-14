@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 interface Props {
   disabled: boolean
   onSend: (input: { text: string; images: File[] }) => void | Promise<void>
-  /** true なら送信が失敗したとき本文と画像を残す。既定は false（送る直前に空にする）。 */
+  /** true なら送信が失敗したとき本文と画像を戻す。既定は false（投げたら忘れる）。 */
   keepOnFailure?: boolean
 }
 
@@ -48,19 +48,22 @@ export function Composer({ disabled, onSend, keepOnFailure = false }: Props) {
   async function submit() {
     if (!canSend) return
     const payload = { text, images }
-    if (keepOnFailure) {
-      try {
-        await onSend(payload)
-        setText('')
-        setImages([])
-      } catch {
-        // 送信に失敗したときは打った内容を残す
-      }
-      return
-    }
-    onSend(payload)
+    // 送った分はすぐ吹き出しになって出るので、入力欄は待たずに空にする。
+    // 待つと生成が終わるまで同じ文が二重に見える。
     setText('')
     setImages([])
+    if (!keepOnFailure) {
+      onSend(payload)
+      return
+    }
+    try {
+      await onSend(payload)
+    } catch {
+      // 送れなかったときだけ打った内容を戻す。送っている間は入力できないので、
+      // 書きかけを上から潰すことはない。
+      setText(payload.text)
+      setImages(payload.images)
+    }
   }
 
   function add(files: File[]) {

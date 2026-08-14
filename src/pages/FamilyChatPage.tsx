@@ -43,6 +43,8 @@ export default function FamilyChatPage() {
 
   const content = useRef<HTMLElement>(null)
   const stick = useRef(true)
+  // 取り直しを送信中に割り込ませないための札。描画には関わらないので ref で持つ。
+  const busy = useRef(false)
 
   const scrollToBottom = useCallback(() => {
     window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })
@@ -62,6 +64,32 @@ export default function FamilyChatPage() {
       cancelled = true
     }
   }, [ref, scrollToBottom])
+
+  /**
+   * みんなが書き込む場所なので、開いたときの写しのままだと、他の人の発言が
+   * いつまでも出てこない。戻ってきたときと送り終わったときに取り直す。
+   */
+  const reload = useCallback(async () => {
+    try {
+      const history = await familyApi.listMessages(ref)
+      setMessages(history)
+    } catch {
+      // 取り直せなくても、出ているものはそのまま使える。
+    }
+  }, [ref])
+
+  useEffect(() => {
+    const onReturn = () => {
+      if (document.visibilityState !== 'visible' || busy.current) return
+      void reload()
+    }
+    window.addEventListener('focus', onReturn)
+    document.addEventListener('visibilitychange', onReturn)
+    return () => {
+      window.removeEventListener('focus', onReturn)
+      document.removeEventListener('visibilitychange', onReturn)
+    }
+  }, [reload])
 
   useEffect(() => {
     const onScroll = () => {
@@ -111,14 +139,20 @@ export default function FamilyChatPage() {
     }
 
     setStatus('sending')
+    busy.current = true
     setNotice(null)
     setActivity(null)
     stick.current = true
+
+    // 受け取られた時点で発言はもう記録されている。あとで失敗しても打ち直させない
+    // （もう一度送ると同じ発言が二つ並ぶ）。
+    let accepted = false
 
     try {
       for await (const event of sendFamilyMessage(selfAuthor, ref, input)) {
         switch (event.type) {
           case 'accepted':
+            accepted = true
             setMessages((prev) => [...prev, event.message])
             setDraft({
               id: 'draft',
@@ -152,10 +186,13 @@ export default function FamilyChatPage() {
       } else if (cause instanceof Error && cause.message !== 'author missing') {
         setNotice(cause.message)
       }
-      throw cause
+      if (!accepted) throw cause
     } finally {
       setStatus('idle')
+      busy.current = false
       setActivity(null)
+      // 自分の分は継ぎ足してあるが、その間に誰かが書いた分は入っていない。
+      if (accepted) void reload()
     }
   }
 
