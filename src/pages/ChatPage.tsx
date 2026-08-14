@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronLeft, Pencil, RefreshCw, X } from 'lucide-react'
+import { Pencil, RefreshCw, X } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
 import { EmojiNameDialog } from '@/components/EmojiNameDialog'
 import { MessageBubble } from '@/components/MessageBubble'
@@ -204,43 +204,33 @@ export default function ChatPage() {
   const unused = knownTags.filter((tag) => !meta?.tags.includes(tag))
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex flex-col gap-1.5 border-b px-2 py-2 pt-[calc(0.5rem+var(--safe-top))] backdrop-blur">
-        <div className="flex items-center gap-2">
-          <Link
-            to={space.home}
-            aria-label="会話一覧に戻る"
-            className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'size-9 shrink-0' })}
+    <>
+      <header className="flex flex-col gap-1.5 border-b px-3 py-2">
+        <div className="min-w-0">
+          <button
+            type="button"
+            onClick={() => meta && setRenameOpen(true)}
+            className="flex max-w-full items-center gap-1"
           >
-            <ChevronLeft className="size-5" />
-          </Link>
-
-          <div className="min-w-0 flex-1">
+            <h2
+              className={cn(
+                'truncate text-[15px] font-semibold',
+                meta && !meta.name && 'text-muted-foreground',
+              )}
+            >
+              {meta ? `${meta.emoji} ${topicLabel(meta)}` : '…'}
+            </h2>
+            <Pencil className="text-muted-foreground size-3 shrink-0" />
+          </button>
+          {meta && (
             <button
               type="button"
-              onClick={() => meta && setRenameOpen(true)}
-              className="flex max-w-full items-center gap-1"
+              onClick={() => setModelOpen(true)}
+              className="text-muted-foreground truncate text-[11px] underline-offset-2 hover:underline"
             >
-              <h1
-                className={cn(
-                  'truncate text-[15px] font-semibold',
-                  meta && !meta.name && 'text-muted-foreground',
-                )}
-              >
-                {meta ? `${meta.emoji} ${topicLabel(meta)}` : '…'}
-              </h1>
-              <Pencil className="text-muted-foreground size-3 shrink-0" />
+              {meta.modelLabel}
             </button>
-            {meta && (
-              <button
-                type="button"
-                onClick={() => setModelOpen(true)}
-                className="text-muted-foreground truncate text-[11px] underline-offset-2 hover:underline"
-              >
-                {meta.modelLabel}
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         {meta && (
@@ -368,6 +358,6 @@ export default function ChatPage() {
           setMeta(await space.api.renameTopic(id, { name, emoji }))
         }}
       />
-    </div>
+    </>
   )
 }

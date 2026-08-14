@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { FileText, Plus, Tags, Trash2, UserRound } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Trash2 } from 'lucide-react'
 import type { Topic } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
-import { personalHome, useSpace } from '@/lib/space'
+import { useSpace } from '@/lib/space'
 import { Button } from '@/components/ui/button'
-import { ButtonGroup } from '@/components/ui/button-group'
 import {
   Dialog,
   DialogContent,
@@ -18,13 +17,11 @@ import { FamilyEntry } from '@/components/FamilyEntry'
 
 export default function TopicListPage() {
   const space = useSpace()
-  const navigate = useNavigate()
   const [topics, setTopics] = useState<Topic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<Topic | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [starting, setStarting] = useState(false)
 
   const load = useCallback(() => {
     space.api
@@ -38,18 +35,6 @@ export default function TopicListPage() {
   }, [space])
 
   useEffect(load, [load])
-
-  async function start() {
-    if (starting) return
-    setStarting(true)
-    try {
-      const topic = await space.api.createTopic({})
-      navigate(space.href(topic.slug))
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '始められませんでした')
-      setStarting(false)
-    }
-  }
 
   async function confirmDelete() {
     if (!deleting || deleteBusy) return
@@ -69,47 +54,7 @@ export default function TopicListPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex flex-col gap-2 border-b px-4 py-3 pt-[calc(0.75rem+var(--safe-top))] backdrop-blur">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-semibold">{space.title}</h1>
-            <p className="text-muted-foreground text-xs">{space.subtitle}</p>
-          </div>
-          <ButtonGroup className="shrink-0">
-            <Button variant="outline" size="sm" render={<Link to={space.tags} />}>
-              <Tags />
-              タグ
-            </Button>
-            {space.profile && (
-              <Button variant="outline" size="sm" render={<Link to={space.profile} />}>
-                <UserRound />
-                プロフィール
-              </Button>
-            )}
-            <Button variant="outline" size="sm" render={<Link to={space.claude} />}>
-              <FileText />
-              CLAUDE.md
-            </Button>
-            <Button size="sm" onClick={() => void start()} disabled={starting}>
-              <Plus />
-              追加
-            </Button>
-          </ButtonGroup>
-        </div>
-
-        {space.kind === 'family' && space.author && (
-          <div className="flex items-center justify-end gap-2">
-            <Link
-              to={personalHome(space.author)}
-              className="text-muted-foreground text-xs underline-offset-2 hover:underline"
-            >
-              自分の会話へ
-            </Link>
-          </div>
-        )}
-      </header>
-
+    <>
       <main className="flex-1 px-3 py-3">
         {space.kind === 'personal' && (
           <div className="mb-3">
@@ -224,6 +169,6 @@ export default function TopicListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }

@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core'
 import { api } from '@/lib/api'
 import { rememberUser, rememberedUser } from '@/lib/remember'
 import { FamilySpace, PersonalSpace } from '@/lib/space'
+import { SpaceShell } from '@/components/SpaceHeader'
 import TopicListPage from './pages/TopicListPage'
 import ChatPage from './pages/ChatPage'
 import TagsPage from './pages/TagsPage'
@@ -25,20 +26,24 @@ export default function App() {
       <Route path="/user" element={<UserPicker />} />
       {/* 一覧・会話・タグ・文書は、どちらのスペースでも同じものを使う。 */}
       <Route path="/user/:user" element={<PersonalSpace />}>
-        <Route index element={<TopicListPage />} />
-        <Route path="tags" element={<TagsPage />} />
-        <Route path="tags/:tag" element={<TagsPage />} />
-        <Route path="profile.md" element={<ProfilePage />} />
-        <Route path="CLAUDE.md" element={<ClaudePage />} />
-        <Route path=":id" element={<ChatPage />} />
+        <Route element={<SpaceShell />}>
+          <Route index element={<TopicListPage />} />
+          <Route path="tags" element={<TagsPage />} />
+          <Route path="tags/:tag" element={<TagsPage />} />
+          <Route path="profile.md" element={<ProfilePage />} />
+          <Route path="CLAUDE.md" element={<ClaudePage />} />
+          <Route path=":id" element={<ChatPage />} />
+        </Route>
       </Route>
       <Route path="/family" element={<FamilySpace />}>
-        <Route index element={<TopicListPage />} />
-        <Route path="tags" element={<TagsPage />} />
-        <Route path="tags/:tag" element={<TagsPage />} />
-        <Route path="profile.md" element={<ProfilePage />} />
-        <Route path="CLAUDE.md" element={<ClaudePage />} />
-        <Route path=":id" element={<ChatPage />} />
+        <Route element={<SpaceShell />}>
+          <Route index element={<TopicListPage />} />
+          <Route path="tags" element={<TagsPage />} />
+          <Route path="tags/:tag" element={<TagsPage />} />
+          <Route path="profile.md" element={<ProfilePage />} />
+          <Route path="CLAUDE.md" element={<ClaudePage />} />
+          <Route path=":id" element={<ChatPage />} />
+        </Route>
       </Route>
       {/* 家族の誰の画面でもない。鍵は URL の ?key= で渡す。 */}
       <Route path="/admin" element={<AdminPage />} />

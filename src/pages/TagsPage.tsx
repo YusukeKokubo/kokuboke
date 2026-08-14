@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Tag, Topic } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DocPane } from '@/components/DocsDialog'
 import {
@@ -62,70 +62,53 @@ function TagList() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center gap-2 border-b px-2 py-2 pt-[calc(0.5rem+var(--safe-top))] backdrop-blur">
-        <Link
-          to={space.home}
-          aria-label="会話一覧に戻る"
-          className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'size-9 shrink-0' })}
-        >
-          <ChevronLeft className="size-5" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[15px] font-semibold">タグ</h1>
-          <p className="text-muted-foreground truncate text-[11px]">
-            付いているタグの本文は、話すたびに読み込まれるよ
-          </p>
-        </div>
-      </header>
+    <main className="flex flex-1 flex-col gap-3 px-3 py-3">
+      <p className="text-muted-foreground text-xs">付いているタグの本文は、話すたびに読み込まれるよ</p>
+      <form
+        className="flex gap-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void create()
+        }}
+      >
+        <Input
+          value={creating}
+          onChange={(event) => setCreating(event.target.value)}
+          placeholder="新しいタグ"
+          disabled={busy}
+        />
+        <Button type="submit" size="sm" disabled={busy || !creating.trim()}>
+          <Plus className="size-4" />
+          作る
+        </Button>
+      </form>
 
-      <main className="flex flex-1 flex-col gap-3 px-3 py-3">
-        <form
-          className="flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void create()
-          }}
-        >
-          <Input
-            value={creating}
-            onChange={(event) => setCreating(event.target.value)}
-            placeholder="新しいタグ"
-            disabled={busy}
-          />
-          <Button type="submit" size="sm" disabled={busy || !creating.trim()}>
-            <Plus className="size-4" />
-            作る
-          </Button>
-        </form>
+      {error && <p className="text-destructive text-sm">{error}</p>}
 
-        {error && <p className="text-destructive text-sm">{error}</p>}
+      {tags === null && <p className="text-muted-foreground py-8 text-center text-sm">読み込み中…</p>}
 
-        {tags === null && <p className="text-muted-foreground py-8 text-center text-sm">読み込み中…</p>}
+      {tags?.length === 0 && (
+        <p className="text-muted-foreground py-8 text-center text-sm">まだタグがないよ。上から作れる。</p>
+      )}
 
-        {tags?.length === 0 && (
-          <p className="text-muted-foreground py-8 text-center text-sm">まだタグがないよ。上から作れる。</p>
-        )}
-
-        <ul className="flex flex-col gap-1.5">
-          {tags?.map((item) => (
-            <li key={item.name}>
-              <Link
-                to={space.tagHref(item.name)}
-                className="hover:bg-accent active:bg-accent flex min-w-0 items-center gap-3 rounded-xl border p-3 transition-colors"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] font-medium">{item.name}</span>
-                  <span className="text-muted-foreground block truncate text-xs">
-                    {item.text.trim() ? item.text.replace(/\s+/g, ' ').slice(0, 60) : 'まだ何も覚えていないよ'}
-                  </span>
+      <ul className="flex flex-col gap-1.5">
+        {tags?.map((item) => (
+          <li key={item.name}>
+            <Link
+              to={space.tagHref(item.name)}
+              className="hover:bg-accent active:bg-accent flex min-w-0 items-center gap-3 rounded-xl border p-3 transition-colors"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-medium">{item.name}</span>
+                <span className="text-muted-foreground block truncate text-xs">
+                  {item.text.trim() ? item.text.replace(/\s+/g, ' ').slice(0, 60) : 'まだ何も覚えていないよ'}
                 </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </main>
-    </div>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </main>
   )
 }
 
@@ -191,45 +174,38 @@ function TagDoc({ name }: { name: string }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center gap-2 border-b px-2 py-2 pt-[calc(0.5rem+var(--safe-top))] backdrop-blur">
-        <Link
-          to={space.tags}
-          aria-label="タグ一覧に戻る"
-          className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'size-9 shrink-0' })}
-        >
-          <ChevronLeft className="size-5" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[15px] font-semibold">{name}</h1>
-          <p className="text-muted-foreground truncate text-[11px]">
-            {topics === null ? '…' : `会話 ${topics.length} 件`}
-          </p>
-        </div>
-        {exists && (
-          <div className="flex shrink-0 items-center">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => {
-                setRenaming(name)
-                setRenameOpen(true)
-              }}
-            >
-              <Pencil className="size-3.5" />
-              改名
-            </Button>
-            <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => setDeleting(true)}>
-              <Trash2 className="size-3.5" />
-              削除
-            </Button>
-          </div>
-        )}
-      </header>
-
+    <>
       <main className="flex flex-1 flex-col gap-3 px-3 py-3">
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-[15px] font-semibold">{name}</h2>
+            <p className="text-muted-foreground truncate text-[11px]">
+              {topics === null ? '…' : `会話 ${topics.length} 件`}
+            </p>
+          </div>
+          {exists && (
+            <div className="flex shrink-0 items-center">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  setRenaming(name)
+                  setRenameOpen(true)
+                }}
+              >
+                <Pencil className="size-3.5" />
+                改名
+              </Button>
+              <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => setDeleting(true)}>
+                <Trash2 className="size-3.5" />
+                削除
+              </Button>
+            </div>
+          )}
+        </div>
+
         {error && <p className="text-destructive text-sm">{error}</p>}
 
         {exists === null && <p className="text-muted-foreground py-8 text-center text-sm">読み込み中…</p>}
@@ -339,6 +315,6 @@ function TagDoc({ name }: { name: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }
