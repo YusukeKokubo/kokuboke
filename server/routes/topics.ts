@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import { collectAgent, ENGINES, resolveSummaryModel } from '../agent'
+import { collectAgent, ENGINES, resolveModel } from '../agent'
 import { parseName } from '../agent/name'
 import { namePrompt, nameSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
@@ -142,7 +142,7 @@ topics.on('POST', topicPaths('/name'), async (c) => {
     throw new BadRequestError('まだ記録がありません')
   }
 
-  const choice = resolveSummaryModel()
+  const choice = resolveModel(current.engine, current.model)
 
   const group = await readTopic(user, topicRef(ref.topic))
   const release = await limiter.acquire(space.busyKey(ref))

@@ -10,7 +10,7 @@ import {
 } from '../../shared/types'
 import { BadRequestError, ConflictError, NotFoundError } from '../errors'
 import { resolveModel } from '../agent'
-import { groupSummaryMd, topicClaudeMd, topicSummaryMd } from '../templates'
+import { summaryMd, topicClaudeMd } from '../templates'
 import {
   asTopicName,
   assertInsideDataDir,
@@ -275,7 +275,7 @@ export async function createTopic(
   await fs.writeFile(path.join(dir, 'CLAUDE.md'), topicClaudeMd(label))
   await fs.writeFile(
     path.join(dir, 'summary.md'),
-    isChild ? topicSummaryMd(label) : groupSummaryMd(label),
+    summaryMd(label, isChild ? 'topic' : 'group'),
   )
   await ensureAgentsLink(dir)
 

@@ -7,10 +7,10 @@ import { useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
-import { TopicClaudeDialog, TopicSummaryDialog } from '@/components/DocsDialog'
+import { TopicDocsDialog } from '@/components/DocsDialog'
+import { EmojiNameDialog } from '@/components/EmojiNameDialog'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
-import { RenameDialog } from '@/components/RenameDialog'
 import {
   Dialog,
   DialogContent,
@@ -36,8 +36,7 @@ export default function ChatPage() {
   const [status, setStatus] = useState<Status>('idle')
   const [notice, setNotice] = useState<string | null>(null)
   const [modelOpen, setModelOpen] = useState(false)
-  const [summaryOpen, setSummaryOpen] = useState(false)
-  const [claudeOpen, setClaudeOpen] = useState(false)
+  const [docTab, setDocTab] = useState<'summary' | 'claude' | null>(null)
   const [renameOpen, setRenameOpen] = useState(false)
 
   const content = useRef<HTMLElement>(null)
@@ -251,7 +250,7 @@ export default function ChatPage() {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => setSummaryOpen(true)}
+          onClick={() => setDocTab('summary')}
           disabled={status !== 'idle'}
           title="このトピックの要約"
           className="shrink-0"
@@ -263,7 +262,7 @@ export default function ChatPage() {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => setClaudeOpen(true)}
+          onClick={() => setDocTab('claude')}
           disabled={status !== 'idle'}
           title="このトピックの CLAUDE.md"
           className="shrink-0"
@@ -331,16 +330,24 @@ export default function ChatPage() {
         </DialogContent>
       </Dialog>
 
-      <TopicSummaryDialog target={ref} open={summaryOpen} onOpenChange={setSummaryOpen} />
-
-      <TopicClaudeDialog target={ref} open={claudeOpen} onOpenChange={setClaudeOpen} />
-
-      <RenameDialog
+      <TopicDocsDialog
         target={ref}
-        topic={meta}
+        tab={docTab ?? 'summary'}
+        open={docTab !== null}
+        onOpenChange={(open) => !open && setDocTab(null)}
+      />
+
+      <EmojiNameDialog
         open={renameOpen}
         onOpenChange={setRenameOpen}
-        onRenamed={moveTo}
+        title="名前を変える"
+        description="会話と要約はそのまま。フォルダの名前も一緒に変わるよ。"
+        submitLabel="変える"
+        placeholder="例: 肌の記録"
+        initial={meta ? { name: meta.name, emoji: meta.emoji } : undefined}
+        onSubmit={async ({ name, emoji }) => {
+          moveTo(await space.api.renameTopic(ref, { name, emoji }))
+        }}
       />
     </div>
   )

@@ -73,15 +73,6 @@ export const config = {
   /** cursor-agent 側の既定モデル。 */
   cursorModel: process.env.CURSOR_MODEL ?? 'auto',
 
-  /**
-   * 要約の更新に使うエンジン。会話と違ってファイルを書き換えるので、
-   * ツール単位で権限を絞れる Claude Code を既定にしている。
-   */
-  summaryEngine: isEngineId(process.env.SUMMARY_ENGINE) ? process.env.SUMMARY_ENGINE : 'claude',
-
-  /** 要約は素早く安く済ませたいので、別に指定できるようにする。ENGINES にある id で。 */
-  summaryModel: process.env.SUMMARY_MODEL ?? 'claude-sonnet-5',
-
   /** 未指定なら CLI の既定に任せる。 */
   claudeEffort: oneOf(process.env.CLAUDE_EFFORT, CLAUDE_EFFORTS),
 
@@ -139,11 +130,4 @@ export function assertConfig(): void {
   }
   assertModel('CLAUDE_MODEL', config.claudeModel, 'claude')
   assertModel('CURSOR_MODEL', config.cursorModel, 'cursor')
-  // SUMMARY_MODEL を実際に使うのは claude のときだけ。cursor では
-  // resolveSummaryModel が CURSOR_MODEL に落とすので、書いてあっても効かない。
-  // 効かない値まで検査すると、SUMMARY_ENGINE=cursor の既定（claude 側の id が
-  // 残ったまま）で起動できなくなる。
-  if (config.summaryEngine === 'claude') {
-    assertModel('SUMMARY_MODEL', config.summaryModel, 'claude')
-  }
 }

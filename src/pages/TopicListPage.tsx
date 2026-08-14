@@ -6,8 +6,8 @@ import { relativeLabel, topicLabel } from '@/lib/format'
 import { personalHome, useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { SpaceDocsDialog, TopicClaudeDialog, TopicSummaryDialog } from '@/components/DocsDialog'
-import { NewTopicDialog } from '@/components/NewTopicDialog'
+import { SpaceDocsDialog, TopicDocsDialog } from '@/components/DocsDialog'
+import { EmojiNameDialog } from '@/components/EmojiNameDialog'
 import {
   Dialog,
   DialogContent,
@@ -28,8 +28,7 @@ export default function TopicListPage() {
   const [topics, setTopics] = useState<GroupTopic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const [summaryFor, setSummaryFor] = useState<TopicRef | null>(null)
-  const [claudeFor, setClaudeFor] = useState<TopicRef | null>(null)
+  const [docFor, setDocFor] = useState<{ ref: TopicRef; tab: 'summary' | 'claude' } | null>(null)
   const [docsOpen, setDocsOpen] = useState(false)
   const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
@@ -152,14 +151,18 @@ export default function TopicListPage() {
                   <TopicButton
                     label="要約"
                     title={`${topic.name} の要約`}
-                    onClick={() => setSummaryFor({ kind: 'group', topic: topic.slug })}
+                    onClick={() =>
+                      setDocFor({ ref: { kind: 'group', topic: topic.slug }, tab: 'summary' })
+                    }
                   >
                     <NotebookPen className="size-3.5" />
                   </TopicButton>
                   <TopicButton
                     label="CLAUDE.md"
                     title={`${topic.name} の CLAUDE.md`}
-                    onClick={() => setClaudeFor({ kind: 'group', topic: topic.slug })}
+                    onClick={() =>
+                      setDocFor({ ref: { kind: 'group', topic: topic.slug }, tab: 'claude' })
+                    }
                   >
                     <Bot className="size-3.5" />
                   </TopicButton>
@@ -207,25 +210,24 @@ export default function TopicListPage() {
         </ul>
       </main>
 
-      <NewTopicDialog
+      <EmojiNameDialog
         open={creating}
         onOpenChange={setCreating}
-        onCreate={async (input) => {
-          await space.api.createTopic(input)
+        title="新しいトピック"
+        description="ここは要約の置き場だよ。話しかけるのは、この中に作ったトピック。"
+        submitLabel="作る"
+        placeholder="例: 数学学習"
+        onSubmit={async ({ name, emoji }) => {
+          await space.api.createTopic({ name, emoji, engine: '', model: '' })
           load()
         }}
       />
 
-      <TopicSummaryDialog
-        target={summaryFor}
-        open={summaryFor !== null}
-        onOpenChange={(open) => !open && setSummaryFor(null)}
-      />
-
-      <TopicClaudeDialog
-        target={claudeFor}
-        open={claudeFor !== null}
-        onOpenChange={(open) => !open && setClaudeFor(null)}
+      <TopicDocsDialog
+        target={docFor?.ref ?? null}
+        tab={docFor?.tab ?? 'summary'}
+        open={docFor !== null}
+        onOpenChange={(open) => !open && setDocFor(null)}
       />
 
       <SpaceDocsDialog open={docsOpen} onOpenChange={setDocsOpen} />

@@ -65,19 +65,14 @@ export function topicClaudeMd(name: string): string {
 `
 }
 
-export function topicSummaryMd(name: string): string {
+export function summaryMd(name: string, scope: 'topic' | 'group'): string {
+  const where =
+    scope === 'group'
+      ? '中のどれで話しても効かせたい共有の前提。'
+      : 'このトピックで積み重なった内容の覚え書き。'
   return `# ${name} の要約
 
-このトピックで積み重なった内容の覚え書き。ヘッダの「要約」から読み書きできる。
-AI に整理させることもできるが、保存するかどうかは自分で決める。
-`
-}
-
-/** 器（トップレベル）向け。中のどれで話しても共有したい前提を置く。 */
-export function groupSummaryMd(name: string): string {
-  return `# ${name} の要約
-
-中のどれで話しても効かせたい共有の前提。ヘッダの「要約」から読み書きできる。
+${where}ヘッダの「要約」から読み書きできる。
 AI に整理させることもできるが、保存するかどうかは自分で決める。
 `
 }

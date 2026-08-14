@@ -4,7 +4,6 @@ import type { SummaryEvent, TopicRef } from '../../shared/types'
 import { api } from '@/lib/api'
 import { useSpace } from '@/lib/space'
 import { Button } from '@/components/ui/button'
-import { ModelPicker, type ModelSelection } from '@/components/ModelPicker'
 import { DocEditor, useDoc, useStableRef } from '@/components/DocEditor'
 import {
   Dialog,
@@ -25,8 +24,8 @@ interface DocSpec {
   placeholder: string
   load: () => Promise<string>
   save: (text: string) => Promise<string>
-  /** AI に下書きさせられる文書だけ。いまは要約だけ。 */
-  draft?: (choice: ModelSelection | null, signal: AbortSignal) => AsyncGenerator<SummaryEvent>
+  /** AI に下書きさせられる文書だけ。いまは要約だけ。モデルはトピックのものを使う。 */
+  draft?: (signal: AbortSignal) => AsyncGenerator<SummaryEvent>
 }
 
 /**
@@ -116,8 +115,6 @@ function DocPane({
 }) {
   const doc = useDoc(open, source, spec.load)
   const [drafting, setDrafting] = useState(false)
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const [choice, setChoice] = useState<ModelSelection | null>(null)
   const abort = useRef<AbortController | null>(null)
 
   const busy = drafting || doc.busy
@@ -140,7 +137,7 @@ function DocPane({
 
     try {
       let text = ''
-      for await (const event of spec.draft(choice, controller.signal)) {
+      for await (const event of spec.draft(controller.signal)) {
         if (event.type === 'delta') {
           text += event.text
           doc.setDraft(text)
@@ -166,18 +163,6 @@ function DocPane({
 
   return (
     <div className={active ? 'contents' : 'hidden'}>
-      {pickerOpen && (
-        <div className="rounded-md border p-3">
-          <ModelPicker
-            value={choice}
-            onChange={(next) => {
-              setChoice(next)
-              setPickerOpen(false)
-            }}
-          />
-        </div>
-      )}
-
       <DocEditor
         doc={doc}
         placeholder={spec.placeholder}
@@ -187,33 +172,20 @@ function DocPane({
         }}
         actions={
           spec.draft && (
-            <>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={handleDraft}
-                disabled={busy || doc.status === 'loading'}
-              >
-                {drafting ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Sparkles className="size-4" />
-                )}
-                AI に整理させる
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setPickerOpen((v) => !v)}
-                disabled={busy}
-                className="text-muted-foreground min-w-0 text-xs"
-              >
-                <span className="truncate">{choice?.label ?? 'モデルは既定のまま'}</span>
-              </Button>
-            </>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleDraft}
+              disabled={busy || doc.status === 'loading'}
+            >
+              {drafting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Sparkles className="size-4" />
+              )}
+              AI に整理させる
+            </Button>
           )
         }
       />
@@ -225,79 +197,47 @@ function empty(): Promise<string> {
   return Promise.resolve('')
 }
 
-/**
- * トピックの文書。要約と CLAUDE.md は性格が違う（片方は会話の記録で AI も書き、
- * 片方は手で育てる役割書き）ので、束ねずに別々の口として出す。
- */
-function TopicDocDialog({
-  target,
-  open,
-  onOpenChange,
-  spec,
-}: {
-  /** どのトピックの文書か。閉じている間は null になりうる。 */
+type TopicDocProps = {
   target: TopicRef | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** ref が決まってから中身を組む。閉じている間は ref が無い。 */
-  spec: (ref: TopicRef | null, sub: string | undefined) => DocSpec
-}) {
+  tab: 'summary' | 'claude'
+}
+
+/** トピックの文書。要約は AI に下書きさせられる。CLAUDE.md は手で書く。 */
+export function TopicDocsDialog({ target, open, onOpenChange, tab }: TopicDocProps) {
   const space = useSpace()
   const ref = useStableRef(target)
   const sub = ref?.kind === 'child' ? ref.sub : undefined
-  const doc = spec(ref, sub)
+
+  const spec: DocSpec =
+    tab === 'summary'
+      ? {
+          label: '要約',
+          description: sub
+            ? '会話のたびに読み込まれる覚え書き。そのまま直してもいいし、AI に整理させてもいいよ。'
+            : '中のどれで話しても効く共有の覚え書き。そのまま直してもいいし、AI に整理させてもいいよ。',
+          placeholder: 'まだ何も覚えていないよ。',
+          load: () => (ref ? space.api.getSummary(ref) : empty()),
+          save: async (text) => (ref ? space.api.saveSummary(ref, text) : text),
+          draft: ref ? (signal) => space.api.draftSummary(ref, signal) : undefined,
+        }
+      : {
+          label: 'CLAUDE.md',
+          description: sub
+            ? 'この話での役割。上の話題の設定も一緒に読まれるよ。'
+            : 'この話題での役割。上の CLAUDE.md も一緒に読まれるよ。',
+          placeholder: 'まだ書いていないよ。',
+          load: () => (ref ? space.api.getTopicClaude(ref) : empty()),
+          save: async (text) => (ref ? space.api.saveTopicClaude(ref, text) : text),
+        }
 
   return (
     <DocsDialog
       open={open && ref !== null}
       onOpenChange={onOpenChange}
-      source={`${space.docKey(ref)}:${doc.label}`}
-      specs={[doc]}
-    />
-  )
-}
-
-type TopicDocProps = {
-  target: TopicRef | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
-
-/** 会話の覚え書き。AI に下書きさせられるのはこちらだけ。 */
-export function TopicSummaryDialog(props: TopicDocProps) {
-  const space = useSpace()
-  return (
-    <TopicDocDialog
-      {...props}
-      spec={(ref, sub) => ({
-        label: '要約',
-        description: sub
-          ? '会話のたびに読み込まれる覚え書き。そのまま直してもいいし、AI に整理させてもいいよ。'
-          : '中のどれで話しても効く共有の覚え書き。そのまま直してもいいし、AI に整理させてもいいよ。',
-        placeholder: 'まだ何も覚えていないよ。',
-        load: () => (ref ? space.api.getSummary(ref) : empty()),
-        save: async (text) => (ref ? space.api.saveSummary(ref, text) : text),
-        draft: ref ? (choice, signal) => space.api.draftSummary(ref, choice, signal) : undefined,
-      })}
-    />
-  )
-}
-
-/** そのトピックでの役割。手で書くもので、AI は触らない。 */
-export function TopicClaudeDialog(props: TopicDocProps) {
-  const space = useSpace()
-  return (
-    <TopicDocDialog
-      {...props}
-      spec={(ref, sub) => ({
-        label: 'CLAUDE.md',
-        description: sub
-          ? 'この話での役割。上の話題の設定も一緒に読まれるよ。'
-          : 'この話題での役割。上の CLAUDE.md も一緒に読まれるよ。',
-        placeholder: 'まだ書いていないよ。',
-        load: () => (ref ? space.api.getTopicClaude(ref) : empty()),
-        save: async (text) => (ref ? space.api.saveTopicClaude(ref, text) : text),
-      })}
+      source={`${space.docKey(ref)}:${spec.label}`}
+      specs={[spec]}
     />
   )
 }

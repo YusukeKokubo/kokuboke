@@ -80,16 +80,6 @@ export function assertAuthor(author: string): string {
   return author
 }
 
-/**
- * 共有スペースの順番待ち用キー。個人のユーザー名とぶつからないよう区切りを挟む。
- * 器は `_family:器`、子は `_family:器/子`。
- */
-export function familyBusyKey(ref: VerifiedTopicRef): string {
-  const head = `${config.familyDir}:`
-  if (isGroupRef(ref)) return `${head}${ref.topic}`
-  return `${head}${ref.topic}/${ref.sub}`
-}
-
 /** route 入口で呼ぶ。 */
 export function assertTopicName(topic: string): TopicName {
   const name = asTopicName(topic)

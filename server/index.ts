@@ -79,5 +79,5 @@ serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {
   console.log(`kokuboke listening on http://127.0.0.1:${info.port}`)
   console.log(`  data dir : ${config.dataDir}`)
   console.log(`  users    : ${config.users.join(', ')}`)
-  console.log(`  model    : ${config.claudeModel} (summary: ${config.summaryModel})`)
+  console.log(`  model    : ${config.defaultEngine} / ${config.claudeModel} · ${config.cursorModel}`)
 })

@@ -1,12 +1,12 @@
 import { Hono } from 'hono'
-import type { Summary, SummaryEvent } from '../../shared/types'
-import { resolveModel, resolveSummaryModel, unfence } from '../agent'
+import type { SummaryEvent } from '../../shared/types'
+import { resolveModel, unfence } from '../agent'
 import { groupSummaryPrompt, summaryPrompt, summarySystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { BadRequestError } from '../errors'
 import { streamAgent } from '../lib/agent-stream'
-import { readJson, readText } from '../lib/body'
+import { markdownDoc } from '../lib/doc'
 import { readRecent } from '../store/log'
 import {
   isGroupRef,
@@ -27,20 +27,20 @@ import { requireTopic, topicPaths } from './space'
 
 export const summary = new Hono()
 
-/**
- * 要約そのものの読み書き。書き換えるのはここだけで、AI には触らせない。
- */
-summary.on('GET', topicPaths('/summary'), async (c) => {
-  const { space, ref } = await requireTopic(c)
-  return c.json<Summary>({ summary: await readSummary(space.user, ref) })
-})
-
-summary.on('PUT', topicPaths('/summary'), async (c) => {
-  const { space, ref } = await requireTopic(c)
-  const summaryText = await readText(c.req.raw, 'summary')
-  await writeSummary(space.user, ref, summaryText)
-  return c.json<Summary>({ summary: await readSummary(space.user, ref) })
-})
+/** 要約そのものの読み書き。書き換えるのはここだけで、AI には触らせない。 */
+markdownDoc(
+  summary,
+  topicPaths('/summary'),
+  'summary',
+  async (c) => {
+    const { space, ref } = await requireTopic(c)
+    return readSummary(space.user, ref)
+  },
+  async (c, text) => {
+    const { space, ref } = await requireTopic(c)
+    await writeSummary(space.user, ref, text)
+  },
+)
 
 /**
  * 要約の下書きを作る。ファイルは書き換えず、新しい summary.md の全文を流すだけ。
@@ -59,9 +59,7 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
     ? await groupDraftPrompt(user, ref.topic, meta.name, days)
     : await topicDraftPrompt(user, ref, meta.name, days)
 
-  // 画面から指定が来ればそれを使う。無ければ .env の既定に落ちる。
-  const body = await readJson<{ engine?: string; model?: string }>(c.req.raw)
-  const choice = body.engine ? resolveModel(body.engine, body.model) : resolveSummaryModel()
+  const choice = resolveModel(meta.engine, meta.model)
 
   const release = await limiter.acquire(space.busyKey(ref))
 

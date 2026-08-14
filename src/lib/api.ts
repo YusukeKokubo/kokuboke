@@ -168,19 +168,13 @@ export function spaceApi(base: string, author?: string) {
 
     /**
      * 要約の下書きを作らせる。ここではファイルは変わらない。
-     * 保存するのは saveSummary を呼んだとき。
+     * 保存するのは saveSummary を呼んだとき。モデルはトピックのものを使う。
      */
     draftSummary: async function* (
       ref: TopicRef,
-      choice: { engine: string; model: string } | null,
       signal?: AbortSignal,
     ): AsyncGenerator<SummaryEvent> {
-      const res = await fetch(at(ref, '/summary'), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(choice ?? {}),
-        signal,
-      })
+      const res = await fetch(at(ref, '/summary'), { method: 'POST', signal })
       yield* readSSE<SummaryEvent>(res)
     },
   }
