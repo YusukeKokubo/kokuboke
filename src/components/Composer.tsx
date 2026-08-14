@@ -8,6 +8,9 @@ interface Props {
   onSend: (input: { text: string; images: File[] }) => void | Promise<void>
   /** true なら送信が失敗したとき本文と画像を戻す。既定は false（投げたら忘れる）。 */
   keepOnFailure?: boolean
+  /** dock は会話の下に貼る。inline はトップの開始欄。 */
+  placement?: 'dock' | 'inline'
+  placeholder?: string
 }
 
 const MAX_IMAGES = 4
@@ -19,7 +22,13 @@ function isImage(file: File): boolean {
   return file.type.startsWith('image/') || IMAGE_EXTENSIONS.test(file.name)
 }
 
-export function Composer({ disabled, onSend, keepOnFailure = false }: Props) {
+export function Composer({
+  disabled,
+  onSend,
+  keepOnFailure = false,
+  placement = 'dock',
+  placeholder = 'メッセージを入力',
+}: Props) {
   const [text, setText] = useState('')
   const [images, setImages] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
@@ -133,7 +142,11 @@ export function Composer({ disabled, onSend, keepOnFailure = false }: Props) {
         event.dataTransfer.dropEffect = accepting ? 'copy' : 'none'
       }}
       onDrop={drop}
-      className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky bottom-0 border-t backdrop-blur"
+      className={
+        placement === 'inline'
+          ? 'bg-background relative rounded-2xl border shadow-sm'
+          : 'bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky bottom-0 border-t backdrop-blur'
+      }
     >
       {dragging && (
         <div className="bg-background border-muted-foreground/50 text-muted-foreground pointer-events-none absolute inset-0 z-10 m-1 flex items-center justify-center rounded-lg border-2 border-dashed text-sm">
@@ -159,7 +172,13 @@ export function Composer({ disabled, onSend, keepOnFailure = false }: Props) {
         </div>
       )}
 
-      <div className="flex items-end gap-2 px-3 py-3 pb-[calc(0.75rem+var(--safe-bottom))]">
+      <div
+        className={
+          placement === 'inline'
+            ? 'flex items-end gap-2 px-3 py-3'
+            : 'flex items-end gap-2 px-3 py-3 pb-[calc(0.75rem+var(--safe-bottom))]'
+        }
+      >
         <input
           ref={fileInput}
           type="file"
@@ -184,7 +203,7 @@ export function Composer({ disabled, onSend, keepOnFailure = false }: Props) {
           ref={textarea}
           rows={1}
           value={text}
-          placeholder="メッセージを入力"
+          placeholder={placeholder}
           disabled={disabled}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {

@@ -366,7 +366,7 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 
 ## 画面
 
-- `/user/:user` — 入口。会話一覧は左の Sidebar（狭い幅では引き出し）。
+- `/user/:user` — 新しい会話を始める入口。一覧は左の Sidebar（狭い幅では引き出し）。
 - `/user/:user/tags` — その人のタグ一覧。
 - `/user/:user/tags/:tag.md` — タグ本文。ファイルは `tags/{tag}.md`。
 - `/user/:user/profile.md` — プロフィール。ファイルは `profile.md`。

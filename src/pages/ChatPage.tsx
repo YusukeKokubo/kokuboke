@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Pencil, RefreshCw, X } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
@@ -20,9 +20,21 @@ import {
 } from '@/components/ui/dialog'
 type Status = 'idle' | 'sending'
 
+type DraftInput = { text: string; images: File[] }
+
+function takeDraft(state: unknown): DraftInput | null {
+  if (!state || typeof state !== 'object' || !('draft' in state)) return null
+  const draft = (state as { draft?: DraftInput }).draft
+  if (!draft || typeof draft.text !== 'string' || !Array.isArray(draft.images)) return null
+  return draft
+}
+
 export default function ChatPage() {
   const space = useSpace()
+  const navigate = useNavigate()
+  const location = useLocation()
   const { id = '' } = useParams()
+  const pendingDraft = useRef(takeDraft(location.state))
 
   const [meta, setMeta] = useState<Topic | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -35,6 +47,7 @@ export default function ChatPage() {
   const [knownTags, setKnownTags] = useState<string[]>([])
   const [tagDraft, setTagDraft] = useState('')
   const [tagBusy, setTagBusy] = useState(false)
+  const [booted, setBooted] = useState(false)
 
   const content = useRef<HTMLElement>(null)
   const stick = useRef(true)
@@ -45,7 +58,12 @@ export default function ChatPage() {
   }, [])
 
   useEffect(() => {
+    if (takeDraft(location.state)) navigate('.', { replace: true, state: null })
+  }, [location.state, navigate])
+
+  useEffect(() => {
     let cancelled = false
+    setBooted(false)
     Promise.all([space.api.getTopic(id), space.api.listMessages(id), space.api.listTags()])
       .then(([topicMeta, history, tags]) => {
         if (cancelled) return
@@ -53,6 +71,7 @@ export default function ChatPage() {
         setMeta(topicMeta)
         setMessages(history)
         setKnownTags(tags.map((tag) => tag.name))
+        setBooted(true)
         requestAnimationFrame(scrollToBottom)
       })
       .catch((cause: Error) => !cancelled && setNotice(cause.message))
@@ -149,57 +168,67 @@ export default function ChatPage() {
     await saveTags([...meta.tags, tag])
   }
 
-  async function handleSend(input: { text: string; images: File[] }) {
-    setStatus('sending')
-    busy.current = true
-    setNotice(null)
-    setActivity(null)
-    stick.current = true
-
-    let accepted = false
-
-    try {
-      for await (const event of space.api.sendMessage(id, input)) {
-        switch (event.type) {
-          case 'accepted':
-            accepted = true
-            setMessages((prev) => [...prev, event.message])
-            setDraft({
-              id: 'draft',
-              role: 'assistant',
-              text: '',
-              images: [],
-              at: new Date().toISOString(),
-            })
-            break
-          case 'delta':
-            setDraft((prev) => (prev ? { ...prev, text: prev.text + event.text } : prev))
-            break
-          case 'activity':
-            setActivity(event.label)
-            break
-          case 'done':
-            setDraft(null)
-            setMessages((prev) => [...prev, event.message])
-            if (event.shouldName) void putName()
-            if (event.shouldTag) void putTags()
-            break
-          case 'error':
-            setDraft(null)
-            throw new Error(event.message)
-        }
-      }
-    } catch (cause) {
-      setDraft(null)
-      setNotice(cause instanceof Error ? space.busyNotice(cause.message) : '送信できませんでした')
-      if (!accepted) throw cause
-    } finally {
-      setStatus('idle')
-      busy.current = false
+  const handleSend = useCallback(
+    async (input: DraftInput) => {
+      setStatus('sending')
+      busy.current = true
+      setNotice(null)
       setActivity(null)
-      if (accepted) void reload()
-    }
-  }
+      stick.current = true
+
+      let accepted = false
+
+      try {
+        for await (const event of space.api.sendMessage(id, input)) {
+          switch (event.type) {
+            case 'accepted':
+              accepted = true
+              setMessages((prev) => [...prev, event.message])
+              setDraft({
+                id: 'draft',
+                role: 'assistant',
+                text: '',
+                images: [],
+                at: new Date().toISOString(),
+              })
+              break
+            case 'delta':
+              setDraft((prev) => (prev ? { ...prev, text: prev.text + event.text } : prev))
+              break
+            case 'activity':
+              setActivity(event.label)
+              break
+            case 'done':
+              setDraft(null)
+              setMessages((prev) => [...prev, event.message])
+              if (event.shouldName) void putName()
+              if (event.shouldTag) void putTags()
+              break
+            case 'error':
+              setDraft(null)
+              throw new Error(event.message)
+          }
+        }
+      } catch (cause) {
+        setDraft(null)
+        setNotice(cause instanceof Error ? space.busyNotice(cause.message) : '送信できませんでした')
+        if (!accepted) throw cause
+      } finally {
+        setStatus('idle')
+        busy.current = false
+        setActivity(null)
+        if (accepted) void reload()
+      }
+    },
+    [space, id, putName, putTags, reload],
+  )
+
+  useEffect(() => {
+    const input = pendingDraft.current
+    if (!booted || !input) return
+    pendingDraft.current = null
+    void handleSend(input)
+  }, [booted, handleSend])
 
   const unused = knownTags.filter((tag) => !meta?.tags.includes(tag))
 

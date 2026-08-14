@@ -23,6 +23,8 @@ export interface Space {
   subtitle: string
   /** まだ何も無いときの誘い文。 */
   emptyHint: ReactNode
+  /** トップで新しい会話を始めるときの呼びかけ。 */
+  greeting: string
   /** 発言に添える名前。個人のスペースでは URL 自体がその人のものなので付けない。 */
   author?: string
   /** このスペースの持ち主。共有スペースは誰のものでもないので undefined。 */
@@ -98,6 +100,7 @@ export function PersonalSpace() {
       title: user,
       subtitle: '会話',
       owner: user,
+      greeting: `${user}さん、何か話そうか`,
       emptyHint: (
         <>
           話しかけてみて。
@@ -138,6 +141,7 @@ export function FamilySpace() {
       claude: claudeHref('/family'),
       title: '共有スペース',
       subtitle: '家族のメモ・買い物',
+      greeting: '何を残す？',
       emptyHint: (
         <>
           買い物リストや旅行のメモなど、
