@@ -2,10 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, NotebookPen, ScrollText } from 'lucide-react'
 import type { Topic } from '../../shared/types'
-import { api } from '@/lib/api'
 import { topicLabel } from '@/lib/format'
-import { rememberUser } from '@/lib/remember'
-import { topicHref } from '@/lib/route'
+import { useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { TopicClaudeDialog } from '@/components/DocDialog'
@@ -16,7 +14,8 @@ import { SummaryDialog } from '@/components/SummaryDialog'
  * CLAUDE.md / 要約の置き場だけを見せる。
  */
 export default function GroupPage() {
-  const { user = '', topic = '' } = useParams()
+  const space = useSpace()
+  const { topic = '' } = useParams()
   const ref = useMemo(() => ({ kind: 'group' as const, topic }), [topic])
 
   const [meta, setMeta] = useState<Topic | null>(null)
@@ -26,24 +25,24 @@ export default function GroupPage() {
 
   useEffect(() => {
     let cancelled = false
-    api
-      .getTopic(user, ref)
+    space.api
+      .getTopic(ref)
       .then((topicMeta) => {
         if (cancelled) return
-        rememberUser(user)
+        space.confirm()
         setMeta(topicMeta)
       })
       .catch((cause: Error) => !cancelled && setNotice(cause.message))
     return () => {
       cancelled = true
     }
-  }, [user, ref])
+  }, [space, ref])
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
       <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center gap-2 border-b px-2 py-2 pt-[calc(0.5rem+var(--safe-top))] backdrop-blur">
         <Link
-          to={`/user/${encodeURIComponent(user)}`}
+          to={space.home}
           aria-label="トピック一覧に戻る"
           className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'size-9 shrink-0' })}
         >
@@ -77,7 +76,7 @@ export default function GroupPage() {
             meta.children.map((child) => (
               <Link
                 key={child.slug}
-                to={topicHref(user, { kind: 'child', topic, sub: child.slug })}
+                to={space.href({ kind: 'child', topic, sub: child.slug })}
                 className="hover:bg-accent flex items-center gap-3 rounded-xl border p-3"
               >
                 <span className="text-xl">{child.emoji}</span>
@@ -100,9 +99,9 @@ export default function GroupPage() {
         )}
       </main>
 
-      <SummaryDialog user={user} target={ref} open={summaryOpen} onOpenChange={setSummaryOpen} />
+      <SummaryDialog target={ref} open={summaryOpen} onOpenChange={setSummaryOpen} />
 
-      <TopicClaudeDialog user={user} target={ref} open={claudeOpen} onOpenChange={setClaudeOpen} />
+      <TopicClaudeDialog target={ref} open={claudeOpen} onOpenChange={setClaudeOpen} />
     </div>
   )
 }

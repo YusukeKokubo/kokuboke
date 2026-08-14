@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
 import type { TopicRef } from '../../shared/types'
-import { api, draftSummary, draftFamilySummary, familyApi } from '@/lib/api'
+import { useSpace } from '@/lib/space'
 import { Button } from '@/components/ui/button'
 import { ModelPicker, type ModelSelection } from '@/components/ModelPicker'
-import { DocEditor, useDoc } from '@/components/DocDialog'
+import { DocEditor, useDoc, useStableRef } from '@/components/DocDialog'
 import {
   Dialog,
   DialogContent,
@@ -14,45 +14,31 @@ import {
 } from '@/components/ui/dialog'
 
 interface Props {
-  user: string
   /** どのトピックの要約か。閉じている間は null になりうる。 */
   target: TopicRef | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** 家族共有スペース向け。user は doc のキー用にだけ使う。 */
-  family?: boolean
 }
 
 /**
  * 要約（summary.md）の確認と編集。AI に整理させても、保存を押すまでファイルは変わらない。
  */
-export function SummaryDialog({ user, target, open, onOpenChange, family }: Props) {
+export function SummaryDialog({ target, open, onOpenChange }: Props) {
+  const space = useSpace()
   const [drafting, setDrafting] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [choice, setChoice] = useState<ModelSelection | null>(null)
   const abort = useRef<AbortController | null>(null)
 
-  // 依存に置くのは中身。親が毎回作り直したオブジェクトでも読み直さない。
-  const topic = target?.topic
-  const sub = target?.kind === 'child' ? target.sub : undefined
-  const ref = useMemo((): TopicRef | null => {
-    if (!topic) return null
-    return sub === undefined
-      ? { kind: 'group', topic }
-      : { kind: 'child', topic, sub }
-  }, [topic, sub])
+  const ref = useStableRef(target)
+  const sub = ref?.kind === 'child' ? ref.sub : undefined
 
   const load = useCallback(
-    () =>
-      ref
-        ? family
-          ? familyApi.getSummary(ref)
-          : api.getSummary(user, ref)
-        : Promise.resolve(''),
-    [user, ref, family],
+    () => (ref ? space.api.getSummary(ref) : Promise.resolve('')),
+    [space, ref],
   )
 
-  const doc = useDoc(open && ref !== null, `${family ? 'family' : user}:${topic ?? ''}:${sub ?? ''}`, load)
+  const doc = useDoc(open && ref !== null, space.docKey(ref), load)
 
   useEffect(() => {
     if (!open) abort.current?.abort()
@@ -70,9 +56,7 @@ export function SummaryDialog({ user, target, open, onOpenChange, family }: Prop
 
     try {
       let text = ''
-      for await (const event of family
-        ? draftFamilySummary(ref, choice, controller.signal)
-        : draftSummary(user, ref, choice, controller.signal)) {
+      for await (const event of space.api.draftSummary(ref, choice, controller.signal)) {
         if (event.type === 'delta') {
           text += event.text
           doc.setDraft(text)
@@ -98,8 +82,7 @@ export function SummaryDialog({ user, target, open, onOpenChange, family }: Prop
 
   async function handleSave() {
     if (!ref) return
-    if (await doc.save((text) => (family ? familyApi.saveSummary(ref, text) : api.saveSummary(user, ref, text))))
-      onOpenChange(false)
+    if (await doc.save((text) => space.api.saveSummary(ref, text))) onOpenChange(false)
   }
 
   return (

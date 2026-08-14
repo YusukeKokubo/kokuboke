@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import type { TopicRef } from '../../shared/types'
-import { api, familyApi } from '@/lib/api'
+import { useSpace } from '@/lib/space'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -13,6 +13,19 @@ import {
 } from '@/components/ui/dialog'
 
 type Status = 'loading' | 'idle' | 'saving'
+
+/**
+ * 親が毎回作り直した TopicRef を、中身が同じなら同じものとして扱う。
+ * 挟まないと描画のたびに読み直しが走る。
+ */
+export function useStableRef(target: TopicRef | null): TopicRef | null {
+  const topic = target?.topic
+  const sub = target?.kind === 'child' ? target.sub : undefined
+  return useMemo(() => {
+    if (!topic) return null
+    return sub === undefined ? { kind: 'group', topic } : { kind: 'child', topic, sub }
+  }, [topic, sub])
+}
 
 export function useDoc(open: boolean, source: string, load: () => Promise<string>) {
   const [saved, setSaved] = useState('')
@@ -178,41 +191,26 @@ export function DocDialog({
 }
 
 interface TopicClaudeProps {
-  user: string
   /** どのトピックの振る舞いか。閉じている間は null になりうる。 */
   target: TopicRef | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  family?: boolean
 }
 
-/** トピックの CLAUDE.md。器でも子でも同じ口。 */
-export function TopicClaudeDialog({ user, target, open, onOpenChange, family }: TopicClaudeProps) {
-  const topic = target?.topic
-  const sub = target?.kind === 'child' ? target.sub : undefined
-  const ref = useMemo((): TopicRef | null => {
-    if (!topic) return null
-    return sub === undefined
-      ? { kind: 'group', topic }
-      : { kind: 'child', topic, sub }
-  }, [topic, sub])
+/** トピックの CLAUDE.md。器でも子でも、どのスペースでも同じ口。 */
+export function TopicClaudeDialog({ target, open, onOpenChange }: TopicClaudeProps) {
+  const space = useSpace()
+  const ref = useStableRef(target)
+  const sub = ref?.kind === 'child' ? ref.sub : undefined
 
   const load = useCallback(
-    () =>
-      ref
-        ? family
-          ? familyApi.getTopicClaude(ref)
-          : api.getTopicClaude(user, ref)
-        : Promise.resolve(''),
-    [user, ref, family],
+    () => (ref ? space.api.getTopicClaude(ref) : Promise.resolve('')),
+    [space, ref],
   )
 
   const save = useCallback(
-    async (text: string) => {
-      if (!ref) return text
-      return family ? familyApi.saveTopicClaude(ref, text) : api.saveTopicClaude(user, ref, text)
-    },
-    [user, ref, family],
+    async (text: string) => (ref ? space.api.saveTopicClaude(ref, text) : text),
+    [space, ref],
   )
 
   return (
@@ -226,7 +224,7 @@ export function TopicClaudeDialog({ user, target, open, onOpenChange, family }: 
           : 'この話題での役割。上の CLAUDE.md も一緒に読まれるよ。'
       }
       placeholder="まだ書いていないよ。"
-      source={`${family ? 'family' : user}:${topic ?? ''}:${sub ?? ''}`}
+      source={space.docKey(ref)}
       load={load}
       save={save}
     />

@@ -3,14 +3,11 @@ import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-rou
 import { Capacitor } from '@capacitor/core'
 import { api } from '@/lib/api'
 import { rememberUser, rememberedUser } from '@/lib/remember'
+import { FamilySpace, PersonalSpace } from '@/lib/space'
 import TopicListPage from './pages/TopicListPage'
 import GroupPage from './pages/GroupPage'
 import ChatPage from './pages/ChatPage'
-import FamilyTopicListPage from './pages/FamilyTopicListPage'
-import FamilyGroupPage from './pages/FamilyGroupPage'
-import FamilyChatPage from './pages/FamilyChatPage'
 import AdminPage from './pages/AdminPage'
-import { FamilyGuard } from '@/components/FamilyGuard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -25,33 +22,17 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/user" replace />} />
       <Route path="/user" element={<UserPicker />} />
-      <Route path="/user/:user" element={<TopicListPage />} />
-      <Route path="/user/:user/:topic" element={<GroupPage />} />
-      <Route path="/user/:user/:topic/:sub" element={<ChatPage />} />
-      <Route
-        path="/family"
-        element={
-          <FamilyGuard>
-            <FamilyTopicListPage />
-          </FamilyGuard>
-        }
-      />
-      <Route
-        path="/family/:topic"
-        element={
-          <FamilyGuard>
-            <FamilyGroupPage />
-          </FamilyGuard>
-        }
-      />
-      <Route
-        path="/family/:topic/:sub"
-        element={
-          <FamilyGuard>
-            <FamilyChatPage />
-          </FamilyGuard>
-        }
-      />
+      {/* 一覧・器・会話の三画面は、どちらのスペースでも同じものを使う。 */}
+      <Route path="/user/:user" element={<PersonalSpace />}>
+        <Route index element={<TopicListPage />} />
+        <Route path=":topic" element={<GroupPage />} />
+        <Route path=":topic/:sub" element={<ChatPage />} />
+      </Route>
+      <Route path="/family" element={<FamilySpace />}>
+        <Route index element={<TopicListPage />} />
+        <Route path=":topic" element={<GroupPage />} />
+        <Route path=":topic/:sub" element={<ChatPage />} />
+      </Route>
       {/* 家族の誰の画面でもない。鍵は URL の ?key= で渡す。 */}
       <Route path="/admin" element={<AdminPage />} />
       <Route path="*" element={<NotFound />} />

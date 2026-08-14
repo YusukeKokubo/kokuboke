@@ -2,10 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, NotebookPen, Pencil, ScrollText } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
-import { api, sendMessage } from '@/lib/api'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
-import { rememberUser } from '@/lib/remember'
-import { topicHref } from '@/lib/route'
+import { useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
@@ -26,7 +24,8 @@ type Status = 'idle' | 'sending'
 
 /** 中のトピック（会話）の画面。入力・履歴・SSE・スクロール追従を持つ。 */
 export default function ChatPage() {
-  const { user = '', topic = '', sub = '' } = useParams()
+  const space = useSpace()
+  const { topic = '', sub = '' } = useParams()
   const navigate = useNavigate()
   const ref = useMemo(() => ({ kind: 'child' as const, topic, sub }), [topic, sub])
 
@@ -44,6 +43,8 @@ export default function ChatPage() {
 
   const content = useRef<HTMLElement>(null)
   const stick = useRef(true)
+  // 取り直しを送信中に割り込ませないための札。描画には関わらないので ref で持つ。
+  const busy = useRef(false)
 
   /**
    * 入力欄は sticky で本文の上に重なる。目印の要素に寄せると入力欄の高さだけ足りないので、
@@ -58,10 +59,10 @@ export default function ChatPage() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([api.getTopic(user, ref), api.listMessages(user, ref)])
+    Promise.all([space.api.getTopic(ref), space.api.listMessages(ref)])
       .then(([topicMeta, history]) => {
         if (cancelled) return
-        rememberUser(user)
+        space.confirm()
         setMeta(topicMeta)
         setMessages(history)
         // 初回は履歴の一番下から始める。ただしここで測れる高さはまだ仮のもので、
@@ -72,7 +73,33 @@ export default function ChatPage() {
     return () => {
       cancelled = true
     }
-  }, [user, ref, scrollToBottom])
+  }, [space, ref, scrollToBottom])
+
+  /**
+   * 共有スペースは他の人も書き込む。開いたときの写しのままだと相手の発言が
+   * いつまでも出てこないので、戻ってきたときと送り終わったときに取り直す。
+   * 個人のスペースでも別の端末から書いた分がここで揃う。
+   */
+  const reload = useCallback(async () => {
+    try {
+      setMessages(await space.api.listMessages(ref))
+    } catch {
+      // 取り直せなくても、出ているものはそのまま使える。
+    }
+  }, [space, ref])
+
+  useEffect(() => {
+    const onReturn = () => {
+      if (document.visibilityState !== 'visible' || busy.current) return
+      void reload()
+    }
+    window.addEventListener('focus', onReturn)
+    document.addEventListener('visibilitychange', onReturn)
+    return () => {
+      window.removeEventListener('focus', onReturn)
+      document.removeEventListener('visibilitychange', onReturn)
+    }
+  }, [reload])
 
   // 自分で上に遡っている最中は、追記のたびに引き戻さない。
   useEffect(() => {
@@ -107,10 +134,10 @@ export default function ChatPage() {
     (next: Topic) => {
       setMeta(next)
       if (next.slug !== sub) {
-        navigate(topicHref(user, { kind: 'child', topic, sub: next.slug }), { replace: true })
+        navigate(space.href({ kind: 'child', topic, sub: next.slug }), { replace: true })
       }
     },
-    [navigate, sub, topic, user],
+    [navigate, space, sub, topic],
   )
 
   /**
@@ -119,22 +146,28 @@ export default function ChatPage() {
    */
   const putName = useCallback(async () => {
     try {
-      moveTo(await api.autoName(user, ref))
+      moveTo(await space.api.autoName(ref))
     } catch (cause) {
       console.warn('[name]', cause)
     }
-  }, [moveTo, ref, user])
+  }, [moveTo, space, ref])
 
   async function handleSend(input: { text: string; images: File[] }) {
     setStatus('sending')
+    busy.current = true
     setNotice(null)
     setActivity(null)
     stick.current = true
 
+    // 受け取られた時点で発言はもう記録されている。あとで失敗しても打ち直させない
+    // （もう一度送ると同じ発言が二つ並ぶ）。
+    let accepted = false
+
     try {
-      for await (const event of sendMessage(user, ref, input)) {
+      for await (const event of space.api.sendMessage(ref, input)) {
         switch (event.type) {
           case 'accepted':
+            accepted = true
             setMessages((prev) => [...prev, event.message])
             setDraft({
               id: 'draft',
@@ -157,16 +190,20 @@ export default function ChatPage() {
             break
           case 'error':
             setDraft(null)
-            setNotice(event.message)
-            break
+            throw new Error(event.message)
         }
       }
     } catch (cause) {
       setDraft(null)
-      setNotice(cause instanceof Error ? cause.message : '送信できませんでした')
+      setNotice(cause instanceof Error ? space.busyNotice(cause.message) : '送信できませんでした')
+      // 受け取られる前に落ちたのなら、打った文は入力欄に戻す。
+      if (!accepted) throw cause
     } finally {
       setStatus('idle')
+      busy.current = false
       setActivity(null)
+      // 自分の分は継ぎ足してあるが、その間に誰かが書いた分は入っていない。
+      if (accepted) void reload()
     }
   }
 
@@ -174,7 +211,7 @@ export default function ChatPage() {
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
       <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center gap-2 border-b px-2 py-2 pt-[calc(0.5rem+var(--safe-top))] backdrop-blur">
         <Link
-          to={`/user/${encodeURIComponent(user)}`}
+          to={space.home}
           aria-label="トピック一覧に戻る"
           className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'size-9 shrink-0' })}
         >
@@ -250,12 +287,14 @@ export default function ChatPage() {
                   {dayLabel(message.at)}
                 </div>
               )}
-              <MessageBubble message={message} />
+              <MessageBubble message={message} selfAuthor={space.author} />
             </div>
           )
         })}
 
-        {draft && <MessageBubble message={draft} streaming activity={activity} />}
+        {draft && (
+          <MessageBubble message={draft} streaming activity={activity} selfAuthor={space.author} />
+        )}
 
         {notice && (
           <p className="text-muted-foreground bg-secondary mx-auto rounded-full px-3 py-1.5 text-center text-xs">
@@ -264,7 +303,7 @@ export default function ChatPage() {
         )}
       </main>
 
-      <Composer disabled={status !== 'idle'} onSend={handleSend} />
+      <Composer disabled={status !== 'idle'} onSend={handleSend} keepOnFailure />
 
       <Dialog open={modelOpen} onOpenChange={setModelOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
@@ -279,7 +318,7 @@ export default function ChatPage() {
             value={meta ? { engine: meta.engine, model: meta.model } : null}
             onChange={async (next) => {
               try {
-                setMeta(await api.updateTopic(user, ref, next))
+                setMeta(await space.api.updateTopic(ref, next))
                 setModelOpen(false)
               } catch (cause) {
                 setNotice(cause instanceof Error ? cause.message : 'モデルを変えられませんでした')
@@ -289,22 +328,11 @@ export default function ChatPage() {
         </DialogContent>
       </Dialog>
 
-      <SummaryDialog
-        user={user}
-        target={ref}
-        open={summaryOpen}
-        onOpenChange={setSummaryOpen}
-      />
+      <SummaryDialog target={ref} open={summaryOpen} onOpenChange={setSummaryOpen} />
 
-      <TopicClaudeDialog
-        user={user}
-        target={ref}
-        open={claudeOpen}
-        onOpenChange={setClaudeOpen}
-      />
+      <TopicClaudeDialog target={ref} open={claudeOpen} onOpenChange={setClaudeOpen} />
 
       <RenameDialog
-        user={user}
         target={ref}
         topic={meta}
         open={renameOpen}

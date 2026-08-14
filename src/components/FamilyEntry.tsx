@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { FamilyActivityEntry } from '../../shared/types'
-import { familyApi } from '@/lib/api'
+import { api } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
 
 /** 個人のトピック一覧の先頭に出す、家族共有スペースへの入口。 */
@@ -9,8 +9,8 @@ export function FamilyEntry() {
   const [entry, setEntry] = useState<FamilyActivityEntry | null | undefined>(undefined)
 
   useEffect(() => {
-    familyApi
-      .activity()
+    api
+      .familyActivity()
       .then((row) => setEntry(row))
       .catch(() => setEntry(null))
   }, [])

@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { NotebookPen, Plus, ScrollText, Settings2, Trash2 } from 'lucide-react'
 import type { ChildTopic, GroupTopic, TopicRef } from '../../shared/types'
-import { api } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
-import { rememberUser } from '@/lib/remember'
-import { topicHref } from '@/lib/route'
+import { personalHome, useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { TopicClaudeDialog } from '@/components/DocDialog'
@@ -20,14 +18,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { FamilyEntry } from '@/components/FamilyEntry'
-import { UserDocsDialog } from '@/components/UserDocsDialog'
+import { SpaceDocsDialog } from '@/components/SpaceDocsDialog'
 
 type DeleteTarget =
   | { kind: 'group'; topic: GroupTopic }
   | { kind: 'child'; groupName: string; topic: ChildTopic }
 
 export default function TopicListPage() {
-  const { user = '' } = useParams()
+  const space = useSpace()
   const navigate = useNavigate()
   const [topics, setTopics] = useState<GroupTopic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -40,24 +38,24 @@ export default function TopicListPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const load = useCallback(() => {
-    api
-      .listTopics(user)
+    space.api
+      .listTopics()
       .then((list) => {
         // ここまで来た名前だけを端末に残す。存在しない名前は 404 で弾かれる。
-        rememberUser(user)
+        space.confirm()
         setTopics(list)
         setError(null)
       })
       .catch((cause: Error) => setError(cause.message))
-  }, [user])
+  }, [space])
 
   useEffect(load, [load])
 
   /** 名前を決めずに始める。作ってそのままチャットへ移る。 */
   async function start(topic: string) {
     try {
-      const child = await api.startChild(user, topic)
-      navigate(topicHref(user, { kind: 'child', topic, sub: child.slug }))
+      const child = await space.api.startChild(topic)
+      navigate(space.href({ kind: 'child', topic, sub: child.slug }))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '始められませんでした')
     }
@@ -69,9 +67,9 @@ export default function TopicListPage() {
     setDeleteError(null)
     try {
       if (deleting.kind === 'group') {
-        await api.deleteTopic(user, { kind: 'group', topic: deleting.topic.slug })
+        await space.api.deleteTopic({ kind: 'group', topic: deleting.topic.slug })
       } else {
-        await api.deleteTopic(user, {
+        await space.api.deleteTopic({
           kind: 'child',
           topic: deleting.groupName,
           sub: deleting.topic.slug,
@@ -79,7 +77,9 @@ export default function TopicListPage() {
       }
       setDeleting(null)
     } catch (cause) {
-      setDeleteError(cause instanceof Error ? cause.message : '削除できませんでした')
+      setDeleteError(
+        cause instanceof Error ? space.busyNotice(cause.message) : '削除できませんでした',
+      )
     } finally {
       setDeleteBusy(false)
       // 失敗のときも読み直す。別の端末で先に消されていた場合、
@@ -90,27 +90,43 @@ export default function TopicListPage() {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 pt-[calc(0.75rem+var(--safe-top))] backdrop-blur">
-        <div>
-          <h1 className="text-base font-semibold">{user}</h1>
-          <p className="text-muted-foreground text-xs">トピック</p>
+      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex flex-col gap-2 border-b px-4 py-3 pt-[calc(0.75rem+var(--safe-top))] backdrop-blur">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-semibold">{space.title}</h1>
+            <p className="text-muted-foreground text-xs">{space.subtitle}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button size="sm" variant="ghost" onClick={() => setDocsOpen(true)}>
+              <Settings2 className="size-4" />
+              設定
+            </Button>
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus className="size-4" />
+              追加
+            </Button>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button size="sm" variant="ghost" onClick={() => setDocsOpen(true)}>
-            <Settings2 className="size-4" />
-            設定
-          </Button>
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus className="size-4" />
-            新しいトピックを追加
-          </Button>
-        </div>
+
+        {/* 共有スペースからは自分のところへ戻る道を出す。個人側は下の入口から入る。 */}
+        {space.kind === 'family' && space.author && (
+          <div className="flex items-center justify-end gap-2">
+            <Link
+              to={personalHome(space.author)}
+              className="text-muted-foreground text-xs underline-offset-2 hover:underline"
+            >
+              自分のトピックへ
+            </Link>
+          </div>
+        )}
       </header>
 
       <main className="flex-1 px-3 py-3">
-        <div className="mb-3">
-          <FamilyEntry />
-        </div>
+        {space.kind === 'personal' && (
+          <div className="mb-3">
+            <FamilyEntry />
+          </div>
+        )}
 
         {error && <p className="text-destructive px-1 py-8 text-center text-sm">{error}</p>}
 
@@ -122,9 +138,7 @@ export default function TopicListPage() {
           <div className="text-muted-foreground px-6 py-16 text-center text-sm leading-relaxed">
             まだトピックがないよ。
             <br />
-            「数学学習」「スキンケア」みたいに、
-            <br />
-            話題ごとに作ってみて。
+            {space.emptyHint}
           </div>
         )}
 
@@ -182,7 +196,7 @@ export default function TopicListPage() {
                     <TopicCard
                       key={child.slug}
                       topic={child}
-                      href={topicHref(user, { kind: 'child', topic: topic.slug, sub: child.slug })}
+                      href={space.href({ kind: 'child', topic: topic.slug, sub: child.slug })}
                       onDelete={() => {
                         setDeleteError(null)
                         setDeleting({ kind: 'child', groupName: topic.slug, topic: child })
@@ -200,26 +214,24 @@ export default function TopicListPage() {
         open={creating}
         onOpenChange={setCreating}
         onCreate={async (input) => {
-          await api.createTopic(user, input)
+          await space.api.createTopic(input)
           load()
         }}
       />
 
       <SummaryDialog
-        user={user}
         target={summaryFor}
         open={summaryFor !== null}
         onOpenChange={(open) => !open && setSummaryFor(null)}
       />
 
       <TopicClaudeDialog
-        user={user}
         target={claudeFor}
         open={claudeFor !== null}
         onOpenChange={(open) => !open && setClaudeFor(null)}
       />
 
-      <UserDocsDialog user={user} open={docsOpen} onOpenChange={setDocsOpen} />
+      <SpaceDocsDialog open={docsOpen} onOpenChange={setDocsOpen} />
 
       <Dialog
         open={deleting !== null}
