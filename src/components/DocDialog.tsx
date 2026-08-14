@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import type { TopicRef } from '../../shared/types'
-import { api } from '@/lib/api'
+import { api, familyApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -183,10 +183,11 @@ interface TopicClaudeProps {
   target: TopicRef | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  family?: boolean
 }
 
 /** トピックの CLAUDE.md。器でも子でも同じ口。 */
-export function TopicClaudeDialog({ user, target, open, onOpenChange }: TopicClaudeProps) {
+export function TopicClaudeDialog({ user, target, open, onOpenChange, family }: TopicClaudeProps) {
   const topic = target?.topic
   const sub = target?.kind === 'child' ? target.sub : undefined
   const ref = useMemo((): TopicRef | null => {
@@ -197,16 +198,21 @@ export function TopicClaudeDialog({ user, target, open, onOpenChange }: TopicCla
   }, [topic, sub])
 
   const load = useCallback(
-    () => (ref ? api.getTopicClaude(user, ref) : Promise.resolve('')),
-    [user, ref],
+    () =>
+      ref
+        ? family
+          ? familyApi.getTopicClaude(ref)
+          : api.getTopicClaude(user, ref)
+        : Promise.resolve(''),
+    [user, ref, family],
   )
 
   const save = useCallback(
     async (text: string) => {
       if (!ref) return text
-      return api.saveTopicClaude(user, ref, text)
+      return family ? familyApi.saveTopicClaude(ref, text) : api.saveTopicClaude(user, ref, text)
     },
-    [user, ref],
+    [user, ref, family],
   )
 
   return (
@@ -220,7 +226,7 @@ export function TopicClaudeDialog({ user, target, open, onOpenChange }: TopicCla
           : 'この話題での役割。上の CLAUDE.md も一緒に読まれるよ。'
       }
       placeholder="まだ書いていないよ。"
-      source={`${user}:${topic ?? ''}:${sub ?? ''}`}
+      source={`${family ? 'family' : user}:${topic ?? ''}:${sub ?? ''}`}
       load={load}
       save={save}
     />

@@ -5,7 +5,9 @@ import { Textarea } from '@/components/ui/textarea'
 
 interface Props {
   disabled: boolean
-  onSend: (input: { text: string; images: File[] }) => void
+  onSend: (input: { text: string; images: File[] }) => void | Promise<void>
+  /** true なら送信が失敗したとき本文と画像を残す。既定は false（送る直前に空にする）。 */
+  keepOnFailure?: boolean
 }
 
 const MAX_IMAGES = 4
@@ -17,7 +19,7 @@ function isImage(file: File): boolean {
   return file.type.startsWith('image/') || IMAGE_EXTENSIONS.test(file.name)
 }
 
-export function Composer({ disabled, onSend }: Props) {
+export function Composer({ disabled, onSend, keepOnFailure = false }: Props) {
   const [text, setText] = useState('')
   const [images, setImages] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
@@ -43,9 +45,20 @@ export function Composer({ disabled, onSend }: Props) {
 
   const canSend = !disabled && (text.trim().length > 0 || images.length > 0)
 
-  function submit() {
+  async function submit() {
     if (!canSend) return
-    onSend({ text, images })
+    const payload = { text, images }
+    if (keepOnFailure) {
+      try {
+        await onSend(payload)
+        setText('')
+        setImages([])
+      } catch {
+        // 送信に失敗したときは打った内容を残す
+      }
+      return
+    }
+    onSend(payload)
     setText('')
     setImages([])
   }

@@ -1,13 +1,23 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { rememberUser, rememberedUser } from '@/lib/remember'
 import TopicListPage from './pages/TopicListPage'
 import GroupPage from './pages/GroupPage'
 import ChatPage from './pages/ChatPage'
+import FamilyTopicListPage from './pages/FamilyTopicListPage'
+import FamilyGroupPage from './pages/FamilyGroupPage'
+import FamilyChatPage from './pages/FamilyChatPage'
 import AdminPage from './pages/AdminPage'
+import { FamilyGuard } from '@/components/FamilyGuard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+
+function safeNext(next: string | null): string | null {
+  if (!next || !next.startsWith('/') || next.startsWith('//')) return null
+  if (next.startsWith('/family') || next.startsWith('/user')) return next
+  return null
+}
 
 export default function App() {
   return (
@@ -17,6 +27,30 @@ export default function App() {
       <Route path="/user/:user" element={<TopicListPage />} />
       <Route path="/user/:user/:topic" element={<GroupPage />} />
       <Route path="/user/:user/:topic/:sub" element={<ChatPage />} />
+      <Route
+        path="/family"
+        element={
+          <FamilyGuard>
+            <FamilyTopicListPage />
+          </FamilyGuard>
+        }
+      />
+      <Route
+        path="/family/:topic"
+        element={
+          <FamilyGuard>
+            <FamilyGroupPage />
+          </FamilyGuard>
+        }
+      />
+      <Route
+        path="/family/:topic/:sub"
+        element={
+          <FamilyGuard>
+            <FamilyChatPage />
+          </FamilyGuard>
+        }
+      />
       {/* 家族の誰の画面でもない。鍵は URL の ?key= で渡す。 */}
       <Route path="/admin" element={<AdminPage />} />
       <Route path="*" element={<NotFound />} />
@@ -30,12 +64,15 @@ export default function App() {
  */
 function UserPicker() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const remembered = rememberedUser()
   const [name, setName] = useState('')
   const native = Capacitor.isNativePlatform()
+  const next = safeNext(params.get('next'))
 
   if (remembered) {
-    return <Navigate to={`/user/${encodeURIComponent(remembered)}`} replace />
+    const dest = next ?? `/user/${encodeURIComponent(remembered)}`
+    return <Navigate to={dest} replace />
   }
 
   function submit(event: FormEvent) {
@@ -43,7 +80,8 @@ function UserPicker() {
     const user = name.trim()
     if (!user) return
     rememberUser(user)
-    navigate(`/user/${encodeURIComponent(user)}`, { replace: true })
+    const dest = next ?? `/user/${encodeURIComponent(user)}`
+    navigate(dest, { replace: true })
   }
 
   return (

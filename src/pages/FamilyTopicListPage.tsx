@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { NotebookPen, Plus, ScrollText, Settings2, Trash2 } from 'lucide-react'
 import type { ChildTopic, GroupTopic, TopicRef } from '../../shared/types'
-import { api } from '@/lib/api'
+import { familyApi, friendlyFamilyNotice } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
-import { rememberUser } from '@/lib/remember'
-import { topicHref } from '@/lib/route'
+import { rememberedUser } from '@/lib/remember'
+import { familyTopicHref } from '@/lib/route'
 import { cn } from '@/lib/utils'
+import { AuthorPicker } from '@/components/AuthorPicker'
 import { Button } from '@/components/ui/button'
+import { FamilyClaudeDialog } from '@/components/FamilyClaudeDialog'
 import { TopicClaudeDialog } from '@/components/DocDialog'
 import { SummaryDialog } from '@/components/SummaryDialog'
 import { NewTopicDialog } from '@/components/NewTopicDialog'
@@ -19,16 +21,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { FamilyEntry } from '@/components/FamilyEntry'
-import { UserDocsDialog } from '@/components/UserDocsDialog'
 
 type DeleteTarget =
   | { kind: 'group'; topic: GroupTopic }
   | { kind: 'child'; groupName: string; topic: ChildTopic }
 
-export default function TopicListPage() {
-  const { user = '' } = useParams()
+export default function FamilyTopicListPage() {
   const navigate = useNavigate()
+  const [self, setSelf] = useState(() => rememberedUser() ?? '')
   const [topics, setTopics] = useState<GroupTopic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -40,24 +40,21 @@ export default function TopicListPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const load = useCallback(() => {
-    api
-      .listTopics(user)
+    familyApi
+      .listTopics()
       .then((list) => {
-        // ここまで来た名前だけを端末に残す。存在しない名前は 404 で弾かれる。
-        rememberUser(user)
         setTopics(list)
         setError(null)
       })
       .catch((cause: Error) => setError(cause.message))
-  }, [user])
+  }, [])
 
   useEffect(load, [load])
 
-  /** 名前を決めずに始める。作ってそのままチャットへ移る。 */
   async function start(topic: string) {
     try {
-      const child = await api.startChild(user, topic)
-      navigate(topicHref(user, { kind: 'child', topic, sub: child.slug }))
+      const child = await familyApi.startChild(topic)
+      navigate(familyTopicHref({ kind: 'child', topic, sub: child.slug }))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '始められませんでした')
     }
@@ -69,9 +66,9 @@ export default function TopicListPage() {
     setDeleteError(null)
     try {
       if (deleting.kind === 'group') {
-        await api.deleteTopic(user, { kind: 'group', topic: deleting.topic.slug })
+        await familyApi.deleteTopic({ kind: 'group', topic: deleting.topic.slug })
       } else {
-        await api.deleteTopic(user, {
+        await familyApi.deleteTopic({
           kind: 'child',
           topic: deleting.groupName,
           sub: deleting.topic.slug,
@@ -79,39 +76,47 @@ export default function TopicListPage() {
       }
       setDeleting(null)
     } catch (cause) {
-      setDeleteError(cause instanceof Error ? cause.message : '削除できませんでした')
+      const message = cause instanceof Error ? cause.message : '削除できませんでした'
+      setDeleteError(friendlyFamilyNotice(message))
     } finally {
       setDeleteBusy(false)
-      // 失敗のときも読み直す。別の端末で先に消されていた場合、
-      // 一覧に古い行が残ったままになる。
       load()
     }
   }
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 pt-[calc(0.75rem+var(--safe-top))] backdrop-blur">
-        <div>
-          <h1 className="text-base font-semibold">{user}</h1>
-          <p className="text-muted-foreground text-xs">トピック</p>
+      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 flex flex-col gap-2 border-b px-4 py-3 pt-[calc(0.75rem+var(--safe-top))] backdrop-blur">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-semibold">共有スペース</h1>
+            <p className="text-muted-foreground text-xs">家族のメモ・買い物</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button size="sm" variant="ghost" onClick={() => setDocsOpen(true)}>
+              <Settings2 className="size-4" />
+              設定
+            </Button>
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus className="size-4" />
+              追加
+            </Button>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button size="sm" variant="ghost" onClick={() => setDocsOpen(true)}>
-            <Settings2 className="size-4" />
-            設定
-          </Button>
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus className="size-4" />
-            新しいトピックを追加
-          </Button>
+        <div className="flex items-center justify-between gap-2">
+          <AuthorPicker onChange={setSelf} />
+          {self && (
+            <Link
+              to={`/user/${encodeURIComponent(self)}`}
+              className="text-muted-foreground text-xs underline-offset-2 hover:underline"
+            >
+              自分のトピックへ
+            </Link>
+          )}
         </div>
       </header>
 
       <main className="flex-1 px-3 py-3">
-        <div className="mb-3">
-          <FamilyEntry />
-        </div>
-
         {error && <p className="text-destructive px-1 py-8 text-center text-sm">{error}</p>}
 
         {!error && topics === null && (
@@ -122,9 +127,9 @@ export default function TopicListPage() {
           <div className="text-muted-foreground px-6 py-16 text-center text-sm leading-relaxed">
             まだトピックがないよ。
             <br />
-            「数学学習」「スキンケア」みたいに、
+            買い物リストや旅行のメモなど、
             <br />
-            話題ごとに作ってみて。
+            家族みんなの話題を作ってみて。
           </div>
         )}
 
@@ -182,7 +187,11 @@ export default function TopicListPage() {
                     <TopicCard
                       key={child.slug}
                       topic={child}
-                      href={topicHref(user, { kind: 'child', topic: topic.slug, sub: child.slug })}
+                      href={familyTopicHref({
+                        kind: 'child',
+                        topic: topic.slug,
+                        sub: child.slug,
+                      })}
                       onDelete={() => {
                         setDeleteError(null)
                         setDeleting({ kind: 'child', groupName: topic.slug, topic: child })
@@ -200,31 +209,32 @@ export default function TopicListPage() {
         open={creating}
         onOpenChange={setCreating}
         onCreate={async (input) => {
-          await api.createTopic(user, input)
+          await familyApi.createTopic(input)
           load()
         }}
       />
 
       <SummaryDialog
-        user={user}
+        user="family"
+        family
         target={summaryFor}
         open={summaryFor !== null}
         onOpenChange={(open) => !open && setSummaryFor(null)}
       />
 
       <TopicClaudeDialog
-        user={user}
+        user="family"
+        family
         target={claudeFor}
         open={claudeFor !== null}
         onOpenChange={(open) => !open && setClaudeFor(null)}
       />
 
-      <UserDocsDialog user={user} open={docsOpen} onOpenChange={setDocsOpen} />
+      <FamilyClaudeDialog open={docsOpen} onOpenChange={setDocsOpen} />
 
       <Dialog
         open={deleting !== null}
         onOpenChange={(open) => {
-          // 消している最中に閉じられると、失敗したときの知らせ先が無くなる。
           if (open || deleteBusy) return
           setDeleting(null)
           setDeleteError(null)
@@ -241,7 +251,7 @@ export default function TopicListPage() {
                   : ''}
             </DialogDescription>
           </DialogHeader>
-          {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
+          {deleteError && <p className="text-muted-foreground text-sm">{deleteError}</p>}
           <DialogFooter>
             <Button
               type="button"
@@ -292,7 +302,15 @@ function TopicButton({
   )
 }
 
-function TopicCard({ topic, href, onDelete }: { topic: ChildTopic; href: string; onDelete: () => void }) {
+function TopicCard({
+  topic,
+  href,
+  onDelete,
+}: {
+  topic: ChildTopic
+  href: string
+  onDelete: () => void
+}) {
   return (
     <li className="flex items-center gap-1">
       <Link

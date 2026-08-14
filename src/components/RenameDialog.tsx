@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Topic, TopicRef } from '../../shared/types'
-import { api } from '@/lib/api'
+import { api, familyApi } from '@/lib/api'
 import { EMOJI } from '@/lib/emoji'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -22,9 +22,10 @@ interface Props {
   onOpenChange: (open: boolean) => void
   /** 名前を変えるとフォルダも動くので、呼び出し側で経路を差し替える。 */
   onRenamed: (topic: Topic) => void
+  family?: boolean
 }
 
-export function RenameDialog({ user, target, topic, open, onOpenChange, onRenamed }: Props) {
+export function RenameDialog({ user, target, topic, open, onOpenChange, onRenamed, family }: Props) {
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('💬')
   const [busy, setBusy] = useState(false)
@@ -42,7 +43,11 @@ export function RenameDialog({ user, target, topic, open, onOpenChange, onRename
     setBusy(true)
     setError(null)
     try {
-      onRenamed(await api.renameTopic(user, target, { name: name.trim(), emoji }))
+      onRenamed(
+        family
+          ? await familyApi.renameTopic(target, { name: name.trim(), emoji })
+          : await api.renameTopic(user, target, { name: name.trim(), emoji }),
+      )
       onOpenChange(false)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '名前を変えられませんでした')

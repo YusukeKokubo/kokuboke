@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
 import type { TopicRef } from '../../shared/types'
-import { api, draftSummary } from '@/lib/api'
+import { api, draftSummary, draftFamilySummary, familyApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { ModelPicker, type ModelSelection } from '@/components/ModelPicker'
 import { DocEditor, useDoc } from '@/components/DocDialog'
@@ -19,12 +19,14 @@ interface Props {
   target: TopicRef | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** 家族共有スペース向け。user は doc のキー用にだけ使う。 */
+  family?: boolean
 }
 
 /**
  * 要約（summary.md）の確認と編集。AI に整理させても、保存を押すまでファイルは変わらない。
  */
-export function SummaryDialog({ user, target, open, onOpenChange }: Props) {
+export function SummaryDialog({ user, target, open, onOpenChange, family }: Props) {
   const [drafting, setDrafting] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [choice, setChoice] = useState<ModelSelection | null>(null)
@@ -41,11 +43,16 @@ export function SummaryDialog({ user, target, open, onOpenChange }: Props) {
   }, [topic, sub])
 
   const load = useCallback(
-    () => (ref ? api.getSummary(user, ref) : Promise.resolve('')),
-    [user, ref],
+    () =>
+      ref
+        ? family
+          ? familyApi.getSummary(ref)
+          : api.getSummary(user, ref)
+        : Promise.resolve(''),
+    [user, ref, family],
   )
 
-  const doc = useDoc(open && ref !== null, `${user}:${topic ?? ''}:${sub ?? ''}`, load)
+  const doc = useDoc(open && ref !== null, `${family ? 'family' : user}:${topic ?? ''}:${sub ?? ''}`, load)
 
   useEffect(() => {
     if (!open) abort.current?.abort()
@@ -63,7 +70,9 @@ export function SummaryDialog({ user, target, open, onOpenChange }: Props) {
 
     try {
       let text = ''
-      for await (const event of draftSummary(user, ref, choice, controller.signal)) {
+      for await (const event of family
+        ? draftFamilySummary(ref, choice, controller.signal)
+        : draftSummary(user, ref, choice, controller.signal)) {
         if (event.type === 'delta') {
           text += event.text
           doc.setDraft(text)
@@ -89,7 +98,8 @@ export function SummaryDialog({ user, target, open, onOpenChange }: Props) {
 
   async function handleSave() {
     if (!ref) return
-    if (await doc.save((text) => api.saveSummary(user, ref, text))) onOpenChange(false)
+    if (await doc.save((text) => (family ? familyApi.saveSummary(ref, text) : api.saveSummary(user, ref, text))))
+      onOpenChange(false)
   }
 
   return (

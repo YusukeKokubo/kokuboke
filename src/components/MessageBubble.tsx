@@ -12,6 +12,8 @@ interface Props {
    * 生成中しか届かないので、時刻と入れ替わることはない。
    */
   activity?: string | null
+  /** 共有スペースで、この端末の持ち主。自分の発言かどうかの判定に使う。 */
+  selfAuthor?: string
 }
 
 /**
@@ -32,12 +34,17 @@ function Thinking() {
   )
 }
 
-export function MessageBubble({ message, streaming, activity }: Props) {
-  const mine = message.role === 'user'
+export function MessageBubble({ message, streaming, activity, selfAuthor }: Props) {
+  const mine =
+    message.role === 'user' &&
+    (selfAuthor && message.author ? message.author === selfAuthor : !message.author)
 
   return (
     <div className={cn('flex w-full gap-2', mine ? 'justify-end' : 'justify-start')}>
       <div className={cn('flex min-w-0 max-w-[85%] flex-col gap-1', mine ? 'items-end' : 'items-start')}>
+        {message.role === 'user' && message.author && (
+          <span className="text-muted-foreground px-1 text-[11px]">{message.author}</span>
+        )}
         {message.images.length > 0 && (
           <div className={cn('flex flex-wrap gap-1.5', mine ? 'justify-end' : 'justify-start')}>
             {message.images.map((url) => (

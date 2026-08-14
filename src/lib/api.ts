@@ -3,6 +3,7 @@ import {
   type ActivityEntry,
   type ChatEvent,
   type EngineInfo,
+  type FamilyActivityEntry,
   type GroupTopic,
   type Message,
   type SummaryEvent,
@@ -39,6 +40,26 @@ function path(segment: string): string {
 function topicUrl(user: string, ref: TopicRef, suffix = ''): string {
   const base = `/api/users/${path(user)}/topics/${path(ref.topic)}`
   return (isGroupRef(ref) ? base : `${base}/sub/${path(ref.sub)}`) + suffix
+}
+
+function familyTopicUrl(ref: TopicRef, suffix = ''): string {
+  const base = `/api/family/topics/${path(ref.topic)}`
+  return (isGroupRef(ref) ? base : `${base}/sub/${path(ref.sub)}`) + suffix
+}
+
+/** 共有スペースでそのトピックが返答待ちのときの 409。画面ではエラーではなく案内として出す。 */
+export class TopicBusyError extends Error {
+  constructor() {
+    super('いま誰かが話しとる。少し待ってから送ってね')
+    this.name = 'TopicBusyError'
+  }
+}
+
+export function friendlyFamilyNotice(message: string): string {
+  if (message.includes('前の返答をまだ書いています')) {
+    return 'いま誰かが話しとる。少し待ってから試してね'
+  }
+  return message
 }
 
 const json = {
@@ -163,10 +184,60 @@ export const api = {
    * 止まって、いつまでも「入れ替え中」のままになる。
    */
   health: () =>
-    json.get<{ ok: boolean; commit: string | null }>('/api/health', {
+    json.get<{ ok: boolean; users: string[]; commit: string | null }>('/api/health', {
       cache: 'no-store',
       signal: AbortSignal.timeout(5000),
     }),
+}
+
+export const familyApi = {
+  listTopics: () => json.get<GroupTopic[]>('/api/family/topics'),
+
+  activity: () =>
+    json.get<{ entry: FamilyActivityEntry | null }>('/api/family/activity').then((doc) => doc.entry),
+
+  getTopic: (ref: TopicRef) => json.get<Topic>(familyTopicUrl(ref)),
+
+  createTopic: (input: NewTopic) => json.send<Topic>('POST', '/api/family/topics', input),
+
+  startChild: (topic: string) =>
+    json.send<Topic>('POST', `/api/family/topics/${path(topic)}/sub`, {}),
+
+  updateTopic: (ref: TopicRef, input: { engine: string; model: string }) =>
+    json.send<Topic>('PATCH', familyTopicUrl(ref, '/model'), input),
+
+  renameTopic: (ref: TopicRef, input: { name: string; emoji?: string }) =>
+    json.send<Topic>('PATCH', familyTopicUrl(ref, '/name'), input),
+
+  autoName: (ref: TopicRef) => json.send<Topic>('POST', familyTopicUrl(ref, '/name')),
+
+  deleteTopic: (ref: TopicRef) => json.send<void>('DELETE', familyTopicUrl(ref)),
+
+  listMessages: (ref: TopicRef) => json.get<Message[]>(familyTopicUrl(ref, '/messages')),
+
+  getSummary: (ref: TopicRef) =>
+    json.get<{ summary: string }>(familyTopicUrl(ref, '/summary')).then((doc) => doc.summary),
+
+  saveSummary: (ref: TopicRef, summary: string) =>
+    json
+      .send<{ summary: string }>('PUT', familyTopicUrl(ref, '/summary'), { summary })
+      .then((doc) => doc.summary),
+
+  getClaude: () =>
+    json.get<{ claude: string }>('/api/family/claude').then((doc) => doc.claude),
+
+  saveClaude: (claude: string) =>
+    json
+      .send<{ claude: string }>('PUT', '/api/family/claude', { claude })
+      .then((doc) => doc.claude),
+
+  getTopicClaude: (ref: TopicRef) =>
+    json.get<{ claude: string }>(familyTopicUrl(ref, '/claude')).then((doc) => doc.claude),
+
+  saveTopicClaude: (ref: TopicRef, claude: string) =>
+    json
+      .send<{ claude: string }>('PUT', familyTopicUrl(ref, '/claude'), { claude })
+      .then((doc) => doc.claude),
 }
 
 /** fetch のボディから SSE の data 行だけを取り出す。 */
@@ -221,10 +292,44 @@ export async function* sendMessage(
   yield* readSSE<ChatEvent>(res)
 }
 
+export async function* sendFamilyMessage(
+  author: string,
+  ref: TopicRef,
+  input: { text: string; images: File[] },
+  signal?: AbortSignal,
+): AsyncGenerator<ChatEvent> {
+  const form = new FormData()
+  form.set('text', input.text)
+  form.set('author', author)
+  for (const image of input.images) form.append('images', image)
+
+  const res = await fetch(familyTopicUrl(ref, '/messages'), {
+    method: 'POST',
+    body: form,
+    signal,
+  })
+  if (res.status === 409) throw new TopicBusyError()
+  yield* readSSE<ChatEvent>(res)
+}
+
 /**
  * 要約の下書きを作らせる。ここではファイルは変わらない。
  * 保存するのは api.saveSummary を呼んだとき。
  */
+export async function* draftFamilySummary(
+  ref: TopicRef,
+  choice: { engine: string; model: string } | null,
+  signal?: AbortSignal,
+): AsyncGenerator<SummaryEvent> {
+  const res = await fetch(familyTopicUrl(ref, '/summary'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(choice ?? {}),
+    signal,
+  })
+  yield* readSSE<SummaryEvent>(res)
+}
+
 export async function* draftSummary(
   user: string,
   ref: TopicRef,
