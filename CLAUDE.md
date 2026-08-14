@@ -42,11 +42,15 @@
 - `server/agent/` — CLI をヘッドレスで起動して SSE に流す部分。エンジンごとに
   `claude-code.ts` と `cursor.ts`、共通の実行と待ち行列が `process.ts` `queue.ts`
 - `server/routes/` — API。`server/store/` — data 配下の読み書き。パスの検査は `store/paths.ts` に集約
+- 個人のスペースと家族共有スペースは同じハンドラ・同じ画面で応える。違いは
+  `server/routes/space.ts` と `src/lib/space.tsx` の記述子に集めてある。
+  片方だけの経路や画面を新しく作らない（前にそれで片方だけ直る事故が起きた）
 - `server/config.ts` — 環境変数と既定値はここに集約。増やすときもここ
 - `shared/types.ts` — フロントとサーバーで共有する型。`Message.images` に入るのは
   ファイル名だけ。URL は返すときに `withImageUrls` で組み立てる（保存しない）
 - `shared/date.ts` — 日付の整形。`server/agent/engines.ts` — エンジンとモデルの一覧
-- `src/pages/` — 画面。`src/lib/api.ts` が API 呼び出しと SSE の受けの入口
+- `src/pages/` — 画面。`src/lib/api.ts` が API 呼び出しと SSE の受けの入口。
+  スペースに縛った面は `spaceApi(base)` が作るので、画面は ref だけ渡す
 - `src/components/markdown/` — Markdown と数式の描画。`src/components/ui/` は shadcn だが
   style が `base-nova` で中身は `@base-ui/react`。Radix 前提の書き方は通らない
 - `android/` — Capacitor の WebView 殻。`CAPACITOR_SERVER_URL` 先の NAS UI を開く。

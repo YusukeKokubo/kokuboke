@@ -304,29 +304,17 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | GET | `/api/users/:user/topics/:topic/claude` | トピックの `CLAUDE.md` を読む |
 | PUT | `/api/users/:user/topics/:topic/claude` | トピックの `CLAUDE.md` を保存する |
 | GET | `/media/:user/:topic/:file` | 保存済み画像 |
-| GET | `/api/family/topics` | 家族共有スペースのトピック一覧 |
-| POST | `/api/family/topics` | 家族共有スペースの器の作成 |
-| POST | `/api/family/topics/:topic/sub` | 家族共有スペースの中に作る |
-| PATCH | `/api/family/topics/:topic/model` | エンジンとモデルを変える |
-| PATCH | `/api/family/topics/:topic/name` | 名前と絵文字を変える |
-| POST | `/api/family/topics/:topic/name` | 会話を読ませて名前を付ける |
-| GET | `/api/family/topics/:topic/messages` | 保存されている会話すべて |
-| POST | `/api/family/topics/:topic/messages` | 送信。`author` 必須。SSE で返答を流す |
-| GET | `/api/family/topics/:topic/summary` | 要約を読む |
-| PUT | `/api/family/topics/:topic/summary` | 要約を保存する |
-| POST | `/api/family/topics/:topic/summary` | 要約の下書きを作らせる。SSE で流す |
-| GET | `/api/family/claude` | 家族共有スペースの `CLAUDE.md` を読む |
-| PUT | `/api/family/claude` | 家族共有スペースの `CLAUDE.md` を保存する |
-| GET | `/api/family/topics/:topic/claude` | トピックの `CLAUDE.md` を読む |
-| PUT | `/api/family/topics/:topic/claude` | トピックの `CLAUDE.md` を保存する |
-| GET | `/media/family/:topic/:file` | 家族共有スペースの保存済み画像 |
+| GET | `/api/family/activity` | 共有スペースの直近の一行（個人の一覧に出す入口） |
 
 トピックを指す経路はどれも、`:topic` のうしろに `/sub/:sub` を足すと中で分けたほうを指す。
 たとえば `/api/users/taro/topics/スキンケア/sub/肌の記録/messages`。画像も
 `/media/:user/:topic/sub/:sub/:file` になる。トップレベルへの送信は 400 を返す。
 
-家族共有スペースは `/api/family/...` と `/media/family/...`。個人向けと同じ形で、
-`:user` の位置が無いだけ。送信は `author`（`USERS` にある名前）が必須。
+家族共有スペースは、上の表の `/api/users/:user` を `/api/family` に、
+`/media/:user` を `/media/family` に置き換えた経路で、同じハンドラが応える。
+違いは二つだけ。送信に `author`（`USERS` にある名前）が必須で、`profile.md` が無い。
+順番待ちも粒度が違う。個人は人ごとに一つずつだが、共有スペースはトピックごとなので、
+別の話なら家族が同時に話せる。
 
 送信は `multipart/form-data` で、本文が `text`、画像が `images`（4 枚まで）。
 家族共有スペースでは `author` も付ける。
