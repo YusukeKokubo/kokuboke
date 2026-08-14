@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { useSpace } from '@/lib/space'
 import { DocPane, type DocSpec } from '@/components/DocsDialog'
+import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 
 /**
  * スペース直下の文書。プロフィールと CLAUDE.md。個人と家族で同じ画面。
@@ -17,7 +18,12 @@ function SpaceDocPage({ title, spec }: { title: string; spec: DocSpec }) {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-3 py-3">
-      <p className="text-muted-foreground text-xs">{spec.description}</p>
+      <SpaceHeaderSlot>
+        <div className="min-w-0">
+          <h1 className="truncate text-base font-semibold">{title}</h1>
+          <p className="text-muted-foreground text-xs">{spec.description}</p>
+        </div>
+      </SpaceHeaderSlot>
       <DocPane
         spec={spec}
         open
@@ -55,9 +61,9 @@ export function ClaudePage() {
 
   return (
     <SpaceDocPage
-      title={owner ? 'CLAUDE.md' : '家族の CLAUDE.md'}
+      title={space.claudeTitle}
       spec={{
-        label: owner ? 'CLAUDE.md' : '家族の CLAUDE.md',
+        label: space.claudeTitle,
         description: owner
           ? 'あなたについての設定。どの会話でも効くよ。'
           : '家族みんなの秘書役の土台。どの会話にも効くよ。',

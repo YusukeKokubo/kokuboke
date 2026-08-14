@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Pencil, RefreshCw, X } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
@@ -8,7 +7,7 @@ import { useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
-import { useHeaderAnchor } from '@/components/SpaceHeader'
+import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 import { EmojiNameDialog } from '@/components/EmojiNameDialog'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
@@ -233,98 +232,95 @@ export default function ChatPage() {
   }, [booted, handleSend])
 
   const unused = knownTags.filter((tag) => !meta?.tags.includes(tag))
-  const headerAnchor = useHeaderAnchor()
-
-  const header = (
-    <div className="flex flex-col gap-1.5">
-      <div className="min-w-0">
-        <button
-          type="button"
-          onClick={() => meta && setRenameOpen(true)}
-          className="flex max-w-full items-center gap-1"
-        >
-          <h1
-            className={cn(
-              'truncate text-base font-semibold',
-              meta && !meta.name && 'text-muted-foreground',
-            )}
-          >
-            {meta ? `${meta.emoji} ${topicLabel(meta)}` : '…'}
-          </h1>
-          <Pencil className="text-muted-foreground size-3 shrink-0" />
-        </button>
-        {meta && (
-          <button
-            type="button"
-            onClick={() => setModelOpen(true)}
-            className="text-muted-foreground truncate text-[11px] underline-offset-2 hover:underline"
-          >
-            {meta.modelLabel}
-          </button>
-        )}
-      </div>
-
-      {meta && (
-        <div className="flex flex-wrap items-center gap-1">
-          {meta.tags.map((tag) => (
-            <span
-              key={tag}
-              className="bg-secondary text-muted-foreground inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px]"
-            >
-              <Link to={space.tagHref(tag)} className="hover:underline">
-                {tag}
-              </Link>
-              <button
-                type="button"
-                disabled={tagBusy || status !== 'idle'}
-                onClick={() => void saveTags(meta.tags.filter((item) => item !== tag))}
-                aria-label={`${tag} を外す`}
-              >
-                <X className="size-3" />
-              </button>
-            </span>
-          ))}
-          <form
-            className="flex min-w-24 flex-1 items-center gap-1"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void addTag(tagDraft)
-            }}
-          >
-            <Input
-              value={tagDraft}
-              onChange={(event) => setTagDraft(event.target.value)}
-              list="known-tags"
-              placeholder="タグを付ける"
-              disabled={tagBusy || status !== 'idle'}
-              className="h-7 min-w-0 flex-1 text-[12px]"
-            />
-            <datalist id="known-tags">
-              {unused.map((tag) => (
-                <option key={tag} value={tag} />
-              ))}
-            </datalist>
-          </form>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            disabled={tagBusy || status !== 'idle'}
-            onClick={() => void putTags()}
-            title="会話を読んでタグを付け直す"
-            className="text-muted-foreground h-7 shrink-0 px-2 text-[11px]"
-          >
-            <RefreshCw className={cn('size-3', tagBusy && 'animate-spin')} />
-            付け直す
-          </Button>
-        </div>
-      )}
-    </div>
-  )
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col">
-      {headerAnchor ? createPortal(header, headerAnchor) : null}
+      <SpaceHeaderSlot>
+        <div className="flex flex-col gap-1.5">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => meta && setRenameOpen(true)}
+              className="flex max-w-full items-center gap-1"
+            >
+              <h1
+                className={cn(
+                  'truncate text-base font-semibold',
+                  meta && !meta.name && 'text-muted-foreground',
+                )}
+              >
+                {meta ? `${meta.emoji} ${topicLabel(meta)}` : '…'}
+              </h1>
+              <Pencil className="text-muted-foreground size-3 shrink-0" />
+            </button>
+            {meta && (
+              <button
+                type="button"
+                onClick={() => setModelOpen(true)}
+                className="text-muted-foreground truncate text-[11px] underline-offset-2 hover:underline"
+              >
+                {meta.modelLabel}
+              </button>
+            )}
+          </div>
+
+          {meta && (
+            <div className="flex flex-wrap items-center gap-1">
+              {meta.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="bg-secondary text-muted-foreground inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px]"
+                >
+                  <Link to={space.tagHref(tag)} className="hover:underline">
+                    {tag}
+                  </Link>
+                  <button
+                    type="button"
+                    disabled={tagBusy || status !== 'idle'}
+                    onClick={() => void saveTags(meta.tags.filter((item) => item !== tag))}
+                    aria-label={`${tag} を外す`}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+              <form
+                className="flex min-w-24 flex-1 items-center gap-1"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void addTag(tagDraft)
+                }}
+              >
+                <Input
+                  value={tagDraft}
+                  onChange={(event) => setTagDraft(event.target.value)}
+                  list="known-tags"
+                  placeholder="タグを付ける"
+                  disabled={tagBusy || status !== 'idle'}
+                  className="h-7 min-w-0 flex-1 text-[12px]"
+                />
+                <datalist id="known-tags">
+                  {unused.map((tag) => (
+                    <option key={tag} value={tag} />
+                  ))}
+                </datalist>
+              </form>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={tagBusy || status !== 'idle'}
+                onClick={() => void putTags()}
+                title="会話を読んでタグを付け直す"
+                className="text-muted-foreground h-7 shrink-0 px-2 text-[11px]"
+              >
+                <RefreshCw className={cn('size-3', tagBusy && 'animate-spin')} />
+                付け直す
+              </Button>
+            </div>
+          )}
+        </div>
+      </SpaceHeaderSlot>
 
       <main ref={content} className="flex flex-1 flex-col gap-3 px-3 py-4">
         {messages.length === 0 && !draft && (

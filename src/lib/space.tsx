@@ -21,6 +21,10 @@ export interface Space {
   claude: string
   title: string
   subtitle: string
+  /** タグ一覧の見出し。家族か個人か、タイトルだけで分かるようにする。 */
+  tagsTitle: string
+  /** CLAUDE.md の見出し。家族か個人か、タイトルだけで分かるようにする。 */
+  claudeTitle: string
   /** まだ何も無いときの誘い文。 */
   emptyHint: ReactNode
   /** トップで新しい会話を始めるときの呼びかけ。 */
@@ -96,6 +100,8 @@ export function personalSpace(user: string): Space {
     claude: claudeHref(home),
     title: user,
     subtitle: '会話',
+    tagsTitle: `${user}のタグ`,
+    claudeTitle: `${user}のCLAUDE.md`,
     owner: user,
     greeting: `${user}さん、何か話そうか`,
     emptyHint: (
@@ -123,6 +129,8 @@ export function familySpace(author: string): Space {
     claude: claudeHref('/family'),
     title: '共有スペース',
     subtitle: '家族のメモ・買い物',
+    tagsTitle: '家族のタグ',
+    claudeTitle: '家族のCLAUDE.md',
     greeting: '何を残す？',
     emptyHint: (
       <>

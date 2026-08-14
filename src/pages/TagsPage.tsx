@@ -5,6 +5,7 @@ import type { Tag, Topic } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
 import { Button } from '@/components/ui/button'
+import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 import { Input } from '@/components/ui/input'
 import { DocPane } from '@/components/DocsDialog'
 import {
@@ -63,7 +64,14 @@ function TagList() {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-3 py-3">
-      <p className="text-muted-foreground text-xs">付いているタグの本文は、話すたびに読み込まれるよ</p>
+      <SpaceHeaderSlot>
+        <div className="min-w-0">
+          <h1 className="truncate text-base font-semibold">{space.tagsTitle}</h1>
+          <p className="text-muted-foreground text-xs">
+            付いているタグの本文は、話すたびに読み込まれるよ
+          </p>
+        </div>
+      </SpaceHeaderSlot>
       <form
         className="flex gap-2"
         onSubmit={(event) => {
@@ -175,12 +183,12 @@ function TagDoc({ name }: { name: string }) {
 
   return (
     <>
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-3 py-3">
-        <div className="flex items-center gap-2">
+      <SpaceHeaderSlot>
+        <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[15px] font-semibold">{name}</h2>
-            <p className="text-muted-foreground truncate text-[11px]">
-              {topics === null ? '…' : `会話 ${topics.length} 件`}
+            <h1 className="truncate text-base font-semibold">{name}</h1>
+            <p className="text-muted-foreground truncate text-xs">
+              {topics === null ? space.tagsTitle : `${space.tagsTitle} · 会話 ${topics.length} 件`}
             </p>
           </div>
           {exists && (
@@ -205,7 +213,9 @@ function TagDoc({ name }: { name: string }) {
             </div>
           )}
         </div>
+      </SpaceHeaderSlot>
 
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-3 py-3">
         {error && <p className="text-destructive text-sm">{error}</p>}
 
         {exists === null && <p className="text-muted-foreground py-8 text-center text-sm">読み込み中…</p>}
