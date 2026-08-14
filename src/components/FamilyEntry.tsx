@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import type { FamilyActivityEntry } from '../../shared/types'
 import { api } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
-import { topicHref } from '@/lib/space'
 
 /** 個人の会話一覧の先頭に出す、家族共有スペースへの入口。 */
 export function FamilyEntry() {
@@ -18,11 +17,11 @@ export function FamilyEntry() {
 
   return (
     <Link
-      to={entry ? topicHref('/family', entry.slug) : '/family'}
+      to="/family"
       className="hover:bg-accent flex items-center gap-3 rounded-xl border p-3 transition-colors"
     >
       <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full text-xl">
-        {entry?.emoji || '🏠'}
+        🏠
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-2">
