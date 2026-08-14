@@ -129,29 +129,44 @@ export default function TopicListPage() {
         <ul className="flex flex-col gap-1.5">
           {topics?.map((topic) => (
             <li key={topic.slug} className="flex items-center gap-1">
-              <Link
-                to={space.href(topic.slug)}
-                className="hover:bg-accent active:bg-accent flex min-w-0 flex-1 items-center gap-3 rounded-xl border p-3 transition-colors"
-              >
-                <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full text-xl">
-                  {topic.emoji}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline justify-between gap-2">
-                    <span
-                      className={`truncate text-[15px] font-medium ${topic.name ? '' : 'text-muted-foreground'}`}
-                    >
-                      {topicLabel(topic)}
+              <div className="min-w-0 flex-1 rounded-xl border">
+                <Link
+                  to={space.href(topic.slug)}
+                  className="hover:bg-accent active:bg-accent flex items-center gap-3 rounded-xl p-3 transition-colors"
+                >
+                  <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full text-xl">
+                    {topic.emoji}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span
+                        className={`truncate text-[15px] font-medium ${topic.name ? '' : 'text-muted-foreground'}`}
+                      >
+                        {topicLabel(topic)}
+                      </span>
+                      <span className="text-muted-foreground shrink-0 text-[11px]">
+                        {relativeLabel(topic.lastMessageAt)}
+                      </span>
                     </span>
-                    <span className="text-muted-foreground shrink-0 text-[11px]">
-                      {relativeLabel(topic.lastMessageAt)}
+                    <span className="text-muted-foreground block truncate text-xs">
+                      {topic.preview ?? 'まだ話していないよ'}
                     </span>
                   </span>
-                  <span className="text-muted-foreground block truncate text-xs">
-                    {topic.preview ?? 'まだ話していないよ'}
-                  </span>
-                </span>
-              </Link>
+                </Link>
+                {topic.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 px-3 pb-3 pl-[4.25rem]">
+                    {topic.tags.map((tag) => (
+                      <Link
+                        key={tag}
+                        to={space.tagHref(tag)}
+                        className="bg-secondary text-muted-foreground hover:bg-accent rounded-full px-2 py-0.5 text-[11px]"
+                      >
+                        {tag}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Button
                 type="button"
                 variant="ghost"
