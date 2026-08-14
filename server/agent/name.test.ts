@@ -8,7 +8,7 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kokuboke-test-'))
 process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 
-const { parseName } = await import('./name')
+const { parseName, parseTags } = await import('./name')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
@@ -85,5 +85,20 @@ describe('parseName', () => {
 
   it('絵文字が複数来たら一文字目だけ取る', () => {
     assert.equal(parseName('{"name":"旅行の計画","emoji":"🍚🍜🍣"}')?.emoji, '🍚')
+  })
+})
+
+describe('parseTags', () => {
+  it('JSON から配列を取る', () => {
+    assert.deepEqual(parseTags('{"tags":["秋の旅行","買い物"]}'), ['秋の旅行', '買い物'])
+  })
+
+  it('コードブロックが混じっても拾う', () => {
+    assert.deepEqual(parseTags('```json\n{"tags":["宿"]}\n```'), ['宿'])
+  })
+
+  it('配列が無ければ空', () => {
+    assert.deepEqual(parseTags('{"name":"秋の旅行"}'), [])
+    assert.deepEqual(parseTags('タグは無い'), [])
   })
 })

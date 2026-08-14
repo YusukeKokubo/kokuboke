@@ -22,60 +22,34 @@ export interface EngineInfo {
 }
 
 /**
- * 名前がまだ付いていないトピックの見出し。
- * サーバーは作った直後の CLAUDE.md / summary.md に焼き込み、画面は表示のたびに使う。
- * 文言を変えても、すでに書いたファイルの見出しは古い方のまま残る。
+ * 名前がまだ付いていない会話の見出し。
+ * 画面は表示のたびに使う。
  */
 export const NO_NAME = 'まだ名前のない話'
 
-/**
- * トピックの位置。入れ子は一段まで。
- * 器と子を kind で分ける。slug 未定の途中状態は ref に載せない。
- * 画面・API 用。サーバーのパス組み立ては VerifiedTopicRef（store/paths）を使う。
- */
-export type TopicRef =
-  | { kind: 'group'; topic: string }
-  | { kind: 'child'; topic: string; sub: string }
-
-/** 器（トップレベル）を指すか。 */
-export function isGroupRef(ref: TopicRef): ref is { kind: 'group'; topic: string } {
-  return ref.kind === 'group'
-}
-
-interface TopicFields {
+export interface Topic {
+  /** フォルダ名。untitled-日付。改名しても動かない。 */
   slug: string
-  /** まだ名前を付けていないサブトピックでは空文字。画面側で仮の見出しを出す。 */
+  /** まだ名前を付けていないときは空文字。画面側で仮の見出しを出す。 */
   name: string
   emoji: string
   createdAt: string
-  /** どのエンジンとモデルで話すか。未指定なら既定値に落ちる。 */
   engine: EngineId
   model: string
-  /** 「Cursor / GPT-5.2」のような表示用の名前。 */
   modelLabel: string
+  tags: string[]
   lastMessageAt: string | null
-  /** 一覧に出すための直近の発言の抜粋。 */
   preview: string | null
 }
 
-/** 器。会話せず、中の子の要約の置き場として扱う。 */
-export interface GroupTopic extends TopicFields {
-  kind: 'group'
-  group: null
-  children: ChildTopic[]
+export interface Tag {
+  name: string
+  /** tags/{name}.md の中身。無ければ空文字。 */
+  text: string
 }
-
-/** 器の中の子。ここで会話する。 */
-export interface ChildTopic extends TopicFields {
-  kind: 'child'
-  /** 器のフォルダ名。 */
-  group: string
-}
-
-export type Topic = GroupTopic | ChildTopic
 
 /**
- * CLI を走らせているあいだの知らせ。会話と要約で同じ形なので、
+ * CLI を走らせているあいだの知らせ。会話とタグの下書きで同じ形なので、
  * サーバーの流す側（streamAgent）も画面の受ける側もここを共有する。
  */
 export type AgentProgressEvent =
@@ -91,26 +65,21 @@ export type AgentProgressEvent =
 export type ChatEvent =
   | AgentProgressEvent
   | { type: 'accepted'; message: Message }
-  /** shouldName が立っていたら、画面から名前付けを頼む頃合い。 */
-  | { type: 'done'; message: Message; shouldName?: boolean }
+  /** shouldName / shouldTag が立っていたら、画面から命名・タグ付けを頼む頃合い。 */
+  | { type: 'done'; message: Message; shouldName?: boolean; shouldTag?: boolean }
 
 /**
- * 要約の下書き。AI はファイルを書き換えず、summary.md の新しい全文を返すだけ。
+ * タグ本文の下書き。AI はファイルを書き換えず、新しい全文を返すだけ。
  * 保存するかどうかは画面で決める。
  */
 export type SummaryEvent = AgentProgressEvent | { type: 'done'; text: string; modelLabel: string }
-
-export interface Summary {
-  /** summary.md の中身。無ければ空文字。 */
-  summary: string
-}
 
 /** ユーザー直下の profile.md。無ければ空文字。 */
 export interface Profile {
   profile: string
 }
 
-/** ユーザー直下またはトピックの CLAUDE.md。無ければ空文字。 */
+/** ユーザー直下の CLAUDE.md。無ければ空文字。 */
 export interface Claude {
   claude: string
 }
@@ -152,15 +121,10 @@ export interface UpdateResult {
   summary: { scanned?: number; updated?: number; failed?: number; skipped?: number } | null
 }
 
-/** いちばん新しい子トピックの一行。家族共有スペースの入口と管理画面が使う。 */
+/** いちばん新しい会話の一行。家族共有スペースの入口と管理画面が使う。 */
 export interface FamilyActivityEntry {
-  /** 器の slug。 */
-  topic: string
-  /** 子トピックの slug。 */
-  sub: string
-  topicName: string
-  subName: string
-  /** 子の絵文字。 */
+  slug: string
+  name: string
   emoji: string
   /** 空白を畳んだ先頭〜80字。 */
   text: string

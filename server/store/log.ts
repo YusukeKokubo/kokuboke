@@ -4,7 +4,7 @@ import type { Message } from '../../shared/types'
 import { config } from '../config'
 import { localDate, localTime, stamp } from '../../shared/date'
 import { imageName } from './image'
-import { logsDir, type VerifiedTopicRef, type UserName } from './paths'
+import { logsDir, type TopicName, type UserName } from './paths'
 
 /** その日から n 日前までの日付を新しい順に並べる。 */
 function recentDates(days: number): string[] {
@@ -18,12 +18,12 @@ function recentDates(days: number): string[] {
   return out
 }
 
-function jsonlFile(user: UserName, ref: VerifiedTopicRef, date: string): string {
-  return path.join(logsDir(user, ref), `${stamp(date)}.jsonl`)
+function jsonlFile(user: UserName, id: TopicName, date: string): string {
+  return path.join(logsDir(user, id), `${stamp(date)}.jsonl`)
 }
 
-function markdownFile(user: UserName, ref: VerifiedTopicRef, date: string): string {
-  return path.join(logsDir(user, ref), `${stamp(date)}.md`)
+function markdownFile(user: UserName, id: TopicName, date: string): string {
+  return path.join(logsDir(user, id), `${stamp(date)}.md`)
 }
 
 async function readJsonl(file: string): Promise<Message[]> {
@@ -50,7 +50,7 @@ async function readJsonl(file: string): Promise<Message[]> {
 /** 当日を含めて days 日分を古い順に返す。AI の文脈用。 */
 export async function readRecent(
   user: UserName,
-  ref: VerifiedTopicRef,
+  ref: TopicName,
   days = config.contextDays,
 ): Promise<Message[]> {
   // readdir で実在するファイルだけ読む。日付を機械的に作って ENOENT を踏まない。
@@ -68,7 +68,7 @@ export async function readRecent(
 const DATE_JSONL = /^\d{8}\.jsonl$/
 
 /** logs/ 内の日付名 jsonl を古い順に並べる。 */
-async function listJsonlFiles(user: UserName, ref: VerifiedTopicRef): Promise<string[]> {
+async function listJsonlFiles(user: UserName, ref: TopicName): Promise<string[]> {
   let files: string[]
   try {
     files = await fs.readdir(logsDir(user, ref))
@@ -82,7 +82,7 @@ async function listJsonlFiles(user: UserName, ref: VerifiedTopicRef): Promise<st
 }
 
 /** 保存されている会話を全部、古い順に返す。画面の履歴用。 */
-export async function readAll(user: UserName, ref: VerifiedTopicRef): Promise<Message[]> {
+export async function readAll(user: UserName, ref: TopicName): Promise<Message[]> {
   const all: Message[] = []
   for (const file of await listJsonlFiles(user, ref)) {
     all.push(...(await readJsonl(file)))
@@ -97,7 +97,7 @@ export async function readAll(user: UserName, ref: VerifiedTopicRef): Promise<Me
  */
 export async function countUserMessages(
   user: UserName,
-  ref: VerifiedTopicRef,
+  ref: TopicName,
   stopAt?: number,
 ): Promise<number> {
   let count = 0
@@ -111,7 +111,7 @@ export async function countUserMessages(
   return count
 }
 
-export async function readLastEntry(user: UserName, ref: VerifiedTopicRef): Promise<Message | null> {
+export async function readLastEntry(user: UserName, ref: TopicName): Promise<Message | null> {
   // readdir 一回で実在ファイルだけ新しい順に見られるので、直近何日という打ち切りはしない。
   const files = await listJsonlFiles(user, ref)
   for (let i = files.length - 1; i >= 0; i--) {
@@ -140,7 +140,7 @@ function renderMarkdown(message: Message): string {
  * 会話を 2 通りに書き出す。md は人が読むため、jsonl は次回の読み戻しのため。
  * 片方が壊れても、もう片方から復旧できるようにしている。
  */
-export async function appendMessage(user: UserName, ref: VerifiedTopicRef, message: Message): Promise<void> {
+export async function appendMessage(user: UserName, ref: TopicName, message: Message): Promise<void> {
   const date = localDate(new Date(message.at))
   const dir = logsDir(user, ref)
   await fs.mkdir(dir, { recursive: true })

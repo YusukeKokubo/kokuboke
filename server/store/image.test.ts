@@ -13,12 +13,12 @@ process.env.USERS = 'taro'
 process.env.TZ = 'Asia/Tokyo'
 
 const { imageAbsPath, imageName, mediaUrl, saveImage, withImageUrls } = await import('./image')
-const { assertTopicRef, assertUser, imagesDir } = await import('./paths')
+const { assertTopicName, assertUser, imagesDir } = await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
 const USER = assertUser('taro')
-const TOPIC = assertTopicRef('math')
+const TOPIC = assertTopicName('math')
 const OLD_URL = '/media/taro/math/20260809_120000_ab12.jpg'
 const NAME = '20260809_120000_ab12.jpg'
 
@@ -46,26 +46,19 @@ describe('mediaUrl', () => {
   })
 
   it('日本語のトピック名を符号化する', () => {
-    const url = mediaUrl(USER, assertTopicRef('算数の宿題'), NAME)
+    const url = mediaUrl(USER, assertTopicName('算数の宿題'), NAME)
     assert.equal(url, `/media/${USER}/${encodeURIComponent('算数の宿題')}/${NAME}`)
   })
 
   it('# を符号化する', () => {
     // 素で入れると # から先が断片として切り落とされ、画像が出なくなる。
-    const url = mediaUrl(USER, assertTopicRef('C#入門'), NAME)
+    const url = mediaUrl(USER, assertTopicName('C#入門'), NAME)
     assert.ok(url.includes('%23'), url)
     assert.ok(!url.includes('#'), url)
   })
 
   it('トピックを移しても URL は今の場所を指す', () => {
-    assert.equal(mediaUrl(USER, assertTopicRef('science'), NAME), `/media/${USER}/science/${NAME}`)
-  })
-
-  it('子トピックは経路に sub を挟む', () => {
-    assert.equal(
-      mediaUrl(USER, assertTopicRef('skincare', '肌の記録'), NAME),
-      `/media/${USER}/skincare/sub/${encodeURIComponent('肌の記録')}/${NAME}`,
-    )
+    assert.equal(mediaUrl(USER, assertTopicName('science'), NAME), `/media/${USER}/science/${NAME}`)
   })
 })
 
@@ -76,15 +69,8 @@ describe('mediaUrl（共有スペース）', () => {
   })
 
   it('日本語のトピック名を符号化する', () => {
-    const url = mediaUrl('family', assertTopicRef('算数の宿題'), NAME)
+    const url = mediaUrl('family', assertTopicName('算数の宿題'), NAME)
     assert.equal(url, `/media/family/${encodeURIComponent('算数の宿題')}/${NAME}`)
-  })
-
-  it('子トピックは経路に sub を挟む', () => {
-    assert.equal(
-      mediaUrl('family', assertTopicRef('skincare', '肌の記録'), NAME),
-      `/media/family/skincare/sub/${encodeURIComponent('肌の記録')}/${NAME}`,
-    )
   })
 
   it('ファイル名を URL に直す', () => {

@@ -11,7 +11,7 @@ import { admin } from './routes/admin'
 import { docs } from './routes/docs'
 import { media } from './routes/media'
 import { messages } from './routes/messages'
-import { summary } from './routes/summary'
+import { tags } from './routes/tags'
 import { topics } from './routes/topics'
 import { ensureAllUsers } from './store/user'
 
@@ -36,7 +36,7 @@ app.get('/api/health', (c) =>
 app.route('/', admin)
 app.route('/', topics)
 app.route('/', messages)
-app.route('/', summary)
+app.route('/', tags)
 app.route('/', docs)
 app.route('/', media)
 

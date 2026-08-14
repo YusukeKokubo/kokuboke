@@ -59,9 +59,8 @@ ${who}
 export function chatPrompt(input: {
   /** 個人のスペースの profile.md。共有スペースには無いので空文字。 */
   profile: string
-  /** 器の要約。中で分けているときだけ入る。 */
-  groupSummary: string
-  summary: string
+  /** 付いているタグの覚え書き。無ければ空。 */
+  tags: { name: string; text: string }[]
   history: Message[]
   text: string
   /** 共有スペースの発言者。個人のスペースでは付かない。 */
@@ -73,11 +72,9 @@ export function chatPrompt(input: {
   if (input.profile.trim()) {
     parts.push(`<profile>\n${input.profile.trim()}\n</profile>`)
   }
-  if (input.groupSummary.trim()) {
-    parts.push(`<group_summary>\n${input.groupSummary.trim()}\n</group_summary>`)
-  }
-  if (input.summary.trim()) {
-    parts.push(`<topic_summary>\n${input.summary.trim()}\n</topic_summary>`)
+  for (const tag of input.tags) {
+    if (!tag.text.trim()) continue
+    parts.push(`<tag name="${tag.name}">\n${tag.text.trim()}\n</tag>`)
   }
 
   parts.push(`<conversation>\n${renderHistory(input.history)}\n</conversation>`)
@@ -102,111 +99,94 @@ export function nameSystemPrompt(): string {
 - 前置き・説明・報告は書かないでください。返すのは指定された JSON 一つだけです。`
 }
 
-export function namePrompt(input: { history: Message[]; groupName: string }): string {
+export function namePrompt(input: { history: Message[] }): string {
   return `<conversation>
 ${renderHistory(input.history)}
 </conversation>
 
-この会話に名前を付けてください。「${input.groupName}」の中に並ぶ見出しになります。
+この会話に名前を付けてください。
 
 - 何の話かがひと目で分かる、12 文字くらいまでの短い名前にします。
-- 「${input.groupName}」自体の言い換えは避け、この会話に固有の中身を拾ってください。
 - 「〜について」「〜の話」のような言い回しは付けません。
-- 記号や引用符は使わず、そのままフォルダ名にできる言葉にします。
+- 記号や引用符は使わず、短い言葉にします。
 - 内容に合う絵文字を一つ選びます。
 
 次の形の JSON だけを返してください。
 {"name": "見出し", "emoji": "🍳"}`
 }
 
-export function summarySystemPrompt(input: {
-  audience: Audience
-  topicName: string
-  /** 器の共有の要約を書くとき。会話は中のトピック側にある。 */
-  isGroup?: boolean
-}): string {
+export function tagSystemPrompt(): string {
+  return `あなたは会話に短いタグを付ける係です。
+
+- ファイルは読み書きしません。タグを決めるところまでが仕事です。
+- 前置き・説明・報告は書かないでください。返すのは指定された JSON 一つだけです。`
+}
+
+export function tagPrompt(input: { history: Message[]; known: string[] }): string {
+  const known = input.known.length > 0 ? input.known.join('、') : '（まだ無い）'
+  return `<conversation>
+${renderHistory(input.history)}
+</conversation>
+
+<known_tags>
+${known}
+</known_tags>
+
+この会話にタグを付けてください。
+
+- 話題がひと目で分かる、短い名前にします。
+- 既にあるタグで足りるならそれを使います。新しい話題なら新しいタグを足します。
+- 1 つから 3 つまで。無いときは空の配列にします。
+- 記号や引用符は使いません。
+
+次の形の JSON だけを返してください。
+{"tags": ["秋の旅行"]}`
+}
+
+export function tagDraftSystemPrompt(input: { audience: Audience; tagName: string }): string {
   const whose =
     input.audience.kind === 'family' ? '家族共有スペースの' : `「${input.audience.user}」さんの`
-  const vessel = input.isGroup
-    ? 'ここは会話をしない器で、中のどれで話しても共有したい前提を残します。'
-    : ''
   const mixed = input.audience.kind === 'family' ? '\n- 会話には複数の家族メンバーの発言が混ざります。' : ''
 
   return `あなたは会話の記録を整理する係です。
 
-- 対象は${whose}「${input.topicName}」トピックです。${vessel}${mixed}
-- ファイルは書き換えません。新しい summary.md の全文を返すところまでが仕事です。
+- 対象は${whose}「${input.tagName}」タグです。${mixed}
+- ファイルは書き換えません。新しい本文の全文を返すところまでが仕事です。
   保存するかどうかは人が決めます。
-- 前置き・説明・報告は書かないでください。返すのは summary.md の中身だけです。`
+- 前置き・説明・報告は書かないでください。返すのは本文だけです。`
 }
 
-export function summaryPrompt(input: {
-  history: Message[]
-  topicName: string
-  summary: string
-  /** 器の要約。書き換える対象ではなく、重複を避けるための参考。 */
-  groupSummary: string
+export function tagDraftPrompt(input: {
+  tagName: string
+  current: string
+  chats: { name: string; history: Message[] }[]
 }): string {
   const parts: string[] = []
 
-  if (input.groupSummary.trim()) {
-    parts.push(
-      `<group_summary>\n${input.groupSummary.trim()}\n</group_summary>`,
-      'これは一つ上のトピックの要約です。書き換える対象ではありません。' +
-        'ここに既に書かれていることは繰り返さないでください。',
-    )
-  }
-  if (input.summary.trim()) {
-    parts.push(`<current_summary>\n${input.summary.trim()}\n</current_summary>`)
+  if (input.current.trim()) {
+    parts.push(`<current>\n${input.current.trim()}\n</current>`)
   }
 
-  parts.push(`<conversation>\n${renderHistory(input.history)}\n</conversation>`)
-
-  parts.push(`上の会話を踏まえて、「${input.topicName}」トピックの summary.md を書き直してください。
-
-- すでに書かれている内容は消さずに、変わったところだけ直し、新しく分かったことを足します。
-- 個々のやりとりを列挙するのではなく、続けて話すために必要な事実と経緯を残します。
-- 会話のたびに読み込まれるので、簡潔に保ってください。
-- そのままファイルに保存できる形で、本文だけを返します。全体をコードブロックで
-  囲まないでください。`)
-
-  return parts.join('\n\n')
-}
-
-export function groupSummaryPrompt(input: {
-  topicName: string
-  summary: string
-  children: { name: string; summary: string; history: Message[] }[]
-}): string {
-  const parts: string[] = []
-
-  if (input.summary.trim()) {
-    parts.push(`<current_summary>\n${input.summary.trim()}\n</current_summary>`)
-  }
-
-  const blocks = input.children.map((child) => {
-    const body: string[] = [`<child>`, `<name>${child.name}</name>`]
-    if (child.summary.trim()) {
-      body.push(`<summary>\n${child.summary.trim()}\n</summary>`)
+  const blocks = input.chats.map((chat) => {
+    const body = [`<chat>`, `<name>${chat.name}</name>`]
+    if (chat.history.length > 0) {
+      body.push(`<conversation>\n${renderHistory(chat.history)}\n</conversation>`)
     }
-    if (child.history.length > 0) {
-      body.push(`<conversation>\n${renderHistory(child.history)}\n</conversation>`)
-    }
-    body.push(`</child>`)
+    body.push(`</chat>`)
     return body.join('\n')
   })
 
-  // 新しい順に並んでいるので、溢れたら古い方から落とす。
   while (blocks.join('\n\n').length > MAX_HISTORY_CHARS && blocks.length > 1) {
     blocks.pop()
   }
-  parts.push(`<children>\n${blocks.join('\n\n')}\n</children>`)
+  if (blocks.length > 0) {
+    parts.push(`<chats>\n${blocks.join('\n\n')}\n</chats>`)
+  }
 
-  parts.push(`上の中のトピックの記録を踏まえて、「${input.topicName}」トピックの summary.md を書き直してください。
+  parts.push(`上の会話を踏まえて、「${input.tagName}」タグの覚え書きを書き直してください。
 
-- ここに書くのは、中のどれで話しても効かせたい共有の前提です。
-- 一つの話に閉じた経緯はそれぞれの要約に任せ、ここでは繰り返さないでください。
 - すでに書かれている内容は消さずに、変わったところだけ直し、新しく分かったことを足します。
+- 個々のやりとりを列挙するのではなく、続けて話すために必要な事実と経緯を残します。
 - 会話のたびに読み込まれるので、簡潔に保ってください。
 - そのままファイルに保存できる形で、本文だけを返します。全体をコードブロックで
   囲まないでください。`)

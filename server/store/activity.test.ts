@@ -13,11 +13,17 @@ process.env.TZ = 'Asia/Tokyo'
 
 const { readFamilyActivity, listRecentActivity } = await import('./activity')
 const { appendMessage } = await import('./log')
-const { assertTopicName, assertTopicRef, assertUser, familyUser } = await import('./paths')
+const { asTopicName, assertUser, familyUser } = await import('./paths')
 const { createTopic } = await import('./topic')
 const { ensureFamily } = await import('./user')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
+
+function idOf(slug: string) {
+  const id = asTopicName(slug)
+  assert.ok(id)
+  return id
+}
 
 function message(
   text: string,
@@ -35,38 +41,35 @@ beforeEach(async () => {
 
 describe('listRecentActivity', () => {
   it('ユーザーごとに最新の会話だけを返す', async () => {
-    const parent = await createTopic(assertUser('taro'), { name: '勉強' })
-    const math = await createTopic(assertUser('taro'), { name: '算数', emoji: '📐' }, assertTopicName(parent.slug))
-    const history = await createTopic(assertUser('taro'), { name: '歴史' }, assertTopicName(parent.slug))
+    const math = await createTopic(assertUser('taro'), { name: '算数', emoji: '📐' })
+    const history = await createTopic(assertUser('taro'), { name: '歴史' })
 
     await appendMessage(
       assertUser('taro'),
-      assertTopicRef(parent.slug, assertTopicName(math.slug)),
+      idOf(math.slug),
       message('算数の質問', new Date('2026-08-11T12:00:00+09:00')),
     )
     await appendMessage(
       assertUser('taro'),
-      assertTopicRef(parent.slug, assertTopicName(history.slug)),
+      idOf(history.slug),
       message('歴史の質問', new Date('2026-08-10T10:00:00+09:00')),
     )
 
     const entries = await listRecentActivity()
     assert.equal(entries.length, 1)
     assert.equal(entries[0]?.user, 'taro')
-    assert.equal(entries[0]?.sub, assertTopicName(math.slug))
+    assert.equal(entries[0]?.slug, math.slug)
     assert.equal(entries[0]?.text, '算数の質問')
     assert.equal(entries[0]?.emoji, '📐')
-    assert.equal(entries[0]?.topicName, '勉強')
-    assert.equal(entries[0]?.subName, '算数')
+    assert.equal(entries[0]?.name, '算数')
   })
 
   it('同じ会話の古い発言は出さない', async () => {
-    const parent = await createTopic(assertUser('taro'), { name: '器' })
-    const child = await createTopic(assertUser('taro'), { name: '子' }, assertTopicName(parent.slug))
-    const ref = assertTopicRef(parent.slug, assertTopicName(child.slug))
+    const topic = await createTopic(assertUser('taro'), { name: '子' })
+    const id = idOf(topic.slug)
 
-    await appendMessage(assertUser('taro'), ref, message('きのう', new Date('2026-08-10T10:00:00+09:00')))
-    await appendMessage(assertUser('taro'), ref, message('きょう', new Date('2026-08-11T12:00:00+09:00')))
+    await appendMessage(assertUser('taro'), id, message('きのう', new Date('2026-08-10T10:00:00+09:00')))
+    await appendMessage(assertUser('taro'), id, message('きょう', new Date('2026-08-11T12:00:00+09:00')))
 
     const entries = await listRecentActivity()
     assert.deepEqual(
@@ -77,18 +80,16 @@ describe('listRecentActivity', () => {
 
   it('ユーザーをまたいでも新しい順に並べる', async () => {
     const a = await createTopic(assertUser('taro'), { name: 'A' })
-    const aChild = await createTopic(assertUser('taro'), { name: 'a1' }, assertTopicName(a.slug))
     const b = await createTopic(assertUser('hanako'), { name: 'B' })
-    const bChild = await createTopic(assertUser('hanako'), { name: 'b1' }, assertTopicName(b.slug))
 
     await appendMessage(
       assertUser('taro'),
-      assertTopicRef(a.slug, assertTopicName(aChild.slug)),
+      idOf(a.slug),
       message('太郎', new Date('2026-08-10T09:00:00+09:00')),
     )
     await appendMessage(
       assertUser('hanako'),
-      assertTopicRef(b.slug, assertTopicName(bChild.slug)),
+      idOf(b.slug),
       message('花子', new Date('2026-08-11T09:00:00+09:00')),
     )
 
@@ -100,35 +101,31 @@ describe('listRecentActivity', () => {
   })
 
   it('話していないユーザーは出さない', async () => {
-    const parent = await createTopic(assertUser('taro'), { name: '器' })
-    await createTopic(assertUser('taro'), { name: '子' }, assertTopicName(parent.slug))
-
+    await createTopic(assertUser('taro'), { name: '子' })
     assert.deepEqual(await listRecentActivity(), [])
   })
 
-  it('新しい空の器があっても、話した会話の方を取る', async () => {
-    const old = await createTopic(assertUser('taro'), { name: '古い器' })
-    const child = await createTopic(assertUser('taro'), { name: '子' }, assertTopicName(old.slug))
+  it('新しい空の会話があっても、話した会話の方を取る', async () => {
+    const old = await createTopic(assertUser('taro'), { name: '古い話' })
     await appendMessage(
       assertUser('taro'),
-      assertTopicRef(old.slug, assertTopicName(child.slug)),
+      idOf(old.slug),
       message('昨日の話', new Date('2026-08-10T10:00:00+09:00')),
     )
-    await createTopic(assertUser('taro'), { name: '新しい器' })
+    await createTopic(assertUser('taro'), { name: '新しい話' })
 
     const entries = await listRecentActivity()
     assert.equal(entries.length, 1)
-    assert.equal(entries[0]?.topicName, '古い器')
+    assert.equal(entries[0]?.name, '古い話')
     assert.equal(entries[0]?.text, '昨日の話')
   })
 
   it('空白を畳んで抜粋する', async () => {
-    const parent = await createTopic(assertUser('taro'), { name: '器' })
-    const child = await createTopic(assertUser('taro'), { name: '子' }, assertTopicName(parent.slug))
+    const topic = await createTopic(assertUser('taro'), { name: '子' })
     const long = 'あ'.repeat(100)
     await appendMessage(
       assertUser('taro'),
-      assertTopicRef(parent.slug, assertTopicName(child.slug)),
+      idOf(topic.slug),
       message(`  行1\n\n行2  ${long}`, new Date()),
     )
 
@@ -148,19 +145,14 @@ describe('readFamilyActivity', () => {
     assert.equal(await readFamilyActivity(), null)
   })
 
-  it('いちばん新しい子トピックを一行返す', async () => {
+  it('いちばん新しい会話を一行返す', async () => {
     const user = familyUser()
-    const parent = await createTopic(user, { name: '日常' })
-    const child = await createTopic(user, { name: '買い物' }, assertTopicName(parent.slug))
-    await appendMessage(
-      user,
-      assertTopicRef(parent.slug, assertTopicName(child.slug)),
-      { ...message('牛乳', new Date()), author: 'taro' },
-    )
+    const topic = await createTopic(user, { name: '買い物' })
+    await appendMessage(user, idOf(topic.slug), { ...message('牛乳', new Date()), author: 'taro' })
 
     const entry = await readFamilyActivity()
     assert.ok(entry)
-    assert.equal(entry.subName, '買い物')
+    assert.equal(entry.name, '買い物')
     assert.equal(entry.text, '牛乳')
     assert.equal(entry.author, 'taro')
   })

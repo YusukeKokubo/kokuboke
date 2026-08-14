@@ -13,12 +13,12 @@ process.env.TZ = 'Asia/Tokyo'
 
 const { appendMessage, countUserMessages, readAll, readLastEntry, readRecent } = await import('./log')
 const { localDate, stamp } = await import('../../shared/date')
-const { assertTopicRef, assertUser, logsDir } = await import('./paths')
+const { assertTopicName, assertUser, logsDir } = await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
 const USER = assertUser('taro')
-const TOPIC = assertTopicRef('math')
+const TOPIC = assertTopicName('math')
 
 function message(text: string, at: Date, images: string[] = []): Message {
   return { id: crypto.randomUUID(), role: 'user', text, images, at: at.toISOString() }
@@ -69,7 +69,7 @@ describe('appendMessage と readRecent', () => {
   })
 
   it('ログが無いトピックは空を返す', async () => {
-    assert.deepEqual(await readRecent(USER, assertTopicRef('not-yet'), 3), [])
+    assert.deepEqual(await readRecent(USER, assertTopicName('not-yet'), 3), [])
   })
 
   it('壊れた行は捨てて残りを読む', async () => {
@@ -100,7 +100,7 @@ describe('readAll', () => {
   })
 
   it('ログが無いトピックは空を返す', async () => {
-    assert.deepEqual(await readAll(USER, assertTopicRef('not-yet')), [])
+    assert.deepEqual(await readAll(USER, assertTopicName('not-yet')), [])
   })
   it('日付名でない jsonl は読まない', async () => {
     await appendMessage(USER, TOPIC, message('正規', new Date()))
@@ -129,7 +129,7 @@ describe('readLastEntry', () => {
   })
 
   it('まだ話していないトピックは null', async () => {
-    assert.equal(await readLastEntry(USER, assertTopicRef('not-yet')), null)
+    assert.equal(await readLastEntry(USER, assertTopicName('not-yet')), null)
   })
 
   it('最新のファイルが空でも、その前のファイルから最後の一件を拾う', async () => {

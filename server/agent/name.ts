@@ -38,3 +38,23 @@ export function parseName(raw: string): { name: string; emoji?: string } | null 
   const first = emoji ? Array.from(emoji)[0] : undefined
   return { name, emoji: first && /\p{Extended_Pictographic}/u.test(first) ? first : undefined }
 }
+
+/** タグ付けの返事から名前の配列を取り出す。 */
+export function parseTags(raw: string): string[] {
+  const body = raw.replace(/```[a-z]*\n?/gi, '').trim()
+  const start = body.indexOf('{')
+  const end = body.lastIndexOf('}')
+  if (start === -1 || end <= start) return []
+
+  try {
+    const parsed = JSON.parse(body.slice(start, end + 1)) as { tags?: unknown }
+    if (!Array.isArray(parsed.tags)) return []
+    return parsed.tags
+      .filter((tag): tag is string => typeof tag === 'string')
+      .map((tag) => normalizeTopicName(tag))
+      .filter(Boolean)
+      .slice(0, 5)
+  } catch {
+    return []
+  }
+}

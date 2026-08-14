@@ -7,34 +7,15 @@ export { isTopicName, normalizeTopicName } from './topic-name'
 
 declare const userBrand: unique symbol
 declare const topicBrand: unique symbol
-declare const refBrand: unique symbol
 
 /** assertUser を通したユーザー名。素の string とは別型。 */
 export type UserName = string & { readonly [userBrand]: 'user' }
 
-/** assertTopicName / toTopicName を通したトピック名。 */
-export type TopicName = string & { readonly [topicBrand]: 'topic' }
-
-type VerifiedTopicRefShape =
-  | { kind: 'group'; topic: TopicName }
-  | { kind: 'child'; topic: TopicName; sub: TopicName }
-
 /**
- * 検証済みのトピック位置。assertTopicRef / topicRef だけが作る。
- * 入れ子は一段まで。slug 未定の途中状態は載せない。
- * 画面側の TopicRef（shared/types）とは別物。
+ * assertTopicName / toTopicName を通した名前。
+ * 会話の id（untitled-日付）とタグ名の両方に使う。
  */
-export type VerifiedTopicRef = VerifiedTopicRefShape & { readonly [refBrand]: 'VerifiedTopicRef' }
-
-/** 器（トップレベル）を指すか。 */
-export function isGroupRef(ref: VerifiedTopicRef): ref is VerifiedTopicRef & { kind: 'group' } {
-  return ref.kind === 'group'
-}
-
-/** VerifiedTopicRef からフォルダ名（slug）を取り出す。 */
-export function refSlug(ref: VerifiedTopicRef): TopicName {
-  return isGroupRef(ref) ? ref.topic : ref.sub
-}
+export type TopicName = string & { readonly [topicBrand]: 'topic' }
 
 /**
  * 入力からフォルダ名をつくる。使えない文字を落としてもなお残らない名前だけ、
@@ -80,18 +61,13 @@ export function assertAuthor(author: string): string {
   return author
 }
 
-/** route 入口で呼ぶ。 */
+/** route 入口で呼ぶ。会話 id とタグ名の両方に使う。 */
 export function assertTopicName(topic: string): TopicName {
   const name = asTopicName(topic)
   if (!name) {
-    throw new BadRequestError('トピック名が不正です')
+    throw new BadRequestError('名前が不正です')
   }
   return name
-}
-
-/** 検証済みの名前から VerifiedTopicRef を組む。store 内の組み立て用。 */
-export function topicRef(topic: TopicName, sub?: TopicName): VerifiedTopicRef {
-  return (sub ? { kind: 'child', topic, sub } : { kind: 'group', topic }) as VerifiedTopicRef
 }
 
 /** 検証済みの user からディレクトリを組み立てる。 */
@@ -103,25 +79,25 @@ export function topicsDir(user: UserName): string {
   return path.join(userDir(user), 'topics')
 }
 
-/** URL から届いた組を検査して ref にする。route 入口で呼ぶ。 */
-export function assertTopicRef(topic: string, sub?: string | null): VerifiedTopicRef {
-  const parent = assertTopicName(topic)
-  return sub ? topicRef(parent, assertTopicName(sub)) : topicRef(parent)
+export function tagsDir(user: UserName): string {
+  return path.join(userDir(user), 'tags')
 }
 
-/** 検証済みの ref からディレクトリを組み立てる。 */
-export function topicDir(user: UserName, ref: VerifiedTopicRef): string {
-  const dir = path.join(topicsDir(user), ref.topic)
-  if (isGroupRef(ref)) return dir
-  return path.join(dir, ref.sub)
+export function tagFile(user: UserName, tag: TopicName): string {
+  return path.join(tagsDir(user), `${tag}.md`)
 }
 
-export function logsDir(user: UserName, ref: VerifiedTopicRef): string {
-  return path.join(topicDir(user, ref), 'logs')
+/** 検証済みの id から会話ディレクトリを組み立てる。 */
+export function topicDir(user: UserName, id: TopicName): string {
+  return path.join(topicsDir(user), id)
 }
 
-export function imagesDir(user: UserName, ref: VerifiedTopicRef): string {
-  return path.join(topicDir(user, ref), 'images')
+export function logsDir(user: UserName, id: TopicName): string {
+  return path.join(topicDir(user, id), 'logs')
+}
+
+export function imagesDir(user: UserName, id: TopicName): string {
+  return path.join(topicDir(user, id), 'images')
 }
 
 /**

@@ -3,11 +3,10 @@ import { BadRequestError, NotFoundError } from '../errors'
 import type { Audience } from '../agent/prompt'
 import {
   assertAuthor,
-  assertTopicRef,
+  assertTopicName,
   assertUser,
   familyUser,
-  isGroupRef,
-  type VerifiedTopicRef,
+  type TopicName,
   type UserName,
 } from '../store/paths'
 import { topicExists } from '../store/topic'
@@ -29,11 +28,9 @@ export interface Space {
   audience: Audience
   /**
    * 順番待ちの鍵。個人は人ごとに一つで、同じ人の多重送信をここで弾く。
-   * 共有スペースはトピックごとで、別の話なら家族が同時に話せる。
+   * 共有スペースは会話ごとで、別の話なら家族が同時に話せる。
    */
-  busyKey(ref: VerifiedTopicRef): string
-  /** 鍵がトピックごとに分かれているか。器を消すとき、中の子まで見る必要があるかの判断に使う。 */
-  busyPerTopic: boolean
+  busyKey(id: TopicName): string
   /** 発言者。共有スペースは必ず名乗る。個人は URL 自体がその人のものなので付けない。 */
   authorOf(body: Record<string, unknown>): string | undefined
   /** profile.md の中身。共有スペースには置かないので空文字。 */
@@ -50,7 +47,6 @@ function personalSpace(user: UserName): Space {
     mediaSegment: user,
     audience: { kind: 'personal', user },
     busyKey: () => user,
-    busyPerTopic: false,
     authorOf: () => undefined,
     profile: () => readProfile(user),
   }
@@ -63,9 +59,7 @@ function familySpace(): Space {
     user,
     mediaSegment: FAMILY,
     audience: { kind: 'family' },
-    // 個人のユーザー名とぶつからないよう区切りを挟む。器は `_family:器`、子は `_family:器/子`。
-    busyKey: (ref) => (isGroupRef(ref) ? `${user}:${ref.topic}` : `${user}:${ref.topic}/${ref.sub}`),
-    busyPerTopic: true,
+    busyKey: (id) => `${user}:${id}`,
     authorOf: (body) => {
       const raw = typeof body.author === 'string' ? body.author.trim() : ''
       if (!raw) {
@@ -85,15 +79,13 @@ export function spacePaths(suffix = ''): string[] {
   return [`/api/users/:user${suffix}`, `/api/${FAMILY}${suffix}`]
 }
 
-/**
- * トピックを指す経路。入れ子は一段だけで、親と子で処理は変わらないので、
- * `sub` の有無だけが違う形も一緒に返して同じハンドラに載せる。
- */
+/** 会話を指す経路。id は一段だけ。 */
 export function topicPaths(suffix = ''): string[] {
-  return [
-    ...spacePaths(`/topics/:topic${suffix}`),
-    ...spacePaths(`/topics/:topic/sub/:sub${suffix}`),
-  ]
+  return spacePaths(`/topics/:topic${suffix}`)
+}
+
+export function tagPaths(suffix = ''): string[] {
+  return spacePaths(`/tags/:tag${suffix}`)
 }
 
 /**
@@ -114,19 +106,18 @@ export function resolveMediaSpace(c: Context): Space {
   return segment === FAMILY ? familySpace() : personalSpace(assertUser(segment))
 }
 
-export function target(c: Context): { space: Space; ref: VerifiedTopicRef } {
-  // 経路を配列で渡すと Hono が名前を推論できないので、空文字に落として検査に回す。
+export function target(c: Context): { space: Space; id: TopicName } {
   return {
     space: resolveSpace(c),
-    ref: assertTopicRef(c.req.param('topic') ?? '', c.req.param('sub')),
+    id: assertTopicName(c.req.param('topic') ?? ''),
   }
 }
 
 /** 経路から取り出したうえで、実体があることまで確かめる。 */
-export async function requireTopic(c: Context): Promise<{ space: Space; ref: VerifiedTopicRef }> {
+export async function requireTopic(c: Context): Promise<{ space: Space; id: TopicName }> {
   const found = target(c)
-  if (!(await topicExists(found.space.user, found.ref))) {
-    throw new NotFoundError('トピックが見つかりません')
+  if (!(await topicExists(found.space.user, found.id))) {
+    throw new NotFoundError('会話が見つかりません')
   }
   return found
 }

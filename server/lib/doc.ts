@@ -1,7 +1,7 @@
 import type { Context, Hono } from 'hono'
 import { readText } from './body'
 
-/** profile / CLAUDE.md / summary.md の GET/PUT。キーと読み書きだけ渡せば足りる。 */
+/** profile / CLAUDE.md / タグ本文の GET/PUT。キーと読み書きだけ渡せば足りる。 */
 export function markdownDoc<K extends string>(
   app: Hono,
   paths: string | string[],

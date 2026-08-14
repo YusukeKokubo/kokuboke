@@ -14,11 +14,9 @@ const {
   assertInsideDataDir,
   assertAuthor,
   assertTopicName,
-  assertTopicRef,
   assertUser,
   asTopicName,
   familyUser,
-  isGroupRef,
   isTopicName,
   normalizeTopicName,
   toTopicName,
@@ -174,16 +172,6 @@ describe('asTopicName', () => {
     assert.equal(asTopicName('a/b'), null)
     assert.equal(asTopicName(''), null)
     assert.equal(asTopicName('あ'.repeat(61)), null)
-  })
-})
-
-describe('isGroupRef', () => {
-  it('group なら器', () => {
-    assert.equal(isGroupRef(assertTopicRef('スキンケア')), true)
-  })
-
-  it('child なら子', () => {
-    assert.equal(isGroupRef(assertTopicRef('スキンケア', '肌の記録')), false)
   })
 })
 

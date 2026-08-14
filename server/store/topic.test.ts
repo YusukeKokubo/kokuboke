@@ -9,150 +9,137 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kokuboke-test-'))
 process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 
-const { createTopic, deleteTopic, readChildSources, readClaude, topicExists, writeClaude, writeSummary } =
-  await import('./topic')
+const {
+  createTopic,
+  deleteTopic,
+  listTopics,
+  readTopic,
+  renameTopic,
+  shouldAutoName,
+  shouldAutoTag,
+  topicExists,
+  writeTags,
+} = await import('./topic')
 const { appendMessage, readAll } = await import('./log')
-const { assertTopicName, assertTopicRef, assertUser, imagesDir, logsDir, topicDir } =
+const { asTopicName, assertTopicName, assertUser, imagesDir, logsDir, topicDir } =
   await import('./paths')
 const { NotFoundError } = await import('../errors')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
 const USER = assertUser('taro')
-const REF = assertTopicRef('math')
 
 beforeEach(async () => {
-  const dir = topicDir(USER, REF)
-  await fsp.rm(dir, { recursive: true, force: true })
-  await fsp.mkdir(dir, { recursive: true })
+  await fsp.rm(path.join(dataDir, 'taro'), { recursive: true, force: true })
 })
 
-describe('トピックの CLAUDE.md', () => {
-  it('無いファイルは空文字', async () => {
-    assert.equal(await readClaude(USER, REF), '')
+function idOf(slug: string) {
+  const id = asTopicName(slug)
+  assert.ok(id)
+  return id
+}
+
+describe('createTopic', () => {
+  it('フォルダは untitled- の id で、見出しは json に置く', async () => {
+    const topic = await createTopic(USER, { name: '買い物', emoji: '🛒' })
+    assert.match(topic.slug, /^untitled-\d{8}-\d{4}/)
+    assert.equal(topic.name, '買い物')
+    assert.equal(topic.emoji, '🛒')
+    assert.deepEqual(topic.tags, [])
+
+    const dir = topicDir(USER, idOf(topic.slug))
+    assert.ok((await fsp.stat(dir)).isDirectory())
+    const link = await fsp.readlink(path.join(dir, 'AGENTS.md'))
+    assert.equal(link, path.join('..', '..', 'CLAUDE.md'))
   })
 
-  it('書いたものが topicDir の CLAUDE.md に残る', async () => {
-    await writeClaude(USER, REF, '  答えを先に出さない  ')
-    const file = path.join(topicDir(USER, REF), 'CLAUDE.md')
-    assert.equal(await fsp.readFile(file, 'utf8'), '答えを先に出さない\n')
-    assert.equal(await readClaude(USER, REF), '答えを先に出さない\n')
-  })
-
-  it('子トピックも同じ関数で読める', async () => {
-    const child = assertTopicRef('math', '分数')
-    await fsp.mkdir(topicDir(USER, child), { recursive: true })
-    await writeClaude(USER, child, '途中式を見る')
-    assert.equal(await readClaude(USER, child), '途中式を見る\n')
-    assert.equal(await readClaude(USER, REF), '')
+  it('名前なしでも作れる', async () => {
+    const topic = await createTopic(USER, {})
+    assert.equal(topic.name, '')
+    assert.match(topic.slug, /^untitled-/)
   })
 })
 
-describe('readChildSources', () => {
-  const parent = assertTopicRef('器')
+describe('renameTopic', () => {
+  it('見出しだけ変えてフォルダは動かさない', async () => {
+    const topic = await createTopic(USER, { name: '仮' })
+    const id = idOf(topic.slug)
+    const renamed = await renameTopic(USER, id, { name: '買い物メモ', emoji: '📝' })
 
-  beforeEach(async () => {
-    await fsp.rm(topicDir(USER, parent), { recursive: true, force: true })
+    assert.equal(renamed.slug, topic.slug)
+    assert.equal(renamed.name, '買い物メモ')
+    assert.equal(renamed.emoji, '📝')
+    assert.ok(await topicExists(USER, id))
   })
+})
 
-  it('中のトピックの要約と直近の会話を返す', async () => {
-    const group = await createTopic(USER, { name: '器' })
-    const child = await createTopic(USER, { name: '買い物' }, assertTopicName(group.slug))
-    const ref = assertTopicRef(group.slug, child.slug)
+describe('writeTags', () => {
+  it('配列を書き、tagTried が立つ', async () => {
+    const topic = await createTopic(USER, {})
+    const id = idOf(topic.slug)
+    const next = await writeTags(USER, id, ['秋の旅行'])
+    assert.deepEqual(next.tags, ['秋の旅行'])
+    assert.equal(await shouldAutoTag(USER, id), false)
+  })
+})
 
-    await writeSummary(USER, ref, '牛乳が切れている')
-    await appendMessage(USER, ref, {
+describe('listTopics', () => {
+  it('最後に話した順', async () => {
+    const older = await createTopic(USER, { name: '古い' })
+    const newer = await createTopic(USER, { name: '新しい' })
+    await appendMessage(USER, idOf(older.slug), {
       id: '1',
       role: 'user',
-      text: '卵も足して',
+      text: 'きのう',
       images: [],
-      at: new Date().toISOString(),
+      at: '2026-08-10T10:00:00.000Z',
+    })
+    await appendMessage(USER, idOf(newer.slug), {
+      id: '2',
+      role: 'user',
+      text: 'きょう',
+      images: [],
+      at: '2026-08-11T10:00:00.000Z',
     })
 
-    const sources = await readChildSources(USER, assertTopicName(group.slug), 3)
-    assert.equal(sources.length, 1)
-    assert.equal(sources[0]?.name, '買い物')
-    assert.equal(sources[0]?.summary.trim(), '牛乳が切れている')
+    const list = await listTopics(USER)
     assert.deepEqual(
-      sources[0]?.history.map((m) => m.text),
-      ['卵も足して'],
+      list.map((t) => t.name),
+      ['新しい', '古い'],
     )
-  })
-
-  it('会話が無い子は history が空', async () => {
-    await createTopic(USER, { name: '器' })
-    await createTopic(USER, { name: '買い物' }, assertTopicName('器'))
-
-    const sources = await readChildSources(USER, assertTopicName('器'), 3)
-    assert.equal(sources.length, 1)
-    assert.deepEqual(sources[0]?.history, [])
-  })
-
-  it('中が無ければ空', async () => {
-    await createTopic(USER, { name: '器' })
-    assert.deepEqual(await readChildSources(USER, assertTopicName('器'), 3), [])
   })
 })
 
 describe('deleteTopic', () => {
-  it('子トピックだけを削除できる', async () => {
-    const group = `器-削除-${crypto.randomUUID().slice(0, 8)}`
-    await createTopic(USER, { name: group })
-    await createTopic(USER, { name: '子その1' }, assertTopicName(group))
-    await createTopic(USER, { name: '子その2' }, assertTopicName(group))
-
-    await deleteTopic(USER, assertTopicRef(group, '子その1'))
-
-    assert.equal(await topicExists(USER, assertTopicRef(group, '子その1')), false)
-    assert.equal(await topicExists(USER, assertTopicRef(group, '子その2')), true)
-  })
-
-  it('器を削除すると中の子も一緒に消える', async () => {
-    const group = `器-丸ごと-${crypto.randomUUID().slice(0, 8)}`
-    await createTopic(USER, { name: group })
-    await createTopic(USER, { name: '子' }, assertTopicName(group))
-
-    await deleteTopic(USER, assertTopicRef(group))
-
-    assert.equal(await topicExists(USER, assertTopicRef(group)), false)
-    assert.equal(await topicExists(USER, assertTopicRef(group, '子')), false)
-  })
-
   it('実体が無ければ NotFoundError', async () => {
-    await assert.rejects(
-      () => deleteTopic(USER, assertTopicRef(`器-無い-${crypto.randomUUID().slice(0, 8)}`)),
-      NotFoundError,
-    )
+    await assert.rejects(() => deleteTopic(USER, assertTopicName('無い会話')), NotFoundError)
   })
 
   it('logs と images の中身まで消える', async () => {
-    const group = `器-残骸-${crypto.randomUUID().slice(0, 8)}`
-    await createTopic(USER, { name: group })
-    await createTopic(USER, { name: '子' }, assertTopicName(group))
-    const ref = assertTopicRef(group, '子')
+    const topic = await createTopic(USER, { name: '消す' })
+    const id = idOf(topic.slug)
 
-    await appendMessage(USER, ref, {
+    await appendMessage(USER, id, {
       id: '1',
       role: 'user',
       text: '消える発言',
       images: [],
       at: new Date().toISOString(),
     })
-    await fsp.writeFile(path.join(imagesDir(USER, ref), '20260813_120000_ab12.jpg'), 'dummy')
+    await fsp.writeFile(path.join(imagesDir(USER, id), '20260813_120000_ab12.jpg'), 'dummy')
 
-    await deleteTopic(USER, ref)
+    await deleteTopic(USER, id)
 
-    await assert.rejects(() => fsp.readdir(logsDir(USER, ref)), { code: 'ENOENT' })
-    await assert.rejects(() => fsp.readdir(imagesDir(USER, ref)), { code: 'ENOENT' })
+    assert.equal(await topicExists(USER, id), false)
+    await assert.rejects(() => fsp.readdir(logsDir(USER, id)), { code: 'ENOENT' })
+    await assert.rejects(() => fsp.readdir(imagesDir(USER, id)), { code: 'ENOENT' })
   })
 
-  it('同じ名前で作り直しても前の会話は見えない', async () => {
-    const group = `器-作り直し-${crypto.randomUUID().slice(0, 8)}`
-    await createTopic(USER, { name: group })
-    await createTopic(USER, { name: '子' }, assertTopicName(group))
-    const ref = assertTopicRef(group, '子')
+  it('消したあとに書かれても、前の会話は作り直した会話に出てこない', async () => {
+    const topic = await createTopic(USER, { name: '子' })
+    const id = idOf(topic.slug)
 
-    await appendMessage(USER, ref, {
+    await appendMessage(USER, id, {
       id: '1',
       role: 'assistant',
       text: '前のトピックの返事',
@@ -160,42 +147,61 @@ describe('deleteTopic', () => {
       at: new Date().toISOString(),
     })
 
-    await deleteTopic(USER, ref)
-    await createTopic(USER, { name: '子' }, assertTopicName(group))
-
-    assert.deepEqual(await readAll(USER, ref), [])
-  })
-
-  /**
-   * 削除とすれ違った POST が logs を作り直すと、topic.json の無いフォルダが残る。
-   * そこへ同じ名前で作り直しても、消えた会話までは戻らないことを押さえる。
-   * すれ違い自体は messages 側の topicExists で塞ぐ。
-   */
-  it('消したあとに書かれても、前の会話は作り直したトピックに出てこない', async () => {
-    const group = `器-すれ違い-${crypto.randomUUID().slice(0, 8)}`
-    await createTopic(USER, { name: group })
-    await createTopic(USER, { name: '子' }, assertTopicName(group))
-    const ref = assertTopicRef(group, '子')
-
-    await appendMessage(USER, ref, {
-      id: '1',
-      role: 'assistant',
-      text: '前のトピックの返事',
-      images: [],
-      at: new Date().toISOString(),
-    })
-
-    await deleteTopic(USER, ref)
-    await appendMessage(USER, ref, {
+    await deleteTopic(USER, id)
+    await appendMessage(USER, id, {
       id: '2',
       role: 'user',
       text: 'すれ違って届いた発言',
       images: [],
       at: new Date().toISOString(),
     })
-    await createTopic(USER, { name: '子' }, assertTopicName(group))
+    const created = await createTopic(USER, { name: '子' })
 
-    const texts = (await readAll(USER, ref)).map((m) => m.text)
+    const texts = (await readAll(USER, idOf(created.slug))).map((m) => m.text)
     assert.ok(!texts.includes('前のトピックの返事'), `消した会話が残っている: ${texts.join(' / ')}`)
+  })
+})
+
+describe('shouldAutoName / shouldAutoTag', () => {
+  it('三往復するまで立たない', async () => {
+    const topic = await createTopic(USER, {})
+    const id = idOf(topic.slug)
+    assert.equal(await shouldAutoName(USER, id), false)
+    assert.equal(await shouldAutoTag(USER, id), false)
+
+    for (let i = 0; i < 3; i++) {
+      await appendMessage(USER, id, {
+        id: String(i),
+        role: 'user',
+        text: `発言 ${i}`,
+        images: [],
+        at: new Date().toISOString(),
+      })
+    }
+
+    assert.equal(await shouldAutoName(USER, id), true)
+    assert.equal(await shouldAutoTag(USER, id), true)
+  })
+
+  it('名前が付いたら命名はもう走らない', async () => {
+    const topic = await createTopic(USER, { name: '買い物' })
+    const id = idOf(topic.slug)
+    for (let i = 0; i < 3; i++) {
+      await appendMessage(USER, id, {
+        id: String(i),
+        role: 'user',
+        text: `発言 ${i}`,
+        images: [],
+        at: new Date().toISOString(),
+      })
+    }
+    assert.equal(await shouldAutoName(USER, id), false)
+    assert.equal(await shouldAutoTag(USER, id), true)
+  })
+})
+
+describe('readTopic', () => {
+  it('無い会話は NotFoundError', async () => {
+    await assert.rejects(() => readTopic(USER, assertTopicName('無い')), NotFoundError)
   })
 })

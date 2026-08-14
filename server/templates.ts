@@ -3,7 +3,7 @@ export function familyClaudeMd(): string {
   return `# 家族の共有スペース
 
 このファイルは家族みんなが使う共有スペースの AI の土台になる。
-ここに書いたことは、どのトピックの会話にも効く。手で書き換えて育てていく。
+ここに書いたことは、どの会話にも効く。手で書き換えて育てていく。
 
 ## 役割
 
@@ -28,7 +28,7 @@ export function userClaudeMd(user: string): string {
   return `# ${user} について
 
 このファイルは ${user} 用の AI の土台になる。ここに書いたことは
-どのトピックの会話にも効く。手で書き換えて育てていく。
+どの会話にも効く。手で書き換えて育てていく。
 
 ## 人となり
 
@@ -45,34 +45,11 @@ export function userClaudeMd(user: string): string {
 `
 }
 
-/** 全トピックから参照される人物像。手で書くもので、AI は書き換えない。 */
+/** 全会話から参照される人物像。手で書くもので、AI は書き換えない。 */
 export function userProfileMd(user: string): string {
   return `# ${user} のプロフィール
 
-どのトピックでも覚えておいてほしいことをここに書く。
+どの会話でも覚えておいてほしいことをここに書く。
 会話のたびに読み込まれる。書き換えるのは人の側だけ。
-`
-}
-
-export function topicClaudeMd(name: string): string {
-  return `# ${name}
-
-このトピックでの役割をここに書く。上の階層の CLAUDE.md も一緒に読まれる。
-
-## 役割
-
-（ここに書く）
-`
-}
-
-export function summaryMd(name: string, scope: 'topic' | 'group'): string {
-  const where =
-    scope === 'group'
-      ? '中のどれで話しても効かせたい共有の前提。'
-      : 'このトピックで積み重なった内容の覚え書き。'
-  return `# ${name} の要約
-
-${where}ヘッダの「要約」から読み書きできる。
-AI に整理させることもできるが、保存するかどうかは自分で決める。
 `
 }
