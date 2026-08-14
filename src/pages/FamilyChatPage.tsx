@@ -7,7 +7,6 @@ import { dayKey, dayLabel, topicLabel } from '@/lib/format'
 import { rememberedUser } from '@/lib/remember'
 import { familyTopicHref } from '@/lib/route'
 import { cn } from '@/lib/utils'
-import { AuthorPicker } from '@/components/AuthorPicker'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
 import { TopicClaudeDialog } from '@/components/DocDialog'
@@ -29,7 +28,7 @@ export default function FamilyChatPage() {
   const { topic = '', sub = '' } = useParams()
   const navigate = useNavigate()
   const ref = useMemo(() => ({ kind: 'child' as const, topic, sub }), [topic, sub])
-  const [selfAuthor, setSelfAuthor] = useState(() => rememberedUser() ?? '')
+  const [selfAuthor] = useState(() => rememberedUser() ?? '')
 
   const [meta, setMeta] = useState<Topic | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -107,7 +106,7 @@ export default function FamilyChatPage() {
 
   async function handleSend(input: { text: string; images: File[] }) {
     if (!selfAuthor) {
-      setNotice('名前が決まっていないよ。上の「書く人」を選んでね')
+      setNotice('名前が決まっていないよ。いったん入口から名前を入れてね')
       throw new Error('author missing')
     }
 
@@ -223,7 +222,6 @@ export default function FamilyChatPage() {
             要約
           </Button>
         </div>
-        <AuthorPicker className="px-1" onChange={setSelfAuthor} />
       </header>
 
       <main ref={content} className="flex flex-1 flex-col gap-3 px-3 py-4">

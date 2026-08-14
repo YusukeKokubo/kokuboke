@@ -7,7 +7,6 @@ import { relativeLabel, topicLabel } from '@/lib/format'
 import { rememberedUser } from '@/lib/remember'
 import { familyTopicHref } from '@/lib/route'
 import { cn } from '@/lib/utils'
-import { AuthorPicker } from '@/components/AuthorPicker'
 import { Button } from '@/components/ui/button'
 import { FamilyClaudeDialog } from '@/components/FamilyClaudeDialog'
 import { TopicClaudeDialog } from '@/components/DocDialog'
@@ -28,7 +27,7 @@ type DeleteTarget =
 
 export default function FamilyTopicListPage() {
   const navigate = useNavigate()
-  const [self, setSelf] = useState(() => rememberedUser() ?? '')
+  const [self] = useState(() => rememberedUser() ?? '')
   const [topics, setTopics] = useState<GroupTopic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -103,8 +102,7 @@ export default function FamilyTopicListPage() {
             </Button>
           </div>
         </div>
-        <div className="flex items-center justify-between gap-2">
-          <AuthorPicker onChange={setSelf} />
+        <div className="flex items-center justify-end gap-2">
           {self && (
             <Link
               to={`/user/${encodeURIComponent(self)}`}

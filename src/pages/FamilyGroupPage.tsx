@@ -6,7 +6,6 @@ import { familyApi } from '@/lib/api'
 import { topicLabel } from '@/lib/format'
 import { familyTopicHref } from '@/lib/route'
 import { cn } from '@/lib/utils'
-import { AuthorPicker } from '@/components/AuthorPicker'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { TopicClaudeDialog } from '@/components/DocDialog'
 import { SummaryDialog } from '@/components/SummaryDialog'
@@ -61,7 +60,6 @@ export default function FamilyGroupPage() {
             要約
           </Button>
         </div>
-        <AuthorPicker className="px-1" />
       </header>
 
       <main className="flex flex-1 flex-col gap-3 px-3 py-4">
