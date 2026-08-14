@@ -204,7 +204,7 @@ export default function ChatPage() {
   const unused = knownTags.filter((tag) => !meta?.tags.includes(tag))
 
   return (
-    <>
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col">
       <header className="flex flex-col gap-1.5 border-b px-3 py-2">
         <div className="min-w-0">
           <button
@@ -358,6 +358,6 @@ export default function ChatPage() {
           setMeta(await space.api.renameTopic(id, { name, emoji }))
         }}
       />
-    </>
+    </div>
   )
 }

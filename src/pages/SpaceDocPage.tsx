@@ -16,7 +16,7 @@ function SpaceDocPage({ title, spec }: { title: string; spec: DocSpec }) {
   }, [space])
 
   return (
-    <main className="flex flex-1 flex-col gap-3 px-3 py-3">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-3 py-3">
       <p className="text-muted-foreground text-xs">{spec.description}</p>
       <DocPane
         spec={spec}

@@ -62,7 +62,7 @@ function TagList() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-3 px-3 py-3">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-3 py-3">
       <p className="text-muted-foreground text-xs">付いているタグの本文は、話すたびに読み込まれるよ</p>
       <form
         className="flex gap-2"
@@ -175,7 +175,7 @@ function TagDoc({ name }: { name: string }) {
 
   return (
     <>
-      <main className="flex flex-1 flex-col gap-3 px-3 py-3">
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-3 py-3">
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-[15px] font-semibold">{name}</h2>
