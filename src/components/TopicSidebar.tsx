@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Trash2 } from 'lucide-react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { FileText, Tags, Trash2, UserRound } from 'lucide-react'
 import type { Topic } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
@@ -76,9 +76,14 @@ export function TopicsProvider({ children }: { children: ReactNode }) {
   return <TopicsContext.Provider value={{ topics, error, reload }}>{children}</TopicsContext.Provider>
 }
 
+function atPath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
 export function TopicSidebar() {
   const space = useSpace()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { id } = useParams()
   const { setOpenMobile } = useSidebar()
   const { topics, error, reload } = useTopics()
@@ -116,6 +121,44 @@ export function TopicSidebar() {
           </SidebarHeader>
         )}
         <SidebarContent className={space.kind === 'family' ? 'pt-[calc(0.5rem+var(--safe-top))]' : undefined}>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={atPath(pathname, space.tags)}
+                    render={<Link to={space.tags} />}
+                    onClick={() => setOpenMobile(false)}
+                  >
+                    <Tags />
+                    タグ
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                {space.profile && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      isActive={pathname === space.profile}
+                      render={<Link to={space.profile} />}
+                      onClick={() => setOpenMobile(false)}
+                    >
+                      <UserRound />
+                      プロフィール
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname === space.claude}
+                    render={<Link to={space.claude} />}
+                    onClick={() => setOpenMobile(false)}
+                  >
+                    <FileText />
+                    CLAUDE.md
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
           <SidebarGroup>
             <SidebarGroupLabel>会話</SidebarGroupLabel>
             <SidebarGroupContent>
