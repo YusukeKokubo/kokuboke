@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Settings2, Tags, Trash2 } from 'lucide-react'
+import { FileText, Plus, Tags, Trash2, UserRound } from 'lucide-react'
 import type { Topic } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { personalHome, useSpace } from '@/lib/space'
-import { Button, buttonVariants } from '@/components/ui/button'
-import { SpaceDocsDialog } from '@/components/DocsDialog'
+import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,6 @@ export default function TopicListPage() {
   const navigate = useNavigate()
   const [topics, setTopics] = useState<Topic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [docsOpen, setDocsOpen] = useState(false)
   const [deleting, setDeleting] = useState<Topic | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -77,20 +76,26 @@ export default function TopicListPage() {
             <h1 className="truncate text-base font-semibold">{space.title}</h1>
             <p className="text-muted-foreground text-xs">{space.subtitle}</p>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <Link to={space.tags} className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
-              <Tags className="size-4" />
+          <ButtonGroup className="shrink-0">
+            <Button variant="outline" size="sm" render={<Link to={space.tags} />}>
+              <Tags />
               タグ
-            </Link>
-            <Button size="sm" variant="ghost" onClick={() => setDocsOpen(true)}>
-              <Settings2 className="size-4" />
-              設定
+            </Button>
+            {space.profile && (
+              <Button variant="outline" size="sm" render={<Link to={space.profile} />}>
+                <UserRound />
+                プロフィール
+              </Button>
+            )}
+            <Button variant="outline" size="sm" render={<Link to={space.claude} />}>
+              <FileText />
+              CLAUDE.md
             </Button>
             <Button size="sm" onClick={() => void start()} disabled={starting}>
-              <Plus className="size-4" />
+              <Plus />
               追加
             </Button>
-          </div>
+          </ButtonGroup>
         </div>
 
         {space.kind === 'family' && space.author && (
@@ -184,8 +189,6 @@ export default function TopicListPage() {
           ))}
         </ul>
       </main>
-
-      <SpaceDocsDialog open={docsOpen} onOpenChange={setDocsOpen} />
 
       <Dialog
         open={deleting !== null}

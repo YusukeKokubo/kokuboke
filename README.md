@@ -369,9 +369,11 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 - `/user/:user` — 会話一覧。最後に話した順に並び、最後の発言を抜粋で出す。
 - `/user/:user/tags` — その人のタグ一覧。
 - `/user/:user/tags/:tag.md` — タグ本文。ファイルは `tags/{tag}.md`。
+- `/user/:user/profile.md` — プロフィール。ファイルは `profile.md`。
+- `/user/:user/CLAUDE.md` — その人の `CLAUDE.md`。
 - `/user/:user/:id` — チャット。日付の区切り、画像付きの吹き出し、
   返答が届くにつれて伸びていく表示、見出しの下のタグ。
-- `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/:id` — 家族共有スペースの同じ画面。
+- `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/CLAUDE.md` / `/family/:id` — 家族共有スペースの同じ画面。プロフィールは無い。
 - `/admin` — イメージの差し替え。
 
 返答を作っているあいだは、ファイルを開いたりウェブを見に行ったりしていることを
@@ -381,6 +383,7 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 タグの本文は `/user/:user/tags/:tag.md` と `/family/tags/:tag.md` から開く。
 そのまま手で直せるし、AI に整理させることもできる（使うモデルは、そのタグが
 付いているいちばん新しい会話のもの）。
+プロフィールと `CLAUDE.md` も専用画面から直す。
 AI が返すのは案で、保存を押すまでファイルは変わらない。
 気に入らなければ「元に戻す」で開いたときの内容に戻る。
 

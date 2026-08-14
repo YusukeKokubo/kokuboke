@@ -7,6 +7,7 @@ import { FamilySpace, PersonalSpace } from '@/lib/space'
 import TopicListPage from './pages/TopicListPage'
 import ChatPage from './pages/ChatPage'
 import TagsPage from './pages/TagsPage'
+import { ClaudePage, ProfilePage } from './pages/SpaceDocPage'
 import AdminPage from './pages/AdminPage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,17 +23,21 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/user" replace />} />
       <Route path="/user" element={<UserPicker />} />
-      {/* 一覧・会話・タグは、どちらのスペースでも同じものを使う。 */}
+      {/* 一覧・会話・タグ・文書は、どちらのスペースでも同じものを使う。 */}
       <Route path="/user/:user" element={<PersonalSpace />}>
         <Route index element={<TopicListPage />} />
         <Route path="tags" element={<TagsPage />} />
         <Route path="tags/:tag" element={<TagsPage />} />
+        <Route path="profile.md" element={<ProfilePage />} />
+        <Route path="CLAUDE.md" element={<ClaudePage />} />
         <Route path=":id" element={<ChatPage />} />
       </Route>
       <Route path="/family" element={<FamilySpace />}>
         <Route index element={<TopicListPage />} />
         <Route path="tags" element={<TagsPage />} />
         <Route path="tags/:tag" element={<TagsPage />} />
+        <Route path="profile.md" element={<ProfilePage />} />
+        <Route path="CLAUDE.md" element={<ClaudePage />} />
         <Route path=":id" element={<ChatPage />} />
       </Route>
       {/* 家族の誰の画面でもない。鍵は URL の ?key= で渡す。 */}

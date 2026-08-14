@@ -5,7 +5,7 @@ import { rememberUser, rememberedUser } from '@/lib/remember'
 
 /**
  * 画面がどのスペースに居るか。個人と家族共有スペースの違いをここに集める。
- * 一覧・会話・タグの三画面は、この値の中身が変わるだけで同じものを使う。
+ * 一覧・会話・タグ・文書の画面は、この値の中身が変わるだけで同じものを使う。
  */
 export interface Space {
   kind: 'personal' | 'family'
@@ -15,6 +15,10 @@ export interface Space {
   tags: string
   /** 一つのタグ本文への経路。 */
   tagHref(tag: string): string
+  /** プロフィール（`profile.md`）への経路。共有スペースには無い。 */
+  profile?: string
+  /** CLAUDE.md への経路。 */
+  claude: string
   title: string
   subtitle: string
   /** まだ何も無いときの誘い文。 */
@@ -68,6 +72,16 @@ export function tagHref(home: string, tag: string): string {
   return `${tagsHref(home)}/${encodeURIComponent(tag)}.md`
 }
 
+/** プロフィールへの経路。ファイルは `profile.md`。個人のスペースだけ。 */
+export function profileHref(home: string): string {
+  return `${home}/profile.md`
+}
+
+/** CLAUDE.md への経路。会話 id より先に置くので、`:id` に食われない。 */
+export function claudeHref(home: string): string {
+  return `${home}/CLAUDE.md`
+}
+
 /** 個人のスペース。`/user/:user` の下。 */
 export function PersonalSpace() {
   const { user = '' } = useParams()
@@ -79,6 +93,8 @@ export function PersonalSpace() {
       home,
       tags: tagsHref(home),
       tagHref: (tag) => tagHref(home, tag),
+      profile: profileHref(home),
+      claude: claudeHref(home),
       title: user,
       subtitle: '会話',
       owner: user,
@@ -119,6 +135,7 @@ export function FamilySpace() {
       home: '/family',
       tags: tagsHref('/family'),
       tagHref: (tag) => tagHref('/family', tag),
+      claude: claudeHref('/family'),
       title: '共有スペース',
       subtitle: '家族のメモ・買い物',
       emptyHint: (
