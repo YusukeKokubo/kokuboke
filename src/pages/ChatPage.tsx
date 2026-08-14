@@ -247,29 +247,29 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* 要約と CLAUDE.md。題名とモデル名で横が詰まっとるので、ここは絵札だけ。 */}
+        {/* 題名とモデル名で横が詰まるが、絵札だけだと何の口か分からんので名前を出す。 */}
         <Button
-          size="icon"
+          size="sm"
           variant="ghost"
           onClick={() => setSummaryOpen(true)}
           disabled={status !== 'idle'}
-          aria-label="要約"
           title="このトピックの要約"
-          className="size-9 shrink-0"
+          className="shrink-0"
         >
           <NotebookPen className="size-4" />
+          要約
         </Button>
 
         <Button
-          size="icon"
+          size="sm"
           variant="ghost"
           onClick={() => setClaudeOpen(true)}
           disabled={status !== 'idle'}
-          aria-label="CLAUDE.md"
           title="このトピックの CLAUDE.md"
-          className="size-9 shrink-0"
+          className="shrink-0"
         >
           <Bot className="size-4" />
+          CLAUDE.md
         </Button>
       </header>
 
