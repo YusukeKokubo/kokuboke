@@ -3,7 +3,7 @@
 家族それぞれの AI と話すための、自宅 NAS で動く PWA チャットアプリ。
 
 応答は Anthropic API を直接叩くのではなく、コンテナ内の CLI をヘッドレスで起動して得る。
-**Claude Code** と **cursor-agent** のどちらでも動き、トピックごとに使うモデルを選べる。
+**Claude Code** と **cursor-agent** のどちらでも動き、会話ごとに使うモデルを選べる。
 
 ## 構成
 
@@ -20,53 +20,53 @@
 /data
 ├── _family/                   家族共有スペース（予約名。FAMILY_DIR で変えられる）
 │   ├── CLAUDE.md              家族みんなの秘書役の設定（手書き）
-│   └── topics/                個人と同じ二段構造。profile.md は無い
+│   ├── tags/                  個人と同じ。profile.md は無い
+│   └── topics/
 └── taro/
-    ├── CLAUDE.md              人物の設定（手書き・全トピック共通）
-    ├── profile.md             全トピック共通の覚え書き（手書き）
+    ├── CLAUDE.md              人物の設定（手書き。どの会話でも効く）
+    ├── profile.md             人物像の覚え書き（手書き）
+    ├── tags/
+    │   └── 秋の旅行.md         タグの本文。ファイル名がタグ名
     └── topics/
-        └── スキンケア/          トップレベル。ここでは話さない
-            ├── topic.json     表示名・絵文字・作成日
-            ├── CLAUDE.md      下のどれで話しても効く
-            ├── summary.md     共有の要約（画面から読み書きする）
-            └── 肌の記録/        ここで話す
-                ├── topic.json
-                ├── CLAUDE.md   この話での役割
-                ├── summary.md  この話に閉じた覚え書き
-                ├── logs/       YYYYMMDD.md（閲覧用） / YYYYMMDD.jsonl（読み戻し用）
-                └── images/     YYYYMMDD_HHMMSS.jpg
+        └── untitled-20260814-0938/
+            ├── topic.json     見出し・絵文字・エンジン・タグ・nameTried / tagTried
+            ├── AGENTS.md      → ../../CLAUDE.md
+            ├── logs/          YYYYMMDD.md（閲覧用） / YYYYMMDD.jsonl（読み戻し用）
+            └── images/        YYYYMMDD_HHMMSS.jpg
 ```
 
-階層は二段で固定。トップレベルは `CLAUDE.md` と `summary.md` を置く器で、会話は必ず
-その中のトピックで行う。共有したい前提を上に、その話に閉じた要約を下に置くと、
-中のどれで話しても上の要約が一緒に読み込まれる。器では話さないので、
-`logs/` と `images/` も作らない。
+会話フォルダの名前は id（`untitled-日付`）で、作ったあと動かさない。
+見出しは `topic.json` の `name` だけを変えるので、改名しても URL は変わらない。
 
-## 名前は後から付く
+整理はタグ。結びは `topic.json` の `tags` 配列で、本文は `tags/{タグ名}.md`。
+会話に付いているタグの本文は、話すたびにプロンプトへ入る。タグが無ければ覚え書きは無い。
+人／家族直下の `CLAUDE.md` と、個人の `profile.md` は残す。会話ごとの `CLAUDE.md` と
+`summary.md` は置かない。
 
-器の「＋」から始めたトピックには名前がない。`topic.json` の `name` は空で、
-フォルダは `untitled-20260809-2242` のような仮の名前になる。本人が三回話したところで
-会話を読ませ、短い名前と絵文字を付けてフォルダごと改名する。同じ器の中で名前が
-ぶつかったら、末尾に `-2` を足して避ける。
+起動時に、昔の二段（器の下に子）があれば一段へ移す。器名をタグにし、子を
+`topics/{id}/` へ動かす。`untitled-` で始まっていればそれを id に使い、そうでなければ
+新しい id を振る。
 
-命名に使うのはそのトピックのエンジン・モデル（会話と同じ）。
-一度走らせたら `topic.json` に `nameTried` が立ち、名前が付かなくても二度は試さない。
-気に入らなければ、チャット画面のタイトルを押していつでも変えられる。
+## 名前とタグは後から付く
 
-改名するとフォルダ名が変わり、URL と画像の経路もそこに乗っているので変わる。
-画面は返ってきた `slug` で経路を差し替える。
+「追加」で始めた会話には名前がない。`topic.json` の `name` は空で、フォルダは
+`untitled-20260814-0938` のような id になる。本人が三回話したところで会話を読ませ、
+短い名前と絵文字を付ける。フォルダは動かさない。
+
+同じタイミングでタグも一度付ける。無いタグなら空の `tags/{タグ名}.md` を作る。
+人が外したものも、付け直すと戻ることがある。自動は `nameTried` / `tagTried` で
+一度だけ。気に入らなければ、チャット画面のタイトルやタグからいつでも変えられる。
+
+命名にもタグ付けにも、その会話のエンジン・モデルを使う。
 
 Claude Code は `CLAUDE.md` を、cursor-agent は `AGENTS.md` を、どちらも作業ディレクトリから
-親を遡って読む。そこで各フォルダに `AGENTS.md` → `CLAUDE.md` のシンボリックリンクを張ってある。
-人格の定義は `CLAUDE.md` 1 か所に置いたまま、どちらのエンジンでも同じ振る舞いになる。
-Claude Code は `AGENTS.md` を読まないので二重に読み込まれることはない。
+親を遡って読む。人／家族直下に `AGENTS.md` → `CLAUDE.md` を、会話フォルダには
+`AGENTS.md` → `../../CLAUDE.md` を張ってある。人格の定義は直下の `CLAUDE.md` 1 か所に
+置いたまま、どちらのエンジンでも同じ振る舞いになる。Claude Code は `AGENTS.md` を
+読まないので二重に読み込まれることはない。
 
-トピックのフォルダを cwd にするだけで、人物の設定とトピックの設定が合成される。
-
-フォルダ名はトピックの名前そのもので、日本語も使える。パスの区切りになる文字と、
-SMB で扱えない文字（`: * ? " < > |`）だけを弾く。NAS を覗いたときに中身が分かるように、
-別の識別子は持たせていない。フォルダを改名すれば URL も変わる。表示名も揃えるなら
-`topic.json` の `name` も直す。
+タグ名の文字規則は、以前のトピック名と同じ。パスの区切りになる文字と、
+SMB で扱えない文字（`: * ? " < > |`）だけを弾く。
 
 ## 開発
 
@@ -285,34 +285,35 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | --- | --- | --- |
 | GET | `/api/health` | 稼働確認と同時実行の状況 |
 | GET | `/api/engines` | 選べるエンジンとモデルの一覧 |
-| GET | `/api/users/:user/topics` | トピック一覧（直近に話した順）。中のトピックは `children` に入る |
-| POST | `/api/users/:user/topics` | トップレベル（器）の作成 |
-| POST | `/api/users/:user/topics/:topic/sub` | そのトピックの中に作る。話せるのはこちら。`name` は省略できる |
-| PATCH | `/api/users/:user/topics/:topic/model` | エンジンとモデルを変える |
-| PATCH | `/api/users/:user/topics/:topic/name` | 名前と絵文字を変える。フォルダが動くので返す slug で経路を差し替える |
-| POST | `/api/users/:user/topics/:topic/name` | 会話を読ませて名前を付ける。付いた名前で改名まで行う |
-| GET | `/api/users/:user/topics/:topic/messages` | 保存されている会話すべて |
-| POST | `/api/users/:user/topics/:topic/messages` | 送信。SSE で返答を流す |
-| GET | `/api/users/:user/topics/:topic/summary` | 要約（`summary.md`）を読む |
-| PUT | `/api/users/:user/topics/:topic/summary` | 要約を保存する。書き換えはここだけ |
-| POST | `/api/users/:user/topics/:topic/summary` | 要約の下書きを作らせる。SSE で流す（保存はしない） |
+| GET | `/api/users/:user/topics` | 会話一覧（最後に話した順） |
+| POST | `/api/users/:user/topics` | 会話の作成。フォルダは untitled id |
+| GET | `/api/users/:user/topics/:id` | 会話の取得 |
+| PATCH | `/api/users/:user/topics/:id/model` | エンジンとモデルを変える |
+| PATCH | `/api/users/:user/topics/:id/name` | 見出しと絵文字を変える。フォルダは動かない |
+| POST | `/api/users/:user/topics/:id/name` | 会話を読ませて名前を付ける |
+| PATCH | `/api/users/:user/topics/:id/tags` | 人がタグを付け外しする |
+| POST | `/api/users/:user/topics/:id/tags` | 会話を読ませてタグを付ける |
+| DELETE | `/api/users/:user/topics/:id` | 会話の削除 |
+| GET | `/api/users/:user/topics/:id/messages` | 保存されている会話すべて |
+| POST | `/api/users/:user/topics/:id/messages` | 送信。SSE で返答を流す |
+| GET | `/api/users/:user/tags` | タグ一覧 |
+| POST | `/api/users/:user/tags` | タグの新規 |
+| GET | `/api/users/:user/tags/:tag` | タグ本文を読む |
+| PUT | `/api/users/:user/tags/:tag` | タグ本文を保存する |
+| PATCH | `/api/users/:user/tags/:tag` | タグの改名。会話の配列も付け替える |
+| DELETE | `/api/users/:user/tags/:tag` | タグの削除。会話からは外す |
+| POST | `/api/users/:user/tags/:tag/draft` | タグ本文の下書き。SSE で流す（保存はしない） |
 | GET | `/api/users/:user/profile` | プロフィール（`profile.md`）を読む |
 | PUT | `/api/users/:user/profile` | プロフィールを保存する |
 | GET | `/api/users/:user/claude` | ユーザーの `CLAUDE.md` を読む |
 | PUT | `/api/users/:user/claude` | ユーザーの `CLAUDE.md` を保存する |
-| GET | `/api/users/:user/topics/:topic/claude` | トピックの `CLAUDE.md` を読む |
-| PUT | `/api/users/:user/topics/:topic/claude` | トピックの `CLAUDE.md` を保存する |
-| GET | `/media/:user/:topic/:file` | 保存済み画像 |
+| GET | `/media/:user/:id/:file` | 保存済み画像 |
 | GET | `/api/family/activity` | 共有スペースの直近の一行（個人の一覧に出す入口） |
-
-トピックを指す経路はどれも、`:topic` のうしろに `/sub/:sub` を足すと中で分けたほうを指す。
-たとえば `/api/users/taro/topics/スキンケア/sub/肌の記録/messages`。画像も
-`/media/:user/:topic/sub/:sub/:file` になる。トップレベルへの送信は 400 を返す。
 
 家族共有スペースは、上の表の `/api/users/:user` を `/api/family` に、
 `/media/:user` を `/media/family` に置き換えた経路で、同じハンドラが応える。
 違いは二つだけ。送信に `author`（`USERS` にある名前）が必須で、`profile.md` が無い。
-順番待ちも粒度が違う。個人は人ごとに一つずつだが、共有スペースはトピックごとなので、
+順番待ちも粒度が違う。個人は人ごとに一つずつだが、共有スペースは会話ごとなので、
 別の話なら家族が同時に話せる。
 
 送信は `multipart/form-data` で、本文が `text`、画像が `images`（4 枚まで）。
@@ -320,8 +321,8 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 
 ## モデルの選び方
 
-トピックごとに「どのエンジンのどのモデルで話すか」を持つ。チャット画面のタイトル下に
-出ている名前を押すと変えられる。会話の記録と要約はそのまま引き継がれる。
+会話ごとに「どのエンジンのどのモデルで話すか」を持つ。チャット画面のタイトル下に
+出ている名前を押すと変えられる。会話の記録はそのまま引き継がれる。
 
 | | Claude Code | cursor-agent |
 | --- | --- | --- |
@@ -331,10 +332,10 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | 役割の指示 | `--append-system-prompt` | 本文の先頭に積む |
 | 権限 | ツール単位の許可リストで `Read` だけ | `--mode ask`（読み取り専用) |
 
-新しいトピックの既定は **Cursor のおまかせ**。`DEFAULT_ENGINE` と `CURSOR_MODEL` で変えられる。
+新しい会話の既定は **Cursor のおまかせ**。`DEFAULT_ENGINE` と `CURSOR_MODEL` で変えられる。
 
-会話も要約の整理も読み取りだけで走る。要約の下書きと自動命名は、
-そのトピックで会話しているエンジン・モデルをそのまま使う。
+会話もタグ本文の整理も読み取りだけで走る。タグの下書きと自動命名・自動タグは、
+その会話で使っているエンジン・モデルをそのまま使う。
 
 cursor-agent はイメージにも入れてあるが、`cursor-agent login` を一度通す必要がある。
 ビルド中の導入で転ぶときや、そもそも要らないときは `.env` に `INSTALL_CURSOR=false`
@@ -342,11 +343,12 @@ cursor-agent はイメージにも入れてあるが、`cursor-agent login` を�
 
 ## 安全側に倒してあるところ
 
-- AI に渡すのはファイルの読み取りだけ。会話でも要約の整理でも、書き込みもシェル実行もできない。
-- 要約を整理させても、返ってくるのは新しい本文の案だけ。人が確かめて保存を押したときに、
-  サーバーが `summary.md` を書き換える。承認しなければ何も起きない。
-- ユーザー名は `USERS` に列挙したものだけ、トピック名は英数字とハイフンだけを受け付ける。
-  組み立てたパスがデータディレクトリの外に出ていないかを最後にもう一度確かめる。
+- AI に渡すのはファイルの読み取りだけ。会話でもタグ本文の整理でも、書き込みもシェル実行もできない。
+- タグ本文を整理させても、返ってくるのは新しい本文の案だけ。人が確かめて保存を押したときに、
+  サーバーが `tags/{タグ名}.md` を書き換える。承認しなければ何も起きない。
+- ユーザー名は `USERS` に列挙したものだけ。会話 id とタグ名は、パスの区切りと
+  SMB で扱えない文字を弾く。組み立てたパスがデータディレクトリの外に出ていないかを
+  最後にもう一度確かめる。
 - 同じ人からの多重送信は待たせずに 409 で返す。全体の同時実行数は `MAX_CONCURRENT` で頭打ちにする。
 
 ## 開発時の注意
@@ -364,20 +366,22 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 
 ## 画面
 
-- `/user/:user` — トピック一覧。直近に話した順に並び、最後の発言を抜粋で出す。
-- `/user/:user/:topic` — 器（トップレベル）。ここでは話さず、中への入口と
-  `CLAUDE.md` / 要約の置き場だけを見せる。
-- `/user/:user/:topic/:sub` — チャット。日付の区切り、画像付きの吹き出し、
-  返答が届くにつれて伸びていく表示、ヘッダの「要約」。
+- `/user/:user` — 会話一覧。最後に話した順に並び、最後の発言を抜粋で出す。
+- `/user/:user/tags` — その人のタグ一覧。
+- `/user/:user/tags/:tag.md` — タグ本文。ファイルは `tags/{tag}.md`。
+- `/user/:user/:id` — チャット。日付の区切り、画像付きの吹き出し、
+  返答が届くにつれて伸びていく表示、見出しの下のタグ。
+- `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/:id` — 家族共有スペースの同じ画面。
 - `/admin` — イメージの差し替え。
 
 返答を作っているあいだは、ファイルを開いたりウェブを見に行ったりしていることを
 吹き出しの下に一言で出す。一文字目が届くまで数十秒かかる回があり、
 点が三つ弾んでいるだけでは止まって見えるため。
 
-「要約」はそのトピックの `summary.md` を開く画面。そのまま手で直せるし、
-AI に整理させることもできる（使うモデルは会話と同じ）。AI が返すのは案で、
-保存を押すまでファイルは変わらない。
+タグの本文は `/user/:user/tags/:tag.md` と `/family/tags/:tag.md` から開く。
+そのまま手で直せるし、AI に整理させることもできる（使うモデルは、そのタグが
+付いているいちばん新しい会話のもの）。
+AI が返すのは案で、保存を押すまでファイルは変わらない。
 気に入らなければ「元に戻す」で開いたときの内容に戻る。
 
 返答は Markdown として組む。数式は LaTeX で書かれていれば KaTeX で描画する。
