@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
+import { api } from '@/lib/api'
 import { rememberUser, rememberedUser } from '@/lib/remember'
 import TopicListPage from './pages/TopicListPage'
 import GroupPage from './pages/GroupPage'
@@ -60,15 +61,27 @@ export default function App() {
 
 /**
  * 名前の入っていない入口。この端末で一度でも開けた名前があればそこへ送る。
- * 誰がいるかは尋ねられないので、覚えが無ければ名前を入れる（または URL を開く）。
+ * 覚えが無ければ名前を入れる（または名前入りの URL を開く）。
+ *
+ * 打ち間違えたまま覚えると、共有スペースは開けるのに書くときだけ弾かれて、
+ * 何が悪いのか分からなくなる。名前は入れた時点で照らし合わせておく。
  */
 function UserPicker() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const remembered = rememberedUser()
   const [name, setName] = useState('')
+  const [users, setUsers] = useState<string[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const native = Capacitor.isNativePlatform()
   const next = safeNext(params.get('next'))
+
+  useEffect(() => {
+    api
+      .health()
+      .then((health) => setUsers(health.users))
+      .catch(() => {})
+  }, [])
 
   if (remembered) {
     const dest = next ?? `/user/${encodeURIComponent(remembered)}`
@@ -79,6 +92,11 @@ function UserPicker() {
     event.preventDefault()
     const user = name.trim()
     if (!user) return
+    // 一覧が取れなかったときは止めない。名前を入れる道まで塞ぐことになる。
+    if (users && !users.includes(user)) {
+      setError('その名前は登録されていないよ。綴りを確かめてね')
+      return
+    }
     rememberUser(user)
     const dest = next ?? `/user/${encodeURIComponent(user)}`
     navigate(dest, { replace: true })
@@ -95,7 +113,10 @@ function UserPicker() {
       <form onSubmit={submit} className="flex w-full max-w-xs flex-col gap-2">
         <Input
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => {
+            setName(event.target.value)
+            setError(null)
+          }}
           placeholder="taro"
           autoCapitalize="off"
           autoCorrect="off"
@@ -103,6 +124,7 @@ function UserPicker() {
           autoComplete="username"
           aria-label="名前"
         />
+        {error && <p className="text-destructive text-xs">{error}</p>}
         <Button type="submit" disabled={!name.trim()}>
           はじめる
         </Button>
