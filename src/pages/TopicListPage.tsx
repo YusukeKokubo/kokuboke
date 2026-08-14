@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { NotebookPen, Plus, ScrollText, Settings2, Trash2 } from 'lucide-react'
+import { NotebookPen, Plus, Settings2, Trash2 } from 'lucide-react'
 import type { ChildTopic, GroupTopic, TopicRef } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { personalHome, useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { TopicClaudeDialog } from '@/components/DocDialog'
-import { SummaryDialog } from '@/components/SummaryDialog'
+import { SpaceDocsDialog, TopicDocsDialog } from '@/components/DocsDialog'
 import { NewTopicDialog } from '@/components/NewTopicDialog'
 import {
   Dialog,
@@ -18,7 +17,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { FamilyEntry } from '@/components/FamilyEntry'
-import { SpaceDocsDialog } from '@/components/SpaceDocsDialog'
 
 type DeleteTarget =
   | { kind: 'group'; topic: GroupTopic }
@@ -30,8 +28,7 @@ export default function TopicListPage() {
   const [topics, setTopics] = useState<GroupTopic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const [summaryFor, setSummaryFor] = useState<TopicRef | null>(null)
-  const [claudeFor, setClaudeFor] = useState<TopicRef | null>(null)
+  const [docsFor, setDocsFor] = useState<TopicRef | null>(null)
   const [docsOpen, setDocsOpen] = useState(false)
   const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
@@ -152,16 +149,9 @@ export default function TopicListPage() {
                 </div>
                 <div className="flex flex-wrap items-center">
                   <TopicButton
-                    label="CLAUDE.md"
-                    title={`${topic.name} の CLAUDE.md`}
-                    onClick={() => setClaudeFor({ kind: 'group', topic: topic.slug })}
-                  >
-                    <ScrollText className="size-3.5" />
-                  </TopicButton>
-                  <TopicButton
-                    label="要約"
-                    title={`${topic.name} の要約`}
-                    onClick={() => setSummaryFor({ kind: 'group', topic: topic.slug })}
+                    label="文書"
+                    title={`${topic.name} の要約と CLAUDE.md`}
+                    onClick={() => setDocsFor({ kind: 'group', topic: topic.slug })}
                   >
                     <NotebookPen className="size-3.5" />
                   </TopicButton>
@@ -219,16 +209,10 @@ export default function TopicListPage() {
         }}
       />
 
-      <SummaryDialog
-        target={summaryFor}
-        open={summaryFor !== null}
-        onOpenChange={(open) => !open && setSummaryFor(null)}
-      />
-
-      <TopicClaudeDialog
-        target={claudeFor}
-        open={claudeFor !== null}
-        onOpenChange={(open) => !open && setClaudeFor(null)}
+      <TopicDocsDialog
+        target={docsFor}
+        open={docsFor !== null}
+        onOpenChange={(open) => !open && setDocsFor(null)}
       />
 
       <SpaceDocsDialog open={docsOpen} onOpenChange={setDocsOpen} />

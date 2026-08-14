@@ -61,6 +61,14 @@ export function topicHref(home: string, ref: TopicRef): string {
   return isGroupRef(ref) ? base : `${base}/${encodeURIComponent(ref.sub)}`
 }
 
+/**
+ * 器そのものの画面は持たない。中の一覧・要約・CLAUDE.md はどれもトピック一覧の
+ * 器の行から開けるので、画面を分けても導線が生えなかった。古いブックマークだけ流す。
+ */
+export function SpaceHomeRedirect() {
+  return <Navigate to={useSpace().home} replace />
+}
+
 /** 個人のスペース。`/user/:user` の下。 */
 export function PersonalSpace() {
   const { user = '' } = useParams()

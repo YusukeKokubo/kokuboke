@@ -1,16 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import type { TopicRef } from '../../shared/types'
-import { useSpace } from '@/lib/space'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 
 type Status = 'loading' | 'idle' | 'saving'
 
@@ -144,89 +136,5 @@ export function DocEditor({ doc, placeholder, busy: externalBusy, actions, onSav
         </Button>
       </div>
     </>
-  )
-}
-
-interface DialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  description: string
-  placeholder?: string
-  source: string
-  load: () => Promise<string>
-  save: (text: string) => Promise<string>
-}
-
-/**
- * Markdown 文書の確認と編集。保存を押すまでファイルは変わらない。
- */
-export function DocDialog({
-  open,
-  onOpenChange,
-  title,
-  description,
-  placeholder,
-  source,
-  load,
-  save,
-}: DialogProps) {
-  const doc = useDoc(open, source, load)
-
-  async function handleSave() {
-    if (await doc.save(save)) onOpenChange(false)
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(next) => !doc.busy && onOpenChange(next)}>
-      <DialogContent className="flex max-h-[90dvh] flex-col gap-3 sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DocEditor doc={doc} placeholder={placeholder} onSave={handleSave} />
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-interface TopicClaudeProps {
-  /** どのトピックの振る舞いか。閉じている間は null になりうる。 */
-  target: TopicRef | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
-
-/** トピックの CLAUDE.md。器でも子でも、どのスペースでも同じ口。 */
-export function TopicClaudeDialog({ target, open, onOpenChange }: TopicClaudeProps) {
-  const space = useSpace()
-  const ref = useStableRef(target)
-  const sub = ref?.kind === 'child' ? ref.sub : undefined
-
-  const load = useCallback(
-    () => (ref ? space.api.getTopicClaude(ref) : Promise.resolve('')),
-    [space, ref],
-  )
-
-  const save = useCallback(
-    async (text: string) => (ref ? space.api.saveTopicClaude(ref, text) : text),
-    [space, ref],
-  )
-
-  return (
-    <DocDialog
-      open={open && ref !== null}
-      onOpenChange={onOpenChange}
-      title="CLAUDE.md"
-      description={
-        sub
-          ? 'この話での役割。上の話題の設定も一緒に読まれるよ。'
-          : 'この話題での役割。上の CLAUDE.md も一緒に読まれるよ。'
-      }
-      placeholder="まだ書いていないよ。"
-      source={space.docKey(ref)}
-      load={load}
-      save={save}
-    />
   )
 }

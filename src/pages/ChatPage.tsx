@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, NotebookPen, Pencil, ScrollText } from 'lucide-react'
+import { ChevronLeft, NotebookPen, Pencil } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
-import { TopicClaudeDialog } from '@/components/DocDialog'
-import { SummaryDialog } from '@/components/SummaryDialog'
+import { TopicDocsDialog } from '@/components/DocsDialog'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
 import { RenameDialog } from '@/components/RenameDialog'
@@ -37,8 +36,7 @@ export default function ChatPage() {
   const [status, setStatus] = useState<Status>('idle')
   const [notice, setNotice] = useState<string | null>(null)
   const [modelOpen, setModelOpen] = useState(false)
-  const [summaryOpen, setSummaryOpen] = useState(false)
-  const [claudeOpen, setClaudeOpen] = useState(false)
+  const [docsOpen, setDocsOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
 
   const content = useRef<HTMLElement>(null)
@@ -251,22 +249,12 @@ export default function ChatPage() {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => setClaudeOpen(true)}
-          disabled={status !== 'idle'}
-          className="shrink-0"
-        >
-          <ScrollText className="size-4" />
-          CLAUDE.md
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setSummaryOpen(true)}
+          onClick={() => setDocsOpen(true)}
           disabled={status !== 'idle'}
           className="shrink-0"
         >
           <NotebookPen className="size-4" />
-          要約
+          文書
         </Button>
       </header>
 
@@ -328,9 +316,7 @@ export default function ChatPage() {
         </DialogContent>
       </Dialog>
 
-      <SummaryDialog target={ref} open={summaryOpen} onOpenChange={setSummaryOpen} />
-
-      <TopicClaudeDialog target={ref} open={claudeOpen} onOpenChange={setClaudeOpen} />
+      <TopicDocsDialog target={ref} open={docsOpen} onOpenChange={setDocsOpen} />
 
       <RenameDialog
         target={ref}

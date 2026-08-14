@@ -3,9 +3,8 @@ import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-rou
 import { Capacitor } from '@capacitor/core'
 import { api } from '@/lib/api'
 import { rememberUser, rememberedUser } from '@/lib/remember'
-import { FamilySpace, PersonalSpace } from '@/lib/space'
+import { FamilySpace, PersonalSpace, SpaceHomeRedirect } from '@/lib/space'
 import TopicListPage from './pages/TopicListPage'
-import GroupPage from './pages/GroupPage'
 import ChatPage from './pages/ChatPage'
 import AdminPage from './pages/AdminPage'
 import { Button } from '@/components/ui/button'
@@ -25,12 +24,12 @@ export default function App() {
       {/* 一覧・器・会話の三画面は、どちらのスペースでも同じものを使う。 */}
       <Route path="/user/:user" element={<PersonalSpace />}>
         <Route index element={<TopicListPage />} />
-        <Route path=":topic" element={<GroupPage />} />
+        <Route path=":topic" element={<SpaceHomeRedirect />} />
         <Route path=":topic/:sub" element={<ChatPage />} />
       </Route>
       <Route path="/family" element={<FamilySpace />}>
         <Route index element={<TopicListPage />} />
-        <Route path=":topic" element={<GroupPage />} />
+        <Route path=":topic" element={<SpaceHomeRedirect />} />
         <Route path=":topic/:sub" element={<ChatPage />} />
       </Route>
       {/* 家族の誰の画面でもない。鍵は URL の ?key= で渡す。 */}
