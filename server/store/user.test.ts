@@ -9,8 +9,9 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kokuboke-test-'))
 process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 
-const { ensureUser, readClaude, readProfile, writeClaude, writeProfile } = await import('./user')
-const { assertUser, userDir } = await import('./paths')
+const { ensureFamily, ensureUser, readClaude, readProfile, writeClaude, writeProfile } =
+  await import('./user')
+const { assertUser, familyUser, userDir } = await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
@@ -57,6 +58,37 @@ describe('CLAUDE.md', () => {
   it('AGENTS.md のリンクは触らない', async () => {
     await writeClaude(USER, '差し替え')
     const link = path.join(userDir(USER), 'AGENTS.md')
+    assert.ok((await fsp.lstat(link)).isSymbolicLink())
+    assert.equal(await fsp.readlink(link), 'CLAUDE.md')
+  })
+})
+
+describe('家族共有スペース', () => {
+  const FAMILY = familyUser()
+
+  beforeEach(async () => {
+    await fsp.rm(userDir(FAMILY), { recursive: true, force: true })
+    await ensureFamily()
+  })
+
+  it('profile.md は置かない', async () => {
+    assert.equal(
+      await fsp
+        .stat(path.join(userDir(FAMILY), 'profile.md'))
+        .then(() => true)
+        .catch(() => false),
+      false,
+    )
+  })
+
+  it('CLAUDE.md の雛形を置く', async () => {
+    const text = await readClaude(FAMILY)
+    assert.match(text, /家族の共有スペース/)
+    assert.match(text, /秘書役/)
+  })
+
+  it('AGENTS.md のリンクを張る', async () => {
+    const link = path.join(userDir(FAMILY), 'AGENTS.md')
     assert.ok((await fsp.lstat(link)).isSymbolicLink())
     assert.equal(await fsp.readlink(link), 'CLAUDE.md')
   })

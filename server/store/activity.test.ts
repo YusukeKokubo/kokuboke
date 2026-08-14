@@ -11,10 +11,11 @@ process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro,hanako'
 process.env.TZ = 'Asia/Tokyo'
 
-const { listRecentActivity } = await import('./activity')
+const { listFamilyRecentActivity, listRecentActivity } = await import('./activity')
 const { appendMessage } = await import('./log')
-const { assertTopicName, assertTopicRef, assertUser } = await import('./paths')
+const { assertTopicName, assertTopicRef, assertUser, familyUser } = await import('./paths')
 const { createTopic } = await import('./topic')
+const { ensureFamily } = await import('./user')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
@@ -135,5 +136,32 @@ describe('listRecentActivity', () => {
     assert.ok(entry)
     assert.ok(!entry.text.includes('\n'))
     assert.equal(entry.text.length, 80)
+  })
+})
+
+describe('listFamilyRecentActivity', () => {
+  beforeEach(async () => {
+    await ensureFamily()
+  })
+
+  it('まだ誰も話していなければ null', async () => {
+    assert.equal(await listFamilyRecentActivity(), null)
+  })
+
+  it('いちばん新しい子トピックを一行返す', async () => {
+    const user = familyUser()
+    const parent = await createTopic(user, { name: '日常' })
+    const child = await createTopic(user, { name: '買い物' }, assertTopicName(parent.slug))
+    await appendMessage(
+      user,
+      assertTopicRef(parent.slug, assertTopicName(child.slug)),
+      { ...message('牛乳', new Date()), author: 'taro' },
+    )
+
+    const entry = await listFamilyRecentActivity()
+    assert.ok(entry)
+    assert.equal(entry.subName, '買い物')
+    assert.equal(entry.text, '牛乳')
+    assert.equal(entry.author, 'taro')
   })
 })

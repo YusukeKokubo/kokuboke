@@ -8,6 +8,8 @@ export interface Message {
   images: string[]
   /** ISO 8601 */
   at: string
+  /** 共有スペースの user 発言だけ。個人スペースでは付けない。 */
+  author?: string
 }
 
 export type EngineId = 'claude' | 'cursor'
@@ -173,4 +175,21 @@ export interface ActivityEntry {
   imageCount: number
   at: string
   id: string
+}
+
+/** 家族共有スペースの直近の会話一行。 */
+export interface FamilyActivityEntry {
+  /** 器の slug。 */
+  topic: string
+  /** 子トピックの slug。 */
+  sub: string
+  topicName: string
+  subName: string
+  emoji: string
+  text: string
+  imageCount: number
+  at: string
+  id: string
+  /** 直近の発言が user なら、その author。 */
+  author?: string
 }

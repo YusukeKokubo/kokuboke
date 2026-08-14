@@ -12,10 +12,12 @@ process.env.USERS = 'taro,hanako'
 
 const {
   assertInsideDataDir,
+  assertAuthor,
   assertTopicName,
   assertTopicRef,
   assertUser,
   asTopicName,
+  familyUser,
   isGroupRef,
   isTopicName,
   normalizeTopicName,
@@ -119,6 +121,26 @@ describe('assertUser', () => {
 
   it('USERS に無い名前は 404', () => {
     assert.throws(() => assertUser('unknown'), { status: 404 })
+  })
+})
+
+describe('familyUser', () => {
+  it('予約名を UserName として返す', () => {
+    assert.equal(familyUser(), '_family')
+  })
+
+  it('USERS には入っていない', () => {
+    assert.throws(() => assertUser('_family'), { status: 404 })
+  })
+})
+
+describe('assertAuthor', () => {
+  it('USERS にある名前は通す', () => {
+    assert.equal(assertAuthor('taro'), 'taro')
+  })
+
+  it('USERS に無い名前は 400', () => {
+    assert.throws(() => assertAuthor('unknown'), { status: 400 })
   })
 })
 

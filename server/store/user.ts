@@ -1,9 +1,16 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { config } from '../config'
-import { userClaudeMd, userProfileMd } from '../templates'
+import { familyClaudeMd, userClaudeMd, userProfileMd } from '../templates'
 import { readMarkdown, writeMarkdown } from './markdown'
-import { assertUser, isTopicName, topicsDir, userDir, type UserName } from './paths'
+import {
+  assertUser,
+  familyUser,
+  isTopicName,
+  topicsDir,
+  userDir,
+  type UserName,
+} from './paths'
 
 async function writeIfMissing(file: string, content: string): Promise<void> {
   try {
@@ -41,13 +48,58 @@ export async function ensureAgentsLink(dir: string): Promise<void> {
   }
 }
 
-/** ユーザーのフォルダと雛形を用意する。既にあるファイルは触らない。 */
+/** ユーザーのフォルダと雛形を用意する。既にあるファイルは触らない。家族スペースは先頭で分岐する。 */
 export async function ensureUser(user: UserName): Promise<void> {
+  if (user === familyUser()) {
+    await ensureFamily()
+    return
+  }
+
   const dir = userDir(user)
   await fs.mkdir(topicsDir(user), { recursive: true })
   await writeIfMissing(path.join(dir, 'CLAUDE.md'), userClaudeMd(user))
   await writeIfMissing(path.join(dir, 'profile.md'), userProfileMd(user))
   await ensureAgentsLink(dir)
+}
+
+/** 家族共有スペースのフォルダと雛形を用意する。profile.md は置かない。 */
+export async function ensureFamily(): Promise<void> {
+  const user = familyUser()
+  const dir = userDir(user)
+  await fs.mkdir(topicsDir(user), { recursive: true })
+  await writeIfMissing(path.join(dir, 'CLAUDE.md'), familyClaudeMd())
+  await ensureAgentsLink(dir)
+}
+
+async function ensureTopicAgentsLinks(user: UserName): Promise<void> {
+  let names: string[]
+  try {
+    names = await fs.readdir(topicsDir(user))
+  } catch {
+    return
+  }
+  for (const name of names) {
+    if (!isTopicName(name)) continue
+    const dir = path.join(topicsDir(user), name)
+    await ensureAgentsLink(dir)
+
+    // 中で分けている子トピックにも同じリンクが要る。掘るのは一段だけ。
+    let children: string[]
+    try {
+      children = await fs.readdir(dir)
+    } catch {
+      continue
+    }
+    for (const child of children) {
+      if (!isTopicName(child)) continue
+      const sub = path.join(dir, child)
+      if (!(await fs.stat(sub).then((s) => s.isDirectory()).catch(() => false))) continue
+      if (!(await fs.stat(path.join(sub, 'topic.json')).then(() => true).catch(() => false))) {
+        continue
+      }
+      await ensureAgentsLink(sub)
+    }
+  }
 }
 
 export async function ensureAllUsers(): Promise<void> {
@@ -56,37 +108,11 @@ export async function ensureAllUsers(): Promise<void> {
   for (const name of config.users) {
     const user = assertUser(name)
     await ensureUser(user)
-
-    // 先に作られていたトピックにも後からリンクを足す。
-    let names: string[]
-    try {
-      names = await fs.readdir(topicsDir(user))
-    } catch {
-      continue
-    }
-    for (const name of names) {
-      if (!isTopicName(name)) continue
-      const dir = path.join(topicsDir(user), name)
-      await ensureAgentsLink(dir)
-
-      // 中で分けている子トピックにも同じリンクが要る。掘るのは一段だけ。
-      let children: string[]
-      try {
-        children = await fs.readdir(dir)
-      } catch {
-        continue
-      }
-      for (const child of children) {
-        if (!isTopicName(child)) continue
-        const sub = path.join(dir, child)
-        if (!(await fs.stat(sub).then((s) => s.isDirectory()).catch(() => false))) continue
-        if (!(await fs.stat(path.join(sub, 'topic.json')).then(() => true).catch(() => false))) {
-          continue
-        }
-        await ensureAgentsLink(sub)
-      }
-    }
+    await ensureTopicAgentsLinks(user)
   }
+
+  await ensureFamily()
+  await ensureTopicAgentsLinks(familyUser())
 }
 
 export async function readProfile(user: UserName): Promise<string> {

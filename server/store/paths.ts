@@ -1,6 +1,9 @@
 import path from 'node:path'
 import { BadRequestError, NotFoundError } from '../errors'
 import { config } from '../config'
+import { FORBIDDEN_ALL, isTopicName, normalizeTopicName } from './topic-name'
+
+export { isTopicName, normalizeTopicName } from './topic-name'
 
 declare const userBrand: unique symbol
 declare const topicBrand: unique symbol
@@ -34,33 +37,6 @@ export function refSlug(ref: VerifiedTopicRef): TopicName {
 }
 
 /**
- * トピックの名前はそのままフォルダ名になり、URL にも出る。日本語も通す。
- * 弾くのは、パスの区切りになるものと、SMB で共有したときに扱えなくなるもの。
- * 制御文字を意図的に弾くので no-control-regex は無効にする。
- */
-// eslint-disable-next-line no-control-regex -- ファイル名に制御文字を入れないための検査
-const FORBIDDEN = /[/\\:*?"<>|\u0000-\u001f\u007f]/
-/** 落とすとき用。global な正規表現は test() で lastIndex が残るので分けて持つ。 */
-const FORBIDDEN_ALL = new RegExp(FORBIDDEN.source, 'g')
-
-/** ext4 のファイル名は 255 バイトまで。日本語は 1 文字 3 バイトなので余裕を持たせる。 */
-const MAX_BYTES = 180
-
-/** 比較と保存の前に必ず通す。濁点の分かれた形（NFD）を合成済み（NFC）に寄せる。 */
-export function normalizeTopicName(value: string): string {
-  return value.normalize('NFC').trim()
-}
-
-export function isTopicName(value: string): boolean {
-  const name = normalizeTopicName(value)
-  if (!name || name === '.' || name === '..') return false
-  // 先頭のドットは隠しファイル扱いになり、末尾のドットは SMB で落ちる。
-  if (name.startsWith('.') || name.endsWith('.')) return false
-  if (FORBIDDEN.test(name)) return false
-  return Buffer.byteLength(name) <= MAX_BYTES
-}
-
-/**
  * 入力からフォルダ名をつくる。使えない文字を落としてもなお残らない名前だけ、
  * 機械的な名前に落とす。
  */
@@ -89,6 +65,29 @@ export function assertUser(user: string): UserName {
     throw new NotFoundError('ユーザーが見つかりません')
   }
   return user as UserName
+}
+
+/** 家族共有スペース用。config.users には入れないが、パス組み立ては個人と同じ。 */
+export function familyUser(): UserName {
+  return config.familyDir as UserName
+}
+
+/** 共有スペースの発言者。USERS に無い名前は 400。 */
+export function assertAuthor(author: string): string {
+  if (!config.users.includes(author)) {
+    throw new BadRequestError('発言者が不正です')
+  }
+  return author
+}
+
+/**
+ * 共有スペースの順番待ち用キー。個人のユーザー名とぶつからないよう区切りを挟む。
+ * 器は `_family:器`、子は `_family:器/子`。
+ */
+export function familyBusyKey(ref: VerifiedTopicRef): string {
+  const head = `${config.familyDir}:`
+  if (isGroupRef(ref)) return `${head}${ref.topic}`
+  return `${head}${ref.topic}/${ref.sub}`
 }
 
 /** route 入口で呼ぶ。 */

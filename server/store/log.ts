@@ -123,7 +123,8 @@ export async function readLastEntry(user: UserName, ref: VerifiedTopicRef): Prom
 }
 
 function renderMarkdown(message: Message): string {
-  const who = message.role === 'user' ? '本人' : 'アシスタント'
+  const who =
+    message.role === 'user' ? (message.author ?? '本人') : 'アシスタント'
   const time = localTime(new Date(message.at))
 
   const lines = [`## ${time} ${who}`, '']

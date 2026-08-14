@@ -7,7 +7,7 @@ function renderHistory(messages: Message[]): string {
   if (messages.length === 0) return '（このトピックでの会話はまだありません）'
 
   const lines = messages.map((m) => {
-    const who = m.role === 'user' ? '本人' : 'あなた'
+    const who = m.role === 'user' ? (m.author ?? '本人') : 'あなた'
     const time = localTime(new Date(m.at))
     const attached = m.images.length > 0 ? `（画像 ${m.images.length} 枚）` : ''
     return `[${m.at.slice(5, 10)} ${time}] ${who}${attached}: ${m.text}`
@@ -39,6 +39,56 @@ export function chatSystemPrompt(input: { user: string; topicName: string }): st
 - ファイルの作成・編集・削除はしないでください。読み取りだけ行えます。
 - 添付画像がある場合は、示された絶対パスを Read ツールで開いて内容を踏まえて答えてください。
 - 「承知しました」のような前置きや、返答の要約は書かないでください。本文だけを返します。`
+}
+
+export function familyChatSystemPrompt(input: { topicName: string }): string {
+  const where = input.topicName
+    ? `いまのトピックは「${input.topicName}」です。`
+    : 'いまのトピックにはまだ名前が付いていません。'
+
+  return `あなたは家族向けのチャットアプリの家族共有スペースの中で応答しています。
+
+- 家族みんなが使う共有の場です。${where}
+- 会話には複数の家族メンバーの発言が混ざります。誰が何を言ったかを踏まえて答えてください。
+- 返答はスマートフォンのチャットの吹き出しに表示されます。話し言葉で簡潔に書いてください。
+- Markdown として整形されます。強調、箇条書き、表、コードブロックは使えます。
+  ただし画面が狭いので、見出しや入り組んだ表は控えめに。
+- 数式は LaTeX で書けます。文中に混ぜるときは $...$、行を分けて見せたいときは $$...$$
+  で囲んでください。式が主役になる説明では、素の文字で書くより読みやすくなります。
+- ファイルの作成・編集・削除はしないでください。読み取りだけ行えます。
+- 添付画像がある場合は、示された絶対パスを Read ツールで開いて内容を踏まえて答えてください。
+- 「承知しました」のような前置きや、返答の要約は書かないでください。本文だけを返します。`
+}
+
+export function familyChatPrompt(input: {
+  groupSummary: string
+  summary: string
+  history: Message[]
+  text: string
+  author: string
+  imagePaths: string[]
+}): string {
+  const parts: string[] = []
+
+  if (input.groupSummary.trim()) {
+    parts.push(`<group_summary>\n${input.groupSummary.trim()}\n</group_summary>`)
+  }
+  if (input.summary.trim()) {
+    parts.push(`<topic_summary>\n${input.summary.trim()}\n</topic_summary>`)
+  }
+
+  parts.push(`<conversation>\n${renderHistory(input.history)}\n</conversation>`)
+
+  const current: string[] = [`${input.author}: ${input.text.trim() || '（本文なし）'}`]
+  if (input.imagePaths.length > 0) {
+    current.push('', '添付画像（Read ツールで開いてください）:')
+    for (const p of input.imagePaths) current.push(`- ${p}`)
+  }
+  parts.push(`<current_message>\n${current.join('\n')}\n</current_message>`)
+
+  parts.push('上のメッセージに対する返答だけを書いてください。')
+
+  return parts.join('\n\n')
 }
 
 export function chatPrompt(input: {
@@ -113,6 +163,24 @@ export function summarySystemPrompt(input: {
   return `あなたは会話の記録を整理する係です。
 
 - ${where}
+- ファイルは書き換えません。新しい summary.md の全文を返すところまでが仕事です。
+  保存するかどうかは人が決めます。
+- 前置き・説明・報告は書かないでください。返すのは summary.md の中身だけです。`
+}
+
+export function familySummarySystemPrompt(input: {
+  topicName: string
+  /** 器の共有の要約を書くとき。会話は中のトピック側にある。 */
+  isGroup?: boolean
+}): string {
+  const where = input.isGroup
+    ? `対象は家族共有スペースの「${input.topicName}」トピックです。ここは会話をしない器で、中のどれで話しても共有したい前提を残します。`
+    : `対象は家族共有スペースの「${input.topicName}」トピックです。`
+
+  return `あなたは会話の記録を整理する係です。
+
+- ${where}
+- 会話には複数の家族メンバーの発言が混ざります。
 - ファイルは書き換えません。新しい summary.md の全文を返すところまでが仕事です。
   保存するかどうかは人が決めます。
 - 前置き・説明・報告は書かないでください。返すのは summary.md の中身だけです。`

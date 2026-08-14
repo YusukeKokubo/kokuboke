@@ -206,4 +206,40 @@ describe('人が読む md', () => {
       `md の中身が想定と違う:\n${md}`,
     )
   })
+
+  it('author 付きの発言は md に名前を出す', async () => {
+    await appendMessage(USER, TOPIC, { ...message('買い物', new Date()), author: 'taro' })
+
+    const md = await fsp.readFile(
+      path.join(logsDir(USER, TOPIC), `${localDate().replaceAll('-', '')}.md`),
+      'utf8',
+    )
+    assert.ok(md.includes('taro'))
+    assert.ok(!md.includes('本人'))
+  })
+
+  it('author は jsonl にも残る', async () => {
+    await appendMessage(USER, TOPIC, { ...message('メモ', new Date()), author: 'taro' })
+
+    const file = path.join(logsDir(USER, TOPIC), `${localDate().replaceAll('-', '')}.jsonl`)
+    const line = (await fsp.readFile(file, 'utf8')).trim()
+    const parsed = JSON.parse(line) as Message
+    assert.equal(parsed.author, 'taro')
+  })
+
+  it('author の無い古い行も読める', async () => {
+    const dir = logsDir(USER, TOPIC)
+    await fsp.mkdir(dir, { recursive: true })
+    const file = path.join(dir, `${localDate().replaceAll('-', '')}.jsonl`)
+    await fsp.writeFile(file, JSON.stringify(message('古い', new Date())) + '\n')
+    await appendMessage(USER, TOPIC, { ...message('新しい', new Date()), author: 'taro' })
+
+    const read = await readAll(USER, TOPIC)
+    assert.deepEqual(
+      read.map((m) => m.text),
+      ['古い', '新しい'],
+    )
+    assert.equal(read[0]?.author, undefined)
+    assert.equal(read[1]?.author, 'taro')
+  })
 })

@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { ENGINES, isEngineId } from './agent/engines'
+import { isTopicName, normalizeTopicName } from './store/topic-name'
 
 // 手元で `npm run dev` するときのために .env を読む。
 // コンテナでは compose が環境変数を渡すので、このファイルは存在しない。
@@ -37,6 +38,12 @@ export const config = {
 
   /** URL パスとして受け付けるユーザー名。ここに無い名前は 404 にする。 */
   users: list(process.env.USERS),
+
+  /**
+   * 家族共有スペースのフォルダ名。config.users には入れない。
+   * `/user/_family/...` で開けてしまうのと、一覧に顔を出すのを避けるため。
+   */
+  familyDir: normalizeTopicName(process.env.FAMILY_DIR ?? '_family'),
 
   /** 当日を含めて何日分のログをコンテキストに含めるか。 */
   contextDays: num(process.env.CONTEXT_DAYS, 3),
@@ -113,6 +120,19 @@ export function assertConfig(): void {
 
   if (config.users.length === 0) {
     throw new Error('環境変数 USERS が空です。例: USERS=taro,hanako')
+  }
+  if (config.users.includes(config.familyDir)) {
+    throw new Error(
+      `FAMILY_DIR（${config.familyDir}）が USERS の名前とぶつかっています`,
+    )
+  }
+  if (config.users.includes('family')) {
+    throw new Error(
+      'USERS に family は使えません。画像 URL の経路 /media/family/ とぶつかります',
+    )
+  }
+  if (!isTopicName(config.familyDir)) {
+    throw new Error(`FAMILY_DIR が不正です: ${config.familyDir}`)
   }
   if (process.env.CLAUDE_EFFORT && !config.claudeEffort) {
     throw new Error(`CLAUDE_EFFORT が不正です。使えるのは ${CLAUDE_EFFORTS.join(' | ')}`)

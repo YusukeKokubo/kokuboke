@@ -97,6 +97,24 @@ export function withImageUrls(user: UserName, ref: VerifiedTopicRef, message: Me
   return { ...message, images: message.images.map((name) => mediaUrl(user, ref, name)) }
 }
 
+/**
+ * 家族共有スペース用の画像 URL。`/media/family/...` に載せる。
+ * 個人向けの mediaUrl は assertUser を通す経路向けなので、こちらは別にする。
+ */
+export function familyMediaUrl(ref: VerifiedTopicRef, stored: string): string {
+  const segments = isGroupRef(ref)
+    ? ['family', ref.topic]
+    : ['family', ref.topic, 'sub', ref.sub]
+  segments.push(imageName(stored))
+  return `/media/${segments.map(encodeURIComponent).join('/')}`
+}
+
+/** 家族共有スペース向け。withImageUrls と同じだが URL の形が違う。 */
+export function withFamilyImageUrls(ref: VerifiedTopicRef, message: Message): Message {
+  if (message.images.length === 0) return message
+  return { ...message, images: message.images.map((name) => familyMediaUrl(ref, name)) }
+}
+
 /** 保存済み画像のファイル名から実ファイルの位置を割り出す。 */
 export function imageAbsPath(user: UserName, ref: VerifiedTopicRef, name: string): string | null {
   if (!/^[\w.-]+\.jpg$/.test(name)) return null

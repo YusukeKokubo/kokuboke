@@ -1,7 +1,12 @@
-import type { ActivityEntry, ChildTopic, GroupTopic } from '../../shared/types'
+import type {
+  ActivityEntry,
+  ChildTopic,
+  FamilyActivityEntry,
+  GroupTopic,
+} from '../../shared/types'
 import { config } from '../config'
 import { readLastEntry } from './log'
-import { assertUser, asTopicName, topicRef } from './paths'
+import { assertUser, asTopicName, familyUser, topicRef } from './paths'
 import { listTopics } from './topic'
 
 const PREVIEW = 80
@@ -54,4 +59,43 @@ export async function listRecentActivity(): Promise<ActivityEntry[]> {
 
   entries.sort((a, b) => b.at.localeCompare(a.at))
   return entries
+}
+
+/**
+ * 家族共有スペースでいちばん新しく話した子トピックを一行返す。
+ * まだ誰も話していなければ null。
+ */
+export async function listFamilyRecentActivity(): Promise<FamilyActivityEntry | null> {
+  const user = familyUser()
+  const topics = await listTopics(user)
+  let latest: { topic: GroupTopic; child: ChildTopic } | null = null
+  for (const topic of topics) {
+    for (const child of topic.children) {
+      if (!child.lastMessageAt) continue
+      if (!latest || child.lastMessageAt > latest.child.lastMessageAt!) {
+        latest = { topic, child }
+      }
+    }
+  }
+  if (!latest) return null
+
+  const topic = asTopicName(latest.topic.slug)
+  const sub = asTopicName(latest.child.slug)
+  if (!topic || !sub) return null
+
+  const last = await readLastEntry(user, topicRef(topic, sub))
+  if (!last) return null
+
+  return {
+    topic: latest.topic.slug,
+    sub: latest.child.slug,
+    topicName: latest.topic.name,
+    subName: latest.child.name,
+    emoji: latest.child.emoji,
+    text: preview(last.text),
+    imageCount: last.images.length,
+    at: last.at,
+    id: last.id,
+    author: last.role === 'user' ? last.author : undefined,
+  }
 }
