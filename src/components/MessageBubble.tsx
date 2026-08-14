@@ -35,9 +35,11 @@ function Thinking() {
 }
 
 export function MessageBubble({ message, streaming, activity, selfAuthor }: Props) {
+  // 誰かが打った文は、自分のでも他の人のでも打ったとおりに出す。
+  // 右に寄せるのは自分の分だけ。
+  const typed = message.role === 'user'
   const mine =
-    message.role === 'user' &&
-    (selfAuthor && message.author ? message.author === selfAuthor : !message.author)
+    typed && (selfAuthor && message.author ? message.author === selfAuthor : !message.author)
 
   return (
     <div className={cn('flex w-full gap-2', mine ? 'justify-end' : 'justify-start')}>
@@ -65,16 +67,17 @@ export function MessageBubble({ message, streaming, activity, selfAuthor }: Prop
             className={cn(
               'min-w-0 max-w-full rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed break-words',
               mine
-                ? 'bg-primary text-primary-foreground rounded-br-md whitespace-pre-wrap'
+                ? 'bg-primary text-primary-foreground rounded-br-md'
                 : 'bg-card text-card-foreground rounded-bl-md border',
+              typed && 'whitespace-pre-wrap',
             )}
           >
             {streaming && !message.text ? (
               <Thinking />
             ) : (
               <>
-                {/* 自分の発言は打ったとおりに出す。相手の返答だけ Markdown として組む。 */}
-                {mine ? message.text : <Markdown text={message.text} />}
+                {/* 人が打った文はそのまま。返答だけ Markdown として組む。 */}
+                {typed ? message.text : <Markdown text={message.text} />}
                 {streaming && (
                   <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-current align-middle" />
                 )}
