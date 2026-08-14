@@ -1,29 +1,28 @@
 import { Hono } from 'hono'
-import { streamSSE } from 'hono/streaming'
 import type { ChatEvent, Message } from '../../shared/types'
-import { collectAgent, resolveModel } from '../agent'
+import { resolveModel } from '../agent'
 import { chatPrompt, chatSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { BadRequestError, NotFoundError } from '../errors'
-import { sse } from '../lib/sse'
+import { streamAgent } from '../lib/agent-stream'
 import { appendMessage, readAll, readRecent } from '../store/log'
 import { saveImage, withImageUrls } from '../store/image'
 import { isGroupRef, topicDir } from '../store/paths'
 import { readGroupSummary, readSummary, readTopic, shouldAutoName, topicExists } from '../store/topic'
-import { readProfile } from '../store/user'
-import { requireTopic, topicPaths } from './target'
+import { requireTopic, topicPaths } from './space'
 
 export const messages = new Hono()
 
 messages.on('GET', topicPaths('/messages'), async (c) => {
-  const { user, ref } = await requireTopic(c)
+  const { space, ref } = await requireTopic(c)
   // 画面は全部見せる。AI に渡す窓は POST 側の readRecent だけが切る。
-  const history = await readAll(user, ref)
-  return c.json(history.map((m) => withImageUrls(user, ref, m)))
+  const history = await readAll(space.user, ref)
+  return c.json(history.map((m) => withImageUrls(space.mediaSegment, ref, m)))
 })
 
 messages.on('POST', topicPaths('/messages'), async (c) => {
-  const { user, ref } = await requireTopic(c)
+  const { space, ref } = await requireTopic(c)
+  const { user } = space
 
   // トップレベルは要約の置き場なので、話しかける先は必ずその中のトピックになる。
   if (isGroupRef(ref)) {
@@ -32,6 +31,8 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
 
   const body = await c.req.parseBody({ all: true })
   const text = typeof body.text === 'string' ? body.text : ''
+  // 共有スペースでは誰の発言かを名乗る。個人のスペースでは undefined。
+  const author = space.authorOf(body)
   const files = ([] as unknown[])
     .concat(body['images'] ?? [])
     .filter((f): f is File => f instanceof File && f.size > 0)
@@ -43,9 +44,9 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
     throw new BadRequestError('画像は一度に 4 枚までです')
   }
 
-  // 空きが無ければここで待つ。同じ人の多重送信はここで 409 になる。
+  // 空きが無ければここで待つ。同じ鍵の多重送信はここで 409 になる。
   // 解放はストリームを閉じるときに行う。
-  const release = await limiter.acquire(user)
+  const release = await limiter.acquire(space.busyKey(ref))
 
   let userMessage: Message
   let prompt: string
@@ -72,6 +73,7 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
       // ログに残すのはファイル名だけ。URL は返すときに組み立てる。
       images: saved.map((s) => s.name),
       at: new Date().toISOString(),
+      author,
     }
 
     // 返答が失敗しても発言そのものは残す。あとから読み返せる方が大事。
@@ -81,14 +83,15 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
     const history = await readRecent(user, ref)
 
     choice = resolveModel(meta.engine, meta.model)
-    systemPrompt = chatSystemPrompt({ user, topicName: meta.name })
+    systemPrompt = chatSystemPrompt({ audience: space.audience, topicName: meta.name })
     prompt = chatPrompt({
-      profile: await readProfile(user),
+      profile: await space.profile(),
       groupSummary: await readGroupSummary(user, ref),
       summary: await readSummary(user, ref),
       // いま追記した分は current_message として別に渡すので履歴から外す。
       history: history.filter((m) => m.id !== userMessage.id),
       text: userMessage.text,
+      author,
       imagePaths: saved.map((s) => s.absPath),
     })
   } catch (error) {
@@ -96,30 +99,17 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
     throw error
   }
 
-  return streamSSE(c, async (stream) => {
-    const send = sse<ChatEvent>(stream)
-
-    try {
-      await send({ type: 'accepted', message: withImageUrls(user, ref, userMessage) })
-
-      const answer = await collectAgent(
-        choice,
-        {
-          cwd: topicDir(user, ref),
-          prompt,
-          systemPrompt,
-          signal: c.req.raw.signal,
-        },
-        {
-          onDelta: async (text) => {
-            await send({ type: 'delta', text })
-          },
-          onActivity: async (label) => {
-            await send({ type: 'activity', label })
-          },
-        },
-      )
-
+  return streamAgent<ChatEvent>(c, {
+    choice,
+    cwd: topicDir(user, ref),
+    prompt,
+    systemPrompt,
+    release,
+    tag: 'chat',
+    fallback: '返答を作れませんでした',
+    open: (send) =>
+      send({ type: 'accepted', message: withImageUrls(space.mediaSegment, ref, userMessage) }),
+    close: async (answer, send) => {
       // 待っているあいだにトピックが消されていることがある。appendMessage は
       // logs を作り直してしまうので、書く前に実体があるかを見る。
       if (!(await topicExists(user, ref))) {
@@ -141,14 +131,6 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
         message: assistantMessage,
         shouldName: await shouldAutoName(user, ref),
       })
-    } catch (error) {
-      console.error('[chat]', error)
-      await send({
-        type: 'error',
-        message: error instanceof Error ? error.message : '返答を作れませんでした',
-      }).catch(() => {})
-    } finally {
-      release()
-    }
+    },
   })
 })

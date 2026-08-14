@@ -9,11 +9,6 @@ import { AppError } from './errors'
 import { limiter } from './agent/queue'
 import { admin } from './routes/admin'
 import { docs } from './routes/docs'
-import { familyDocs } from './routes/family-docs'
-import { familyMedia } from './routes/family-media'
-import { familyMessages } from './routes/family-messages'
-import { familySummary } from './routes/family-summary'
-import { familyTopics } from './routes/family-topics'
 import { media } from './routes/media'
 import { messages } from './routes/messages'
 import { summary } from './routes/summary'
@@ -43,13 +38,7 @@ app.route('/', topics)
 app.route('/', messages)
 app.route('/', summary)
 app.route('/', docs)
-// /media/family/... が /media/:user/... に先に掴まれると assertUser('family') で落ちる。
-app.route('/', familyMedia)
 app.route('/', media)
-app.route('/', familyTopics)
-app.route('/', familyMessages)
-app.route('/', familySummary)
-app.route('/', familyDocs)
 
 app.onError((error, c) => {
   if (error instanceof AppError) {

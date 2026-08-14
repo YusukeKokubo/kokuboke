@@ -12,8 +12,7 @@ process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 process.env.TZ = 'Asia/Tokyo'
 
-const { imageAbsPath, imageName, mediaUrl, familyMediaUrl, saveImage, withImageUrls, withFamilyImageUrls } =
-  await import('./image')
+const { imageAbsPath, imageName, mediaUrl, saveImage, withImageUrls } = await import('./image')
 const { assertTopicRef, assertUser, imagesDir } = await import('./paths')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
@@ -70,46 +69,28 @@ describe('mediaUrl', () => {
   })
 })
 
-describe('familyMediaUrl', () => {
+// 共有スペースは先頭の区切りが `family` になるだけで、組み立て方は同じ。
+describe('mediaUrl（共有スペース）', () => {
   it('ファイル名から URL を組み立てる', () => {
-    assert.equal(familyMediaUrl(TOPIC, NAME), `/media/family/math/${NAME}`)
+    assert.equal(mediaUrl('family', TOPIC, NAME), `/media/family/math/${NAME}`)
   })
 
   it('日本語のトピック名を符号化する', () => {
-    const url = familyMediaUrl(assertTopicRef('算数の宿題'), NAME)
+    const url = mediaUrl('family', assertTopicRef('算数の宿題'), NAME)
     assert.equal(url, `/media/family/${encodeURIComponent('算数の宿題')}/${NAME}`)
-  })
-
-  it('# を符号化する', () => {
-    const url = familyMediaUrl(assertTopicRef('C#入門'), NAME)
-    assert.ok(url.includes('%23'), url)
-    assert.ok(!url.includes('#'), url)
   })
 
   it('子トピックは経路に sub を挟む', () => {
     assert.equal(
-      familyMediaUrl(assertTopicRef('skincare', '肌の記録'), NAME),
+      mediaUrl('family', assertTopicRef('skincare', '肌の記録'), NAME),
       `/media/family/skincare/sub/${encodeURIComponent('肌の記録')}/${NAME}`,
     )
   })
-})
-
-describe('withFamilyImageUrls', () => {
-  it('画像の無いメッセージはそのまま返す', () => {
-    const m = message([])
-    assert.equal(withFamilyImageUrls(TOPIC, m), m)
-  })
 
   it('ファイル名を URL に直す', () => {
-    assert.deepEqual(withFamilyImageUrls(TOPIC, message([NAME])).images, [
+    assert.deepEqual(withImageUrls('family', TOPIC, message([NAME])).images, [
       `/media/family/math/${NAME}`,
     ])
-  })
-
-  it('元のメッセージを書き換えない', () => {
-    const m = message([NAME])
-    withFamilyImageUrls(TOPIC, m)
-    assert.deepEqual(m.images, [NAME])
   })
 })
 

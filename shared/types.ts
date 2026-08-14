@@ -83,29 +83,31 @@ export interface TopicTemplate {
   emoji: string
 }
 
-/** SSE で流すイベント。 */
-export type ChatEvent =
-  | { type: 'accepted'; message: Message }
+/**
+ * CLI を走らせているあいだの知らせ。会話と要約で同じ形なので、
+ * サーバーの流す側（streamAgent）も画面の受ける側もここを共有する。
+ */
+export type AgentProgressEvent =
   | { type: 'delta'; text: string }
   /**
    * 「ファイルを見ています」のような途中の様子。本文ではないので溜めずに、
    * 届いた最後の一つだけを出す。
    */
   | { type: 'activity'; label: string }
+  | { type: 'error'; message: string }
+
+/** SSE で流すイベント。 */
+export type ChatEvent =
+  | AgentProgressEvent
+  | { type: 'accepted'; message: Message }
   /** shouldName が立っていたら、画面から名前付けを頼む頃合い。 */
   | { type: 'done'; message: Message; shouldName?: boolean }
-  | { type: 'error'; message: string }
 
 /**
  * 要約の下書き。AI はファイルを書き換えず、summary.md の新しい全文を返すだけ。
  * 保存するかどうかは画面で決める。
  */
-export type SummaryEvent =
-  | { type: 'delta'; text: string }
-  /** ChatEvent の同名と同じ扱い。届いた最後の一つだけを出す。 */
-  | { type: 'activity'; label: string }
-  | { type: 'done'; text: string; modelLabel: string }
-  | { type: 'error'; message: string }
+export type SummaryEvent = AgentProgressEvent | { type: 'done'; text: string; modelLabel: string }
 
 export interface Summary {
   /** summary.md の中身。無ければ空文字。 */
@@ -159,9 +161,8 @@ export interface UpdateResult {
   summary: { scanned?: number; updated?: number; failed?: number; skipped?: number } | null
 }
 
-/** 管理画面の「最新の会話」。ユーザーごとにいちばん新しい子トピック一行。 */
-export interface ActivityEntry {
-  user: string
+/** いちばん新しい子トピックの一行。家族共有スペースの入口と管理画面が使う。 */
+export interface FamilyActivityEntry {
   /** 器の slug。 */
   topic: string
   /** 子トピックの slug。 */
@@ -175,21 +176,9 @@ export interface ActivityEntry {
   imageCount: number
   at: string
   id: string
-}
-
-/** 家族共有スペースの直近の会話一行。 */
-export interface FamilyActivityEntry {
-  /** 器の slug。 */
-  topic: string
-  /** 子トピックの slug。 */
-  sub: string
-  topicName: string
-  subName: string
-  emoji: string
-  text: string
-  imageCount: number
-  at: string
-  id: string
-  /** 直近の発言が user なら、その author。 */
+  /** 直近の発言が user なら、その author。共有スペースだけ付く。 */
   author?: string
 }
+
+/** 管理画面の「最新の会話」。誰の会話かが付く。 */
+export type ActivityEntry = FamilyActivityEntry & { user: string }

@@ -1,13 +1,12 @@
 import { Hono } from 'hono'
-import { streamSSE } from 'hono/streaming'
 import type { Summary, SummaryEvent } from '../../shared/types'
-import { collectAgent, resolveModel, resolveSummaryModel, unfence } from '../agent'
+import { resolveModel, resolveSummaryModel, unfence } from '../agent'
 import { groupSummaryPrompt, summaryPrompt, summarySystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { BadRequestError } from '../errors'
+import { streamAgent } from '../lib/agent-stream'
 import { readJson, readText } from '../lib/body'
-import { sse } from '../lib/sse'
 import { readRecent } from '../store/log'
 import {
   isGroupRef,
@@ -24,7 +23,7 @@ import {
   readTopic,
   writeSummary,
 } from '../store/topic'
-import { requireTopic, topicPaths } from './target'
+import { requireTopic, topicPaths } from './space'
 
 export const summary = new Hono()
 
@@ -32,15 +31,15 @@ export const summary = new Hono()
  * 要約そのものの読み書き。書き換えるのはここだけで、AI には触らせない。
  */
 summary.on('GET', topicPaths('/summary'), async (c) => {
-  const { user, ref } = await requireTopic(c)
-  return c.json<Summary>({ summary: await readSummary(user, ref) })
+  const { space, ref } = await requireTopic(c)
+  return c.json<Summary>({ summary: await readSummary(space.user, ref) })
 })
 
 summary.on('PUT', topicPaths('/summary'), async (c) => {
-  const { user, ref } = await requireTopic(c)
+  const { space, ref } = await requireTopic(c)
   const summaryText = await readText(c.req.raw, 'summary')
-  await writeSummary(user, ref, summaryText)
-  return c.json<Summary>({ summary: await readSummary(user, ref) })
+  await writeSummary(space.user, ref, summaryText)
+  return c.json<Summary>({ summary: await readSummary(space.user, ref) })
 })
 
 /**
@@ -48,7 +47,8 @@ summary.on('PUT', topicPaths('/summary'), async (c) => {
  * 保存は画面で確かめたあと PUT で行う。
  */
 summary.on('POST', topicPaths('/summary'), async (c) => {
-  const { user, ref } = await requireTopic(c)
+  const { space, ref } = await requireTopic(c)
+  const { user } = space
 
   const meta = await readTopic(user, ref)
   const days = Math.max(config.contextDays, 14)
@@ -61,44 +61,19 @@ summary.on('POST', topicPaths('/summary'), async (c) => {
 
   // 画面から指定が来ればそれを使う。無ければ .env の既定に落ちる。
   const body = await readJson<{ engine?: string; model?: string }>(c.req.raw)
-  const choice = body.engine
-    ? resolveModel(body.engine, body.model)
-    : resolveSummaryModel()
+  const choice = body.engine ? resolveModel(body.engine, body.model) : resolveSummaryModel()
 
-  const release = await limiter.acquire(user)
+  const release = await limiter.acquire(space.busyKey(ref))
 
-  return streamSSE(c, async (stream) => {
-    const send = sse<SummaryEvent>(stream)
-
-    try {
-      const text = await collectAgent(
-        choice,
-        {
-          cwd: topicDir(user, ref),
-          prompt,
-          systemPrompt: summarySystemPrompt({ user, topicName: meta.name, isGroup }),
-          signal: c.req.raw.signal,
-        },
-        {
-          onDelta: async (delta) => {
-            await send({ type: 'delta', text: delta })
-          },
-          onActivity: async (label) => {
-            await send({ type: 'activity', label })
-          },
-        },
-      )
-
-      await send({ type: 'done', text: unfence(text), modelLabel: choice.label })
-    } catch (error) {
-      console.error('[summary]', error)
-      await send({
-        type: 'error',
-        message: error instanceof Error ? error.message : '要約を整理できませんでした',
-      }).catch(() => {})
-    } finally {
-      release()
-    }
+  return streamAgent<SummaryEvent>(c, {
+    choice,
+    cwd: topicDir(user, ref),
+    prompt,
+    systemPrompt: summarySystemPrompt({ audience: space.audience, topicName: meta.name, isGroup }),
+    release,
+    tag: 'summary',
+    fallback: '要約を整理できませんでした',
+    close: (text, send) => send({ type: 'done', text: unfence(text), modelLabel: choice.label }),
   })
 })
 

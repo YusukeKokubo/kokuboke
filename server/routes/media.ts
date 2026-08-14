@@ -2,13 +2,17 @@ import fs from 'node:fs/promises'
 import { Hono } from 'hono'
 import { BadRequestError, NotFoundError } from '../errors'
 import { imageAbsPath } from '../store/image'
-import { assertInsideDataDir, assertTopicRef, assertUser } from '../store/paths'
+import { assertInsideDataDir, assertTopicRef } from '../store/paths'
+import { resolveMediaSpace } from './space'
 
 export const media = new Hono()
 
-/** 保存済みの画像を返す。データディレクトリの外は絶対に読ませない。 */
+/**
+ * 保存済みの画像を返す。データディレクトリの外は絶対に読ませない。
+ * 名前の位置には個人ならユーザー名、共有スペースなら `family` が入る。
+ */
 media.on('GET', ['/media/:user/:topic/:file', '/media/:user/:topic/sub/:sub/:file'], async (c) => {
-  const user = assertUser(c.req.param('user'))
+  const { user } = resolveMediaSpace(c)
   const ref = assertTopicRef(c.req.param('topic'), c.req.param('sub'))
 
   const target = imageAbsPath(user, ref, c.req.param('file'))

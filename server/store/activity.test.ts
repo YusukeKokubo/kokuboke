@@ -11,7 +11,7 @@ process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro,hanako'
 process.env.TZ = 'Asia/Tokyo'
 
-const { listFamilyRecentActivity, listRecentActivity } = await import('./activity')
+const { readFamilyActivity, listRecentActivity } = await import('./activity')
 const { appendMessage } = await import('./log')
 const { assertTopicName, assertTopicRef, assertUser, familyUser } = await import('./paths')
 const { createTopic } = await import('./topic')
@@ -139,13 +139,13 @@ describe('listRecentActivity', () => {
   })
 })
 
-describe('listFamilyRecentActivity', () => {
+describe('readFamilyActivity', () => {
   beforeEach(async () => {
     await ensureFamily()
   })
 
   it('まだ誰も話していなければ null', async () => {
-    assert.equal(await listFamilyRecentActivity(), null)
+    assert.equal(await readFamilyActivity(), null)
   })
 
   it('いちばん新しい子トピックを一行返す', async () => {
@@ -158,7 +158,7 @@ describe('listFamilyRecentActivity', () => {
       { ...message('牛乳', new Date()), author: 'taro' },
     )
 
-    const entry = await listFamilyRecentActivity()
+    const entry = await readFamilyActivity()
     assert.ok(entry)
     assert.equal(entry.subName, '買い物')
     assert.equal(entry.text, '牛乳')

@@ -83,36 +83,21 @@ export function imageName(stored: string): string {
  * 素で入れると `#` から先が断片として切り落とされる。
  * 子トピックの分は、経路の途中に `sub` を挟んで親と区別する。
  */
-export function mediaUrl(user: UserName, ref: VerifiedTopicRef, stored: string): string {
+export function mediaUrl(segment: string, ref: VerifiedTopicRef, stored: string): string {
   const segments = isGroupRef(ref)
-    ? [user, ref.topic]
-    : [user, ref.topic, 'sub', ref.sub]
+    ? [segment, ref.topic]
+    : [segment, ref.topic, 'sub', ref.sub]
   segments.push(imageName(stored))
   return `/media/${segments.map(encodeURIComponent).join('/')}`
-}
-
-/** API で返す形に直す。ログにはファイル名しか入っていない。 */
-export function withImageUrls(user: UserName, ref: VerifiedTopicRef, message: Message): Message {
-  if (message.images.length === 0) return message
-  return { ...message, images: message.images.map((name) => mediaUrl(user, ref, name)) }
 }
 
 /**
- * 家族共有スペース用の画像 URL。`/media/family/...` に載せる。
- * 個人向けの mediaUrl は assertUser を通す経路向けなので、こちらは別にする。
+ * API で返す形に直す。ログにはファイル名しか入っていない。
+ * 先頭の区切りは個人ならユーザー名、共有スペースなら `family`（Space.mediaSegment）。
  */
-export function familyMediaUrl(ref: VerifiedTopicRef, stored: string): string {
-  const segments = isGroupRef(ref)
-    ? ['family', ref.topic]
-    : ['family', ref.topic, 'sub', ref.sub]
-  segments.push(imageName(stored))
-  return `/media/${segments.map(encodeURIComponent).join('/')}`
-}
-
-/** 家族共有スペース向け。withImageUrls と同じだが URL の形が違う。 */
-export function withFamilyImageUrls(ref: VerifiedTopicRef, message: Message): Message {
+export function withImageUrls(segment: string, ref: VerifiedTopicRef, message: Message): Message {
   if (message.images.length === 0) return message
-  return { ...message, images: message.images.map((name) => familyMediaUrl(ref, name)) }
+  return { ...message, images: message.images.map((name) => mediaUrl(segment, ref, name)) }
 }
 
 /** 保存済み画像のファイル名から実ファイルの位置を割り出す。 */
