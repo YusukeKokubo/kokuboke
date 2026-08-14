@@ -1,11 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { FileText, Tags, Trash2, UserRound } from 'lucide-react'
+import { ChevronDown, FileText, MoreHorizontal, Tags, Trash2, UserRound } from 'lucide-react'
 import type { Topic } from '../../shared/types'
-import { relativeLabel, topicLabel } from '@/lib/format'
-import { useSpace } from '@/lib/space'
-import { FamilyEntry } from '@/components/FamilyEntry'
+import { topicLabel } from '@/lib/format'
+import { familySpace, personalSpace, useSpace, type Space } from '@/lib/space'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Dialog,
   DialogContent,
@@ -15,12 +15,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuAction,
   SidebarMenuButton,
@@ -29,7 +35,8 @@ import {
 } from '@/components/ui/sidebar'
 
 interface TopicsState {
-  topics: Topic[] | null
+  personal: Topic[] | null
+  family: Topic[] | null
   error: string | null
   reload: () => void
 }
@@ -44,19 +51,24 @@ export function useTopics(): TopicsState {
 
 export function TopicsProvider({ children }: { children: ReactNode }) {
   const space = useSpace()
-  const [topics, setTopics] = useState<Topic[] | null>(null)
+  const user = space.owner ?? space.author ?? ''
+  const personal = useMemo(() => (user ? personalSpace(user) : null), [user])
+  const family = useMemo(() => (user ? familySpace(user) : null), [user])
+  const [personalTopics, setPersonalTopics] = useState<Topic[] | null>(null)
+  const [familyTopics, setFamilyTopics] = useState<Topic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(() => {
-    space.api
-      .listTopics()
-      .then((list) => {
+    if (!personal || !family) return
+    Promise.all([personal.api.listTopics(), family.api.listTopics()])
+      .then(([mine, shared]) => {
         space.confirm()
-        setTopics(list)
+        setPersonalTopics(mine)
+        setFamilyTopics(shared)
         setError(null)
       })
       .catch((cause: Error) => setError(cause.message))
-  }, [space])
+  }, [personal, family, space])
 
   useEffect(reload, [reload])
 
@@ -73,7 +85,13 @@ export function TopicsProvider({ children }: { children: ReactNode }) {
     }
   }, [reload])
 
-  return <TopicsContext.Provider value={{ topics, error, reload }}>{children}</TopicsContext.Provider>
+  return (
+    <TopicsContext.Provider
+      value={{ personal: personalTopics, family: familyTopics, error, reload }}
+    >
+      {children}
+    </TopicsContext.Provider>
+  )
 }
 
 function atPath(pathname: string, href: string) {
@@ -81,28 +99,31 @@ function atPath(pathname: string, href: string) {
 }
 
 export function TopicSidebar() {
-  const space = useSpace()
-  const navigate = useNavigate()
-  const { pathname } = useLocation()
-  const { id } = useParams()
-  const { setOpenMobile } = useSidebar()
-  const { topics, error, reload } = useTopics()
-  const [deleting, setDeleting] = useState<Topic | null>(null)
+  const current = useSpace()
+  const user = current.owner ?? current.author ?? ''
+  const personal = useMemo(() => (user ? personalSpace(user) : null), [user])
+  const family = useMemo(() => (user ? familySpace(user) : null), [user])
+  const { personal: personalTopics, family: familyTopics, error, reload } = useTopics()
+  const [deleting, setDeleting] = useState<{ topic: Topic; space: Space } | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const { id } = useParams()
 
   async function confirmDelete() {
     if (!deleting || deleteBusy) return
     setDeleteBusy(true)
     setDeleteError(null)
     try {
-      const slug = deleting.slug
-      await space.api.deleteTopic(slug)
+      const { topic, space } = deleting
+      await space.api.deleteTopic(topic.slug)
       setDeleting(null)
-      if (id === slug) navigate(space.home, { replace: true })
+      if (current.docKey() === space.docKey() && id === topic.slug) {
+        navigate(space.home, { replace: true })
+      }
     } catch (cause) {
       setDeleteError(
-        cause instanceof Error ? space.busyNotice(cause.message) : '削除できませんでした',
+        cause instanceof Error ? deleting.space.busyNotice(cause.message) : '削除できませんでした',
       )
     } finally {
       setDeleteBusy(false)
@@ -113,98 +134,31 @@ export function TopicSidebar() {
   return (
     <>
       <Sidebar>
-        {space.kind === 'personal' && (
-          <SidebarHeader className="pt-[calc(0.5rem+var(--safe-top))]">
-            <div onClick={() => setOpenMobile(false)}>
-              <FamilyEntry />
-            </div>
-          </SidebarHeader>
-        )}
-        <SidebarContent className={space.kind === 'family' ? 'pt-[calc(0.5rem+var(--safe-top))]' : undefined}>
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={atPath(pathname, space.tags)}
-                    render={<Link to={space.tags} />}
-                    onClick={() => setOpenMobile(false)}
-                  >
-                    <Tags />
-                    タグ
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                {space.profile && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      isActive={pathname === space.profile}
-                      render={<Link to={space.profile} />}
-                      onClick={() => setOpenMobile(false)}
-                    >
-                      <UserRound />
-                      プロフィール
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={pathname === space.claude}
-                    render={<Link to={space.claude} />}
-                    onClick={() => setOpenMobile(false)}
-                  >
-                    <FileText />
-                    CLAUDE.md
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-          <SidebarGroup>
-            <SidebarGroupLabel>会話</SidebarGroupLabel>
-            <SidebarGroupContent>
-              {error && <p className="text-destructive px-2 py-3 text-xs">{error}</p>}
-              {topics === null && !error && (
-                <p className="text-muted-foreground px-2 py-3 text-xs">読み込み中…</p>
-              )}
-              {topics?.length === 0 && (
-                <p className="text-muted-foreground px-2 py-3 text-xs">まだ会話がないよ。</p>
-              )}
-              <SidebarMenu>
-                {topics?.map((topic) => (
-                  <SidebarMenuItem key={topic.slug}>
-                    <SidebarMenuButton
-                      size="lg"
-                      isActive={id === topic.slug}
-                      render={<Link to={space.href(topic.slug)} />}
-                      onClick={() => setOpenMobile(false)}
-                    >
-                      <span className="flex size-8 shrink-0 items-center justify-center text-lg">
-                        {topic.emoji}
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col items-start">
-                        <span className={topic.name ? '' : 'text-muted-foreground'}>
-                          {topicLabel(topic)}
-                        </span>
-                        <span className="text-muted-foreground text-[11px] font-normal">
-                          {relativeLabel(topic.lastMessageAt)}
-                        </span>
-                      </span>
-                    </SidebarMenuButton>
-                    <SidebarMenuAction
-                      title={`${topicLabel(topic)} を削除する`}
-                      onClick={() => {
-                        setDeleteError(null)
-                        setDeleting(topic)
-                      }}
-                    >
-                      <Trash2 />
-                      <span className="sr-only">削除</span>
-                    </SidebarMenuAction>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+        <SidebarContent className="pt-[calc(0.5rem+var(--safe-top))]">
+          {family && (
+            <SpaceSection
+              label="家族"
+              space={family}
+              topics={familyTopics}
+              error={error}
+              onDelete={(topic) => {
+                setDeleteError(null)
+                setDeleting({ topic, space: family })
+              }}
+            />
+          )}
+          {personal && (
+            <SpaceSection
+              label={personal.title}
+              space={personal}
+              topics={personalTopics}
+              error={error}
+              onDelete={(topic) => {
+                setDeleteError(null)
+                setDeleting({ topic, space: personal })
+              }}
+            />
+          )}
         </SidebarContent>
       </Sidebar>
 
@@ -220,7 +174,7 @@ export function TopicSidebar() {
           <DialogHeader>
             <DialogTitle>会話を削除する</DialogTitle>
             <DialogDescription>
-              {deleting ? `「${topicLabel(deleting)}」を削除します。元に戻せません。` : ''}
+              {deleting ? `「${topicLabel(deleting.topic)}」を削除します。元に戻せません。` : ''}
             </DialogDescription>
           </DialogHeader>
           {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
@@ -243,5 +197,118 @@ export function TopicSidebar() {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+function SpaceSection({
+  label,
+  space,
+  topics,
+  error,
+  onDelete,
+}: {
+  label: string
+  space: Space
+  topics: Topic[] | null
+  error: string | null
+  onDelete: (topic: Topic) => void
+}) {
+  const { pathname } = useLocation()
+  const { id } = useParams()
+  const { isMobile, setOpenMobile } = useSidebar()
+  const here = atPath(pathname, space.home)
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel render={<Link to={space.home} />} onClick={() => setOpenMobile(false)}>
+        {label}
+      </SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={atPath(pathname, space.tags)}
+              render={<Link to={space.tags} />}
+              onClick={() => setOpenMobile(false)}
+            >
+              <Tags />
+              タグ
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          {space.profile && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={pathname === space.profile}
+                render={<Link to={space.profile} />}
+                onClick={() => setOpenMobile(false)}
+              >
+                <UserRound />
+                プロフィール
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={pathname === space.claude}
+              render={<Link to={space.claude} />}
+              onClick={() => setOpenMobile(false)}
+            >
+              <FileText />
+              CLAUDE.md
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+
+        <Collapsible defaultOpen className="group/collapsible">
+          <SidebarGroupLabel render={<CollapsibleTrigger />}>
+            会話
+            <ChevronDown className="ml-auto transition-transform group-data-open/collapsible:rotate-180" />
+          </SidebarGroupLabel>
+          <CollapsibleContent>
+            {error && <p className="text-destructive px-2 py-3 text-xs">{error}</p>}
+            {topics === null && !error && (
+              <p className="text-muted-foreground px-2 py-3 text-xs">読み込み中…</p>
+            )}
+            {topics?.length === 0 && (
+              <p className="text-muted-foreground px-2 py-3 text-xs">まだ会話がないよ。</p>
+            )}
+            <SidebarMenu>
+              {topics?.map((topic) => (
+                <SidebarMenuItem key={`${space.docKey()}:${topic.slug}`}>
+                  <SidebarMenuButton
+                    isActive={here && id === topic.slug}
+                    render={<Link to={space.href(topic.slug)} />}
+                    onClick={() => setOpenMobile(false)}
+                  >
+                    <span className="shrink-0">{topic.emoji}</span>
+                    <span className={topic.name ? '' : 'text-muted-foreground'}>
+                      {topicLabel(topic)}
+                    </span>
+                  </SidebarMenuButton>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger render={<SidebarMenuAction showOnHover />}>
+                      <MoreHorizontal />
+                      <span className="sr-only">{topicLabel(topic)} の操作</span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="w-48"
+                      side={isMobile ? 'bottom' : 'right'}
+                      align={isMobile ? 'end' : 'start'}
+                    >
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem variant="destructive" onClick={() => onDelete(topic)}>
+                          <Trash2 />
+                          削除
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarGroupContent>
+    </SidebarGroup>
   )
 }

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSpace } from '@/lib/space'
 import { Composer } from '@/components/Composer'
-import { FamilyEntry } from '@/components/FamilyEntry'
 import { useTopics } from '@/components/TopicSidebar'
 
 export default function TopicListPage() {
@@ -29,12 +28,6 @@ export default function TopicListPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-3">
-      {space.kind === 'personal' && (
-        <div className="pt-3">
-          <FamilyEntry />
-        </div>
-      )}
-
       <div className="flex flex-1 flex-col items-center justify-center gap-8 py-10">
         <h2 className="px-4 text-center text-2xl font-medium tracking-tight">{space.greeting}</h2>
         <div className="w-full">

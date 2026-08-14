@@ -84,37 +84,69 @@ export function claudeHref(home: string): string {
   return `${home}/CLAUDE.md`
 }
 
+/** 個人のスペース記述子。Sidebar からも組み立てる。 */
+export function personalSpace(user: string): Space {
+  const home = personalHome(user)
+  return {
+    kind: 'personal',
+    home,
+    tags: tagsHref(home),
+    tagHref: (tag) => tagHref(home, tag),
+    profile: profileHref(home),
+    claude: claudeHref(home),
+    title: user,
+    subtitle: '会話',
+    owner: user,
+    greeting: `${user}さん、何か話そうか`,
+    emptyHint: (
+      <>
+        話しかけてみて。
+        <br />
+        名前とタグは、あとから付くよ。
+      </>
+    ),
+    api: spaceApi(`/api/users/${encodeURIComponent(user)}`),
+    href: (id) => topicHref(home, id),
+    docKey: () => user,
+    busyNotice: (message) => message,
+    confirm: () => rememberUser(user),
+  }
+}
+
+/** 家族共有スペースの記述子。Sidebar からも組み立てる。 */
+export function familySpace(author: string): Space {
+  return {
+    kind: 'family',
+    home: '/family',
+    tags: tagsHref('/family'),
+    tagHref: (tag) => tagHref('/family', tag),
+    claude: claudeHref('/family'),
+    title: '共有スペース',
+    subtitle: '家族のメモ・買い物',
+    greeting: '何を残す？',
+    emptyHint: (
+      <>
+        買い物リストや旅行のメモなど、
+        <br />
+        家族みんなの話を始めてみて。
+      </>
+    ),
+    author,
+    api: spaceApi('/api/family', author),
+    href: (id) => topicHref('/family', id),
+    docKey: () => 'family',
+    busyNotice: (message) =>
+      message.includes('前の返答をまだ書いています')
+        ? 'いま誰かが話しとる。少し待ってから試してね'
+        : message,
+    confirm: () => {},
+  }
+}
+
 /** 個人のスペース。`/user/:user` の下。 */
 export function PersonalSpace() {
   const { user = '' } = useParams()
-
-  const space = useMemo((): Space => {
-    const home = personalHome(user)
-    return {
-      kind: 'personal',
-      home,
-      tags: tagsHref(home),
-      tagHref: (tag) => tagHref(home, tag),
-      profile: profileHref(home),
-      claude: claudeHref(home),
-      title: user,
-      subtitle: '会話',
-      owner: user,
-      greeting: `${user}さん、何か話そうか`,
-      emptyHint: (
-        <>
-          話しかけてみて。
-          <br />
-          名前とタグは、あとから付くよ。
-        </>
-      ),
-      api: spaceApi(`/api/users/${encodeURIComponent(user)}`),
-      href: (id) => topicHref(home, id),
-      docKey: () => user,
-      busyNotice: (message) => message,
-      confirm: () => rememberUser(user),
-    }
-  }, [user])
+  const space = useMemo(() => personalSpace(user), [user])
 
   return (
     <SpaceContext.Provider value={space}>
@@ -131,35 +163,7 @@ export function FamilySpace() {
   const location = useLocation()
   const author = rememberedUser()
 
-  const space = useMemo((): Space | null => {
-    if (!author) return null
-    return {
-      kind: 'family',
-      home: '/family',
-      tags: tagsHref('/family'),
-      tagHref: (tag) => tagHref('/family', tag),
-      claude: claudeHref('/family'),
-      title: '共有スペース',
-      subtitle: '家族のメモ・買い物',
-      greeting: '何を残す？',
-      emptyHint: (
-        <>
-          買い物リストや旅行のメモなど、
-          <br />
-          家族みんなの話を始めてみて。
-        </>
-      ),
-      author,
-      api: spaceApi('/api/family', author),
-      href: (id) => topicHref('/family', id),
-      docKey: () => 'family',
-      busyNotice: (message) =>
-        message.includes('前の返答をまだ書いています')
-          ? 'いま誰かが話しとる。少し待ってから試してね'
-          : message,
-      confirm: () => {},
-    }
-  }, [author])
+  const space = useMemo(() => (author ? familySpace(author) : null), [author])
 
   if (!space) {
     return <Navigate to={`/user?next=${encodeURIComponent(location.pathname)}`} replace />
