@@ -74,15 +74,6 @@ export interface ChildTopic extends TopicFields {
 
 export type Topic = GroupTopic | ChildTopic
 
-export type TemplateId = 'study' | 'advice' | 'recipe' | 'plain'
-
-export interface TopicTemplate {
-  id: TemplateId
-  label: string
-  description: string
-  emoji: string
-}
-
 /**
  * CLI を走らせているあいだの知らせ。会話と要約で同じ形なので、
  * サーバーの流す側（streamAgent）も画面の受ける側もここを共有する。

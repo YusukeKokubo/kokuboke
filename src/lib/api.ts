@@ -10,10 +10,8 @@ import {
   type Profile,
   type Summary,
   type SummaryEvent,
-  type TemplateId,
   type Topic,
   type TopicRef,
-  type TopicTemplate,
   type UpdateResult,
   type UpdateStatus,
 } from '../../shared/types'
@@ -61,7 +59,6 @@ const json = {
 interface NewTopic {
   name: string
   emoji: string
-  template: TemplateId
   engine: string
   model: string
 }
@@ -118,7 +115,7 @@ export function spaceApi(base: string, author?: string) {
 
     createTopic: (input: NewTopic) => json.send<Topic>('POST', `${base}/topics`, input),
 
-    /** 名前も雛形も決めずに始める。フォルダ名は仮のもので、あとから付け直される。 */
+    /** 名前を決めずに始める。フォルダ名は仮のもので、あとから付け直される。 */
     startChild: (topic: string) =>
       json.send<Topic>('POST', `${base}/topics/${path(topic)}/sub`, {}),
 
@@ -191,10 +188,8 @@ export function spaceApi(base: string, author?: string) {
 
 export type SpaceApi = ReturnType<typeof spaceApi>
 
-/** どのスペースにも属さない口。雛形の一覧と、管理画面と、profile.md。 */
+/** どのスペースにも属さない口。エンジンの一覧と、管理画面と、profile.md。 */
 export const api = {
-  templates: () => json.get<TopicTemplate[]>('/api/templates'),
-
   engines: () => json.get<EngineInfo[]>('/api/engines'),
 
   /** 共有スペースの直近の一行。個人のトピック一覧の入口に出す。 */

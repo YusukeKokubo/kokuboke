@@ -217,7 +217,7 @@ export async function listTopics(user: UserName): Promise<GroupTopic[]> {
  */
 export async function createTopic(
   user: UserName,
-  input: { name?: string; emoji?: string; template?: string; engine?: string; model?: string },
+  input: { name?: string; emoji?: string; engine?: string; model?: string },
   group?: TopicName,
 ): Promise<Topic> {
   const name = (input.name ?? '').trim()
@@ -272,7 +272,7 @@ export async function createTopic(
   // 名前がまだ無いときは、雛形の見出しに仮の呼び名を入れておく。
   const label = name || NO_NAME
   await writeMeta(user, ref, meta)
-  await fs.writeFile(path.join(dir, 'CLAUDE.md'), topicClaudeMd(input.template ?? 'plain', label))
+  await fs.writeFile(path.join(dir, 'CLAUDE.md'), topicClaudeMd(label))
   await fs.writeFile(
     path.join(dir, 'summary.md'),
     isChild ? topicSummaryMd(label) : groupSummaryMd(label),

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { NotebookPen, Plus, Settings2, Trash2 } from 'lucide-react'
+import { Bot, NotebookPen, Plus, Settings2, Trash2 } from 'lucide-react'
 import type { ChildTopic, GroupTopic, TopicRef } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { personalHome, useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { SpaceDocsDialog, TopicDocsDialog } from '@/components/DocsDialog'
+import { SpaceDocsDialog, TopicClaudeDialog, TopicSummaryDialog } from '@/components/DocsDialog'
 import { NewTopicDialog } from '@/components/NewTopicDialog'
 import {
   Dialog,
@@ -28,7 +28,8 @@ export default function TopicListPage() {
   const [topics, setTopics] = useState<GroupTopic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const [docsFor, setDocsFor] = useState<TopicRef | null>(null)
+  const [summaryFor, setSummaryFor] = useState<TopicRef | null>(null)
+  const [claudeFor, setClaudeFor] = useState<TopicRef | null>(null)
   const [docsOpen, setDocsOpen] = useState(false)
   const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
@@ -149,14 +150,21 @@ export default function TopicListPage() {
                 </div>
                 <div className="flex flex-wrap items-center">
                   <TopicButton
-                    label="文書"
-                    title={`${topic.name} の要約と CLAUDE.md`}
-                    onClick={() => setDocsFor({ kind: 'group', topic: topic.slug })}
+                    label="要約"
+                    title={`${topic.name} の要約`}
+                    onClick={() => setSummaryFor({ kind: 'group', topic: topic.slug })}
                   >
                     <NotebookPen className="size-3.5" />
                   </TopicButton>
                   <TopicButton
-                    label="チャットを始める"
+                    label="CLAUDE.md"
+                    title={`${topic.name} の CLAUDE.md`}
+                    onClick={() => setClaudeFor({ kind: 'group', topic: topic.slug })}
+                  >
+                    <Bot className="size-3.5" />
+                  </TopicButton>
+                  <TopicButton
+                    label="話す"
                     variant="default"
                     title={`${topic.name} の中で新しくチャットを始める`}
                     onClick={() => start(topic.slug)}
@@ -164,7 +172,6 @@ export default function TopicListPage() {
                     <Plus className="size-3.5" />
                   </TopicButton>
                   <TopicButton
-                    label="削除"
                     title={`${topic.name} を削除する`}
                     onClick={() => {
                       setDeleteError(null)
@@ -209,10 +216,16 @@ export default function TopicListPage() {
         }}
       />
 
-      <TopicDocsDialog
-        target={docsFor}
-        open={docsFor !== null}
-        onOpenChange={(open) => !open && setDocsFor(null)}
+      <TopicSummaryDialog
+        target={summaryFor}
+        open={summaryFor !== null}
+        onOpenChange={(open) => !open && setSummaryFor(null)}
+      />
+
+      <TopicClaudeDialog
+        target={claudeFor}
+        open={claudeFor !== null}
+        onOpenChange={(open) => !open && setClaudeFor(null)}
       />
 
       <SpaceDocsDialog open={docsOpen} onOpenChange={setDocsOpen} />
@@ -267,7 +280,8 @@ function TopicButton({
   children,
   variant = 'ghost',
 }: {
-  label: string
+  /** 無ければ絵札だけ。横が詰まる並びで使う。 */
+  label?: string
   title: string
   variant?: 'default' | 'outline' | 'secondary' | 'ghost'
   onClick: () => void
@@ -326,7 +340,6 @@ function TopicCard({ topic, href, onDelete }: { topic: ChildTopic; href: string;
         className="text-muted-foreground shrink-0"
       >
         <Trash2 className="size-3.5" />
-        削除
       </Button>
     </li>
   )

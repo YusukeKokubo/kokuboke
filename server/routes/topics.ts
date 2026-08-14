@@ -7,7 +7,6 @@ import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { BadRequestError } from '../errors'
 import { readJson } from '../lib/body'
-import { TOPIC_TEMPLATES } from '../templates'
 import { readFamilyActivity } from '../store/activity'
 import { readRecent } from '../store/log'
 import { asTopicName, assertTopicName, isGroupRef, topicDir, topicRef } from '../store/paths'
@@ -28,7 +27,6 @@ export const topics = new Hono()
 interface CreateBody {
   name?: string
   emoji?: string
-  template?: string
   engine?: string
   model?: string
 }
@@ -37,13 +35,11 @@ function createInput(body: CreateBody) {
   return {
     name: String(body.name ?? ''),
     emoji: body.emoji,
-    template: body.template,
     engine: body.engine,
     model: body.model,
   }
 }
 
-topics.get('/api/templates', (c) => c.json(TOPIC_TEMPLATES))
 topics.get('/api/engines', (c) => c.json(ENGINES))
 
 /** 個人のトピック一覧の先頭に出す、共有スペースの入口の一行。 */

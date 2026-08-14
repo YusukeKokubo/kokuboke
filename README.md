@@ -284,7 +284,6 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | メソッド | パス | 内容 |
 | --- | --- | --- |
 | GET | `/api/health` | 稼働確認と同時実行の状況 |
-| GET | `/api/templates` | トピック作成時に選べる雛形 |
 | GET | `/api/engines` | 選べるエンジンとモデルの一覧 |
 | GET | `/api/users/:user/topics` | トピック一覧（直近に話した順）。中のトピックは `children` に入る |
 | POST | `/api/users/:user/topics` | トップレベル（器）の作成 |

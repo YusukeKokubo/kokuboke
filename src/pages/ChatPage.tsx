@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, NotebookPen, Pencil } from 'lucide-react'
+import { Bot, ChevronLeft, NotebookPen, Pencil } from 'lucide-react'
 import type { Message, Topic } from '../../shared/types'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
-import { TopicDocsDialog } from '@/components/DocsDialog'
+import { TopicClaudeDialog, TopicSummaryDialog } from '@/components/DocsDialog'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
 import { RenameDialog } from '@/components/RenameDialog'
@@ -36,7 +36,8 @@ export default function ChatPage() {
   const [status, setStatus] = useState<Status>('idle')
   const [notice, setNotice] = useState<string | null>(null)
   const [modelOpen, setModelOpen] = useState(false)
-  const [docsOpen, setDocsOpen] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  const [claudeOpen, setClaudeOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
 
   const content = useRef<HTMLElement>(null)
@@ -246,15 +247,29 @@ export default function ChatPage() {
           )}
         </div>
 
+        {/* 要約と CLAUDE.md。題名とモデル名で横が詰まっとるので、ここは絵札だけ。 */}
         <Button
-          size="sm"
+          size="icon"
           variant="ghost"
-          onClick={() => setDocsOpen(true)}
+          onClick={() => setSummaryOpen(true)}
           disabled={status !== 'idle'}
-          className="shrink-0"
+          aria-label="要約"
+          title="このトピックの要約"
+          className="size-9 shrink-0"
         >
           <NotebookPen className="size-4" />
-          文書
+        </Button>
+
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => setClaudeOpen(true)}
+          disabled={status !== 'idle'}
+          aria-label="CLAUDE.md"
+          title="このトピックの CLAUDE.md"
+          className="size-9 shrink-0"
+        >
+          <Bot className="size-4" />
         </Button>
       </header>
 
@@ -316,7 +331,9 @@ export default function ChatPage() {
         </DialogContent>
       </Dialog>
 
-      <TopicDocsDialog target={ref} open={docsOpen} onOpenChange={setDocsOpen} />
+      <TopicSummaryDialog target={ref} open={summaryOpen} onOpenChange={setSummaryOpen} />
+
+      <TopicClaudeDialog target={ref} open={claudeOpen} onOpenChange={setClaudeOpen} />
 
       <RenameDialog
         target={ref}
