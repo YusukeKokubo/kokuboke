@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, Pencil, Plus, Trash2 } from 'lucide-react'
-import type { Tag } from '../../shared/types'
+import type { Tag, Topic } from '../../shared/types'
+import { relativeLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -132,6 +133,7 @@ function TagDoc({ name }: { name: string }) {
   const space = useSpace()
   const navigate = useNavigate()
   const [exists, setExists] = useState<boolean | null>(null)
+  const [topics, setTopics] = useState<Topic[] | null>(null)
   const [renaming, setRenaming] = useState(name)
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -140,17 +142,18 @@ function TagDoc({ name }: { name: string }) {
 
   useEffect(() => {
     let cancelled = false
-    space.api
-      .getTag(name)
-      .then(() => {
+    Promise.all([space.api.getTag(name), space.api.listTopics()])
+      .then(([, list]) => {
         if (cancelled) return
         space.confirm()
         setExists(true)
+        setTopics(list.filter((topic) => topic.tags.includes(name)))
         setError(null)
       })
       .catch((cause: Error) => {
         if (cancelled) return
         setExists(false)
+        setTopics(null)
         setError(cause.message)
       })
     return () => {
@@ -199,7 +202,9 @@ function TagDoc({ name }: { name: string }) {
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[15px] font-semibold">{name}</h1>
-          <p className="text-muted-foreground truncate text-[11px]">tags/{name}.md</p>
+          <p className="text-muted-foreground truncate text-[11px]">
+            {topics === null ? '…' : `会話 ${topics.length} 件`}
+          </p>
         </div>
         {exists && (
           <div className="flex shrink-0 items-center">
@@ -230,21 +235,59 @@ function TagDoc({ name }: { name: string }) {
         {exists === null && <p className="text-muted-foreground py-8 text-center text-sm">読み込み中…</p>}
 
         {exists && (
-          <DocPane
-            spec={{
-              label: name,
-              description: '',
-              placeholder: 'まだ何も覚えていないよ。',
-              load: () => space.api.getTag(name),
-              save: (text) => space.api.saveTag(name, text),
-              draft: (signal) => space.api.draftTag(name, signal),
-            }}
-            open
-            source={`${space.docKey()}:tag:${name}`}
-            active
-            onBusy={setBusy}
-            onSaved={() => {}}
-          />
+          <>
+            <DocPane
+              spec={{
+                label: name,
+                description: '',
+                placeholder: 'まだ何も覚えていないよ。',
+                load: () => space.api.getTag(name),
+                save: (text) => space.api.saveTag(name, text),
+                draft: (signal) => space.api.draftTag(name, signal),
+              }}
+              open
+              source={`${space.docKey()}:tag:${name}`}
+              active
+              onBusy={setBusy}
+              onSaved={() => {}}
+            />
+
+            <section className="flex flex-col gap-1.5 pt-2">
+              <h2 className="text-muted-foreground px-1 text-xs font-medium">このタグの会話</h2>
+              {topics?.length === 0 && (
+                <p className="text-muted-foreground px-1 py-4 text-sm">まだ付いている会話はないよ。</p>
+              )}
+              <ul className="flex flex-col gap-1.5">
+                {topics?.map((topic) => (
+                  <li key={topic.slug}>
+                    <Link
+                      to={space.href(topic.slug)}
+                      className="hover:bg-accent active:bg-accent flex items-center gap-3 rounded-xl border p-3 transition-colors"
+                    >
+                      <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full text-xl">
+                        {topic.emoji}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline justify-between gap-2">
+                          <span
+                            className={`truncate text-[15px] font-medium ${topic.name ? '' : 'text-muted-foreground'}`}
+                          >
+                            {topicLabel(topic)}
+                          </span>
+                          <span className="text-muted-foreground shrink-0 text-[11px]">
+                            {relativeLabel(topic.lastMessageAt)}
+                          </span>
+                        </span>
+                        <span className="text-muted-foreground block truncate text-xs">
+                          {topic.preview ?? 'まだ話していないよ'}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </>
         )}
       </main>
 
