@@ -268,7 +268,7 @@ function SpaceSection({
         </SidebarMenu>
 
         <Collapsible defaultOpen className="group/collapsible">
-          <SidebarGroupLabel render={<CollapsibleTrigger />}>
+          <SidebarGroupLabel render={<CollapsibleTrigger />} className='w-full'>
             会話
             <ChevronDown className="ml-auto transition-transform group-data-open/collapsible:rotate-180" />
           </SidebarGroupLabel>
