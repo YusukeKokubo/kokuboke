@@ -103,7 +103,7 @@ export async function migrateNestedTopics(user: UserName): Promise<void> {
       } catch {
         continue
       }
-      await writeMeta(user, id, { ...meta, id: meta.id ?? crypto.randomUUID(), slug: id, tags: [tagName] })
+      await writeMeta(user, id, { ...meta, slug: id, tags: [tagName] })
       await fs.rm(path.join(dest, 'CLAUDE.md'), { force: true })
       await fs.rm(path.join(dest, 'summary.md'), { force: true })
       await fs.rm(path.join(dest, 'AGENTS.md'), { force: true })

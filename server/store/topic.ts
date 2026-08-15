@@ -23,7 +23,7 @@ export interface TopicMeta {
   /** フォルダ名。`YY-MM-DD` または `YY-MM-DD-見出し`。 */
   slug: string
   /** URL 用の uuid。 */
-  id?: string
+  id: string
   /** 名前をまだ付けていないときは空文字。 */
   name: string
   createdAt: string
@@ -102,9 +102,10 @@ export async function readMeta(user: UserName, id: TopicName): Promise<TopicMeta
   try {
     const raw = await fs.readFile(metaFile(user, id), 'utf8')
     const parsed = JSON.parse(raw) as Partial<TopicMeta>
-    return {
+    const topicId = typeof parsed.id === 'string' && parsed.id ? parsed.id : crypto.randomUUID()
+    const meta: TopicMeta = {
       slug: id,
-      id: typeof parsed.id === 'string' && parsed.id ? parsed.id : undefined,
+      id: topicId,
       name: parsed.name ?? '',
       createdAt: parsed.createdAt ?? new Date().toISOString(),
       engine: parsed.engine,
@@ -116,13 +117,15 @@ export async function readMeta(user: UserName, id: TopicName): Promise<TopicMeta
       nameTriedAt: typeof parsed.nameTriedAt === 'number' ? parsed.nameTriedAt : undefined,
       tagTried: parsed.tagTried,
     }
+    if (parsed.id !== topicId) await writeMeta(user, id, meta)
+    return meta
   } catch (error) {
     notFoundIfMissing(error)
   }
 }
 
 function publicSlug(meta: TopicMeta): string {
-  return meta.id ?? meta.slug
+  return meta.id
 }
 
 function toTopic(meta: TopicMeta, last: { at: string; text: string } | null): Topic {
@@ -292,7 +295,6 @@ export async function renameTopic(
     folder = dest
   }
   next.slug = folder
-  if (!next.id) next.id = crypto.randomUUID()
 
   await writeMeta(user, folder, next)
   return toTopic(next, await readLastEntry(user, folder))
