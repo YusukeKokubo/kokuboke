@@ -99,12 +99,16 @@ export function nameSystemPrompt(): string {
 - 前置き・説明・報告は書かないでください。返すのは指定された JSON 一つだけです。`
 }
 
-export function namePrompt(input: { history: Message[] }): string {
+export function namePrompt(input: { history: Message[]; currentName?: string }): string {
+  const refine = input.currentName
+    ? `いまの名前は「${input.currentName}」です。会話を踏まえて、このままでよければ同じ名前を、より適切なら付け直してください。`
+    : 'この会話に名前を付けてください。'
+
   return `<conversation>
 ${renderHistory(input.history)}
 </conversation>
 
-この会話に名前を付けてください。
+${refine}
 
 - 何の話かがひと目で分かる、12 文字くらいまでの短い名前にします。
 - 「〜について」「〜の話」のような言い回しは付けません。

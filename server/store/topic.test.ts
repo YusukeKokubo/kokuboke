@@ -13,6 +13,7 @@ const {
   createTopic,
   deleteTopic,
   listTopics,
+  markNameTried,
   readTopic,
   renameTopic,
   shouldAutoName,
@@ -160,41 +161,84 @@ describe('deleteTopic', () => {
   })
 })
 
+async function addUser(id: ReturnType<typeof idOf>, text: string) {
+  await appendMessage(USER, id, {
+    id: text,
+    role: 'user',
+    text,
+    images: [],
+    at: new Date().toISOString(),
+  })
+}
+
 describe('shouldAutoName / shouldAutoTag', () => {
-  it('三往復するまで立たない', async () => {
+  it('1, 3, 5 回目に命名が立つ', async () => {
     const topic = await createTopic(USER, {})
     const id = idOf(topic.slug)
     assert.equal(await shouldAutoName(USER, id), false)
     assert.equal(await shouldAutoTag(USER, id), false)
 
-    for (let i = 0; i < 3; i++) {
-      await appendMessage(USER, id, {
-        id: String(i),
-        role: 'user',
-        text: `発言 ${i}`,
-        images: [],
-        at: new Date().toISOString(),
-      })
-    }
+    await addUser(id, '1')
+    assert.equal(await shouldAutoName(USER, id), true)
+    assert.equal(await shouldAutoTag(USER, id), false)
 
+    await renameTopic(USER, id, { name: '仮', autoAt: 1 })
+    assert.equal(await shouldAutoName(USER, id), false)
+
+    await addUser(id, '2')
+    assert.equal(await shouldAutoName(USER, id), false)
+    assert.equal(await shouldAutoTag(USER, id), false)
+
+    await addUser(id, '3')
     assert.equal(await shouldAutoName(USER, id), true)
     assert.equal(await shouldAutoTag(USER, id), true)
+
+    await renameTopic(USER, id, { name: '付け直し', autoAt: 3 })
+    assert.equal(await shouldAutoName(USER, id), false)
+
+    await addUser(id, '4')
+    assert.equal(await shouldAutoName(USER, id), false)
+
+    await addUser(id, '5')
+    assert.equal(await shouldAutoName(USER, id), true)
+
+    await renameTopic(USER, id, { name: '確定', autoAt: 5 })
+    assert.equal(await shouldAutoName(USER, id), false)
+
+    await addUser(id, '6')
+    assert.equal(await shouldAutoName(USER, id), false)
   })
 
-  it('名前が付いたら命名はもう走らない', async () => {
+  it('人が付けた名前は自動では付け直さない', async () => {
     const topic = await createTopic(USER, { name: '買い物' })
     const id = idOf(topic.slug)
-    for (let i = 0; i < 3; i++) {
-      await appendMessage(USER, id, {
-        id: String(i),
-        role: 'user',
-        text: `発言 ${i}`,
-        images: [],
-        at: new Date().toISOString(),
-      })
+    for (let i = 0; i < 5; i++) {
+      await addUser(id, `発言 ${i}`)
     }
     assert.equal(await shouldAutoName(USER, id), false)
     assert.equal(await shouldAutoTag(USER, id), true)
+  })
+
+  it('途中で人が付け直したら、あとの自動命名は走らない', async () => {
+    const topic = await createTopic(USER, {})
+    const id = idOf(topic.slug)
+    await addUser(id, '1')
+    await renameTopic(USER, id, { name: '仮', autoAt: 1 })
+    await renameTopic(USER, id, { name: '自分で付けた' })
+    await addUser(id, '2')
+    await addUser(id, '3')
+    assert.equal(await shouldAutoName(USER, id), false)
+  })
+
+  it('1 回目の自動命名に失敗しても 3 回目は再挑戦する', async () => {
+    const topic = await createTopic(USER, {})
+    const id = idOf(topic.slug)
+    await addUser(id, '1')
+    await markNameTried(USER, id)
+    assert.equal(await shouldAutoName(USER, id), false)
+    await addUser(id, '2')
+    await addUser(id, '3')
+    assert.equal(await shouldAutoName(USER, id), true)
   })
 })
 

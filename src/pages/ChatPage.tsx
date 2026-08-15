@@ -7,6 +7,7 @@ import { useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
+import { useTopics } from '@/components/TopicSidebar'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
@@ -50,6 +51,7 @@ export default function ChatPage() {
   const [tagDraft, setTagDraft] = useState('')
   const [tagBusy, setTagBusy] = useState(false)
   const [booted, setBooted] = useState(false)
+  const { reload: reloadTopics } = useTopics()
 
   const content = useRef<HTMLElement>(null)
   const stick = useRef(true)
@@ -129,10 +131,11 @@ export default function ChatPage() {
   const putName = useCallback(async () => {
     try {
       setMeta(await space.api.autoName(id))
+      reloadTopics()
     } catch (cause) {
       console.warn('[name]', cause)
     }
-  }, [space, id])
+  }, [space, id, reloadTopics])
 
   const putTags = useCallback(async () => {
     setTagBusy(true)
@@ -401,6 +404,7 @@ export default function ChatPage() {
                 .then((next) => {
                   setMeta(next)
                   setRenameOpen(false)
+                  reloadTopics()
                 })
                 .catch((cause: Error) => setNotice(cause.message))
             }}

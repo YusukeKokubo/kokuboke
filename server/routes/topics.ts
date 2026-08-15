@@ -8,7 +8,7 @@ import { config } from '../config'
 import { BadRequestError } from '../errors'
 import { readJson } from '../lib/body'
 import { readFamilyActivity } from '../store/activity'
-import { readRecent } from '../store/log'
+import { countUserMessages, readRecent } from '../store/log'
 import { topicDir } from '../store/paths'
 import { ensureTag, listTags } from '../store/tag'
 import {
@@ -94,7 +94,6 @@ topics.on('POST', topicPaths('/name'), async (c) => {
   const { space, id } = await requireTopic(c)
   const { user } = space
   const current = await readTopic(user, id)
-  if (current.name) return c.json(current)
 
   const history = await readRecent(user, id, Math.max(config.contextDays, 14))
   if (history.length === 0) {
@@ -108,7 +107,7 @@ topics.on('POST', topicPaths('/name'), async (c) => {
   try {
     text = await collectAgent(choice, {
       cwd: topicDir(user, id),
-      prompt: namePrompt({ history }),
+      prompt: namePrompt({ history, currentName: current.name || undefined }),
       systemPrompt: nameSystemPrompt(),
       signal: c.req.raw.signal,
     })
@@ -125,7 +124,8 @@ topics.on('POST', topicPaths('/name'), async (c) => {
     throw new HTTPException(502, { message: '名前を作れませんでした' })
   }
 
-  return c.json(await renameTopic(user, id, proposed))
+  const autoAt = await countUserMessages(user, id)
+  return c.json(await renameTopic(user, id, { ...proposed, autoAt }))
 })
 
 topics.on('POST', topicPaths('/tags'), async (c) => {

@@ -27,14 +27,35 @@ export interface TopicMeta {
   engine?: EngineId
   model?: string
   tags?: string[]
-  /** 自動で名前を付けにいったかどうか。失敗しても二度は試さない。 */
+  /**
+   * 自動命名を最後に試したときの、本人の発言回数。
+   * 人が付けた名前では最終回にして、以降は付け直さない。
+   */
+  nameTriedAt?: number
+  /** 自動で名前を付けにいったかどうか。古い topic.json 向け。 */
   nameTried?: boolean
   /** 自動でタグを付けにいったかどうか。失敗しても二度は試さない。 */
   tagTried?: boolean
 }
 
-/** 本人がこれだけ話したら、会話を読んで名前とタグを付けにいく。 */
+/** 本人がこの回数話したところで、会話を読んで名前を付け（直し）にいく。 */
+export const AUTO_NAME_AT = [1, 3, 5] as const
+export const AUTO_NAME_LAST = AUTO_NAME_AT[AUTO_NAME_AT.length - 1]
+
+/** 本人がこれだけ話したら、会話を読んでタグを付けにいく。 */
 export const AUTO_AFTER = 3
+
+function isAutoNameTurn(count: number): boolean {
+  return (AUTO_NAME_AT as readonly number[]).includes(count)
+}
+
+/** この回数までは自動命名を試済み、とみなす。 */
+function nameTryAt(meta: Pick<TopicMeta, 'name' | 'nameTried' | 'nameTriedAt'>): number {
+  if (typeof meta.nameTriedAt === 'number') return meta.nameTriedAt
+  // 古い topic.json は nameTried か、すでに付いている名前で打ち切る。
+  if (meta.nameTried || meta.name) return AUTO_NAME_LAST
+  return 0
+}
 
 function metaFile(user: UserName, id: TopicName): string {
   return path.join(topicDir(user, id), 'topic.json')
@@ -83,6 +104,7 @@ export async function readMeta(user: UserName, id: TopicName): Promise<TopicMeta
         ? parsed.tags.filter((tag): tag is string => typeof tag === 'string')
         : [],
       nameTried: parsed.nameTried,
+      nameTriedAt: typeof parsed.nameTriedAt === 'number' ? parsed.nameTriedAt : undefined,
       tagTried: parsed.tagTried,
     }
   } catch (error) {
@@ -160,6 +182,7 @@ export async function createTopic(
   await fs.mkdir(imagesDir(user, id), { recursive: true })
 
   const choice = resolveModel(input.engine, input.model)
+  const named = Boolean(name)
   const meta: TopicMeta = {
     slug: id,
     name,
@@ -167,6 +190,7 @@ export async function createTopic(
     engine: choice.engine,
     model: choice.model,
     tags: input.tags ?? [],
+    ...(named ? { nameTriedAt: AUTO_NAME_LAST, nameTried: true } : {}),
   }
 
   await writeMeta(user, id, meta)
@@ -192,7 +216,7 @@ export async function updateTopic(
 export async function renameTopic(
   user: UserName,
   id: TopicName,
-  input: { name: string },
+  input: { name: string; autoAt?: number },
 ): Promise<Topic> {
   const name = normalizeTopicName(input.name)
   if (!name) {
@@ -203,10 +227,12 @@ export async function renameTopic(
   }
 
   const meta = await readMeta(user, id)
+  const triedAt = input.autoAt ?? AUTO_NAME_LAST
   const next: TopicMeta = {
     ...meta,
     name,
-    nameTried: true,
+    nameTriedAt: triedAt,
+    nameTried: triedAt >= AUTO_NAME_LAST,
   }
   await writeMeta(user, id, next)
   return toTopic(next, await readLastEntry(user, id))
@@ -233,8 +259,8 @@ export async function deleteTopic(user: UserName, id: TopicName): Promise<void> 
 
 export async function shouldAutoName(user: UserName, id: TopicName): Promise<boolean> {
   const meta = await readMeta(user, id)
-  if (meta.name || meta.nameTried) return false
-  return (await countUserMessages(user, id, AUTO_AFTER)) >= AUTO_AFTER
+  const count = await countUserMessages(user, id, AUTO_NAME_LAST)
+  return isAutoNameTurn(count) && nameTryAt(meta) < count
 }
 
 export async function shouldAutoTag(user: UserName, id: TopicName): Promise<boolean> {
@@ -245,7 +271,12 @@ export async function shouldAutoTag(user: UserName, id: TopicName): Promise<bool
 
 export async function markNameTried(user: UserName, id: TopicName): Promise<void> {
   const meta = await readMeta(user, id)
-  await writeMeta(user, id, { ...meta, nameTried: true })
+  const count = await countUserMessages(user, id, AUTO_NAME_LAST)
+  await writeMeta(user, id, {
+    ...meta,
+    nameTriedAt: count,
+    nameTried: count >= AUTO_NAME_LAST,
+  })
 }
 
 export async function markTagTried(user: UserName, id: TopicName): Promise<void> {
