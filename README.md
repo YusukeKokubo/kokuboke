@@ -30,15 +30,16 @@
     ├── tags/
     │   └── 秋の旅行.md         タグの本文。ファイル名がタグ名
     └── topics/
-        └── untitled-20260814-0938/
-            ├── topic.json     見出し・エンジン・タグ・nameTriedAt / tagTried
+        └── 26-08-15-夕食の相談/
+            ├── topic.json     id（uuid）・見出し・エンジン・タグ
             ├── AGENTS.md      → ../../CLAUDE.md
             ├── logs/          YYYYMMDD.md（閲覧用） / YYYYMMDD.jsonl（読み戻し用）
             └── images/        YYYYMMDD_HHMMSS.jpg
 ```
 
-会話フォルダの名前は id（`untitled-日付`）で、作ったあと動かさない。
-見出しは `topic.json` の `name` だけを変えるので、改名しても URL は変わらない。
+会話の URL は uuid。フォルダは `YY-MM-DD` または `YY-MM-DD-見出し` で、
+NAS で見たときに日付順になる。見出しを付け直すとフォルダ名も合わせる。
+古い会話は `untitled-日付` のまま残っていて、URL もフォルダ名のまま。
 
 整理はタグ。結びは `topic.json` の `tags` 配列で、本文は `tags/{タグ名}.md`。
 会話に付いているタグの本文は、話すたびにプロンプトへ入る。タグが無ければ覚え書きは無い。
@@ -52,9 +53,9 @@
 ## 名前とタグは後から付く
 
 「追加」で始めた会話には名前がない。`topic.json` の `name` は空で、フォルダは
-`untitled-20260814-0938` のような id になる。本人が 1, 3, 5 回話したところで
-会話を読ませ、短い名前を付ける（直し）。フォルダは動かさない。1 回目で付けるので、
-「まだ名前のない話」のまま置きっぱなしにはならない。
+`26-08-15` のような日付だけになる。本人が 1, 3, 5 回話したところで会話を読ませ、
+短い名前を付け、フォルダも `26-08-15-夕食の相談` に合わせる。1 回目で付けるので、
+「まだ名前のない話」のまま置きっぱなしにはならない。URL の uuid は動かない。
 
 3 回目と同じタイミングでタグも一度付ける。無いタグなら空の `tags/{タグ名}.md` を作り、
 内容に合う絵文字を `tags.json` に残す。
@@ -291,10 +292,10 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | GET | `/api/health` | 稼働確認と同時実行の状況 |
 | GET | `/api/engines` | 選べるエンジンとモデルの一覧 |
 | GET | `/api/users/:user/topics` | 会話一覧（最後に話した順） |
-| POST | `/api/users/:user/topics` | 会話の作成。フォルダは untitled id |
+| POST | `/api/users/:user/topics` | 会話の作成。URL は uuid、フォルダは日付 |
 | GET | `/api/users/:user/topics/:id` | 会話の取得 |
 | PATCH | `/api/users/:user/topics/:id/model` | エンジンとモデルを変える |
-| PATCH | `/api/users/:user/topics/:id/name` | 見出しを変える。フォルダは動かない |
+| PATCH | `/api/users/:user/topics/:id/name` | 見出しを変える。フォルダ名も合わせる |
 | POST | `/api/users/:user/topics/:id/name` | 会話を読ませて名前を付ける |
 | PATCH | `/api/users/:user/topics/:id/tags` | 人がタグを付け外しする |
 | POST | `/api/users/:user/topics/:id/tags` | 会話を読ませてタグを付ける |

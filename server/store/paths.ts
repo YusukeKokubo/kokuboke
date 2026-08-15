@@ -13,7 +13,7 @@ export type UserName = string & { readonly [userBrand]: 'user' }
 
 /**
  * assertTopicName / toTopicName を通した名前。
- * 会話の id（untitled-日付）とタグ名の両方に使う。
+ * 会話フォルダ名（YY-MM-DD-見出し）とタグ名の両方に使う。
  */
 export type TopicName = string & { readonly [topicBrand]: 'topic' }
 

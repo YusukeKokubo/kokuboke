@@ -58,7 +58,12 @@ topics.on('PATCH', topicPaths('/name'), async (c) => {
   if (typeof body.name !== 'string') {
     throw new BadRequestError('名前を入力してください')
   }
-  return c.json(await renameTopic(space.user, id, { name: body.name }))
+  const release = await limiter.acquire(space.busyKey(id))
+  try {
+    return c.json(await renameTopic(space.user, id, { name: body.name }))
+  } finally {
+    release()
+  }
 })
 
 topics.on('PATCH', topicPaths('/model'), async (c) => {
@@ -114,18 +119,20 @@ topics.on('POST', topicPaths('/name'), async (c) => {
   } catch (error) {
     console.error('[name]', error)
     text = ''
+  }
+
+  try {
+    const proposed = parseName(text)
+    if (!proposed) {
+      await markNameTried(user, id)
+      throw new HTTPException(502, { message: '名前を作れませんでした' })
+    }
+
+    const autoAt = await countUserMessages(user, id)
+    return c.json(await renameTopic(user, id, { ...proposed, autoAt }))
   } finally {
     release()
   }
-
-  const proposed = parseName(text)
-  if (!proposed) {
-    await markNameTried(user, id)
-    throw new HTTPException(502, { message: '名前を作れませんでした' })
-  }
-
-  const autoAt = await countUserMessages(user, id)
-  return c.json(await renameTopic(user, id, { ...proposed, autoAt }))
 })
 
 topics.on('POST', topicPaths('/tags'), async (c) => {

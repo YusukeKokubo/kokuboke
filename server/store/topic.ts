@@ -15,12 +15,15 @@ import {
   type TopicName,
   type UserName,
 } from './paths'
-import { localDate, localTime, stamp } from '../../shared/date'
+import { shortDate } from '../../shared/date'
 import { countUserMessages, readLastEntry } from './log'
 import { ensureChatAgentsLink, ensureUser } from './user'
 
 export interface TopicMeta {
+  /** フォルダ名。`YY-MM-DD` または `YY-MM-DD-見出し`。 */
   slug: string
+  /** URL 用の uuid。古い会話には無い。 */
+  id?: string
   /** 名前をまだ付けていないときは空文字。 */
   name: string
   createdAt: string
@@ -65,21 +68,26 @@ export async function writeMeta(user: UserName, id: TopicName, meta: TopicMeta):
   await fs.writeFile(metaFile(user, id), JSON.stringify(meta, null, 2) + '\n')
 }
 
-/** 空いている id になるまで、末尾の数字を増やしていく。 */
-export async function uniqueSlug(user: UserName, base: TopicName): Promise<TopicName> {
+/** 空いているフォルダ名になるまで、末尾の数字を増やしていく。 */
+export async function uniqueSlug(
+  user: UserName,
+  base: TopicName,
+  except?: TopicName,
+): Promise<TopicName> {
   let candidate = base
   for (let i = 2; await topicExists(user, candidate); i++) {
+    if (except && candidate === except) return candidate
     const next = `${base}-${i}`
     candidate = asTopicName(next) ?? toTopicName(next)
   }
   return candidate
 }
 
-/** 会話フォルダの id。NAS を覗いたときに順番が分かるよう日付を入れる。動かさない。 */
-export function placeholderSlug(): TopicName {
-  const now = new Date()
-  const name = `untitled-${stamp(localDate(now))}-${localTime(now).replace(':', '')}`
-  return asTopicName(name) ?? toTopicName(name)
+/** 作成日と見出しからフォルダ名をつくる。日付は動かさない。 */
+export function topicFolderName(createdAt: Date, name = ''): TopicName {
+  const prefix = shortDate(createdAt)
+  const body = name ? `${prefix}-${name}` : prefix
+  return asTopicName(body) ?? toTopicName(body)
 }
 
 /** topic.json もフォルダも無いのは「会話が無い」。それ以外はそのまま投げる。 */
@@ -96,6 +104,7 @@ export async function readMeta(user: UserName, id: TopicName): Promise<TopicMeta
     const parsed = JSON.parse(raw) as Partial<TopicMeta>
     return {
       slug: id,
+      id: typeof parsed.id === 'string' && parsed.id ? parsed.id : undefined,
       name: parsed.name ?? '',
       createdAt: parsed.createdAt ?? new Date().toISOString(),
       engine: parsed.engine,
@@ -112,10 +121,14 @@ export async function readMeta(user: UserName, id: TopicName): Promise<TopicMeta
   }
 }
 
+function publicSlug(meta: TopicMeta): string {
+  return meta.id ?? meta.slug
+}
+
 function toTopic(meta: TopicMeta, last: { at: string; text: string } | null): Topic {
   const choice = resolveModel(meta.engine, meta.model)
   return {
-    slug: meta.slug,
+    slug: publicSlug(meta),
     name: meta.name,
     createdAt: meta.createdAt,
     engine: choice.engine,
@@ -127,8 +140,9 @@ function toTopic(meta: TopicMeta, last: { at: string; text: string } | null): To
   }
 }
 
-export async function readTopic(user: UserName, id: TopicName): Promise<Topic> {
-  return toTopic(await readMeta(user, id), await readLastEntry(user, id))
+export async function readTopic(user: UserName, id: string): Promise<Topic> {
+  const folder = await locate(user, id)
+  return toTopic(await readMeta(user, folder), await readLastEntry(user, folder))
 }
 
 export async function topicExists(user: UserName, id: TopicName): Promise<boolean> {
@@ -140,14 +154,7 @@ export async function topicExists(user: UserName, id: TopicName): Promise<boolea
   }
 }
 
-/** 一番新しく話した順。まだ話していないものは作成日で並べる。 */
-function byRecency(a: Topic, b: Topic): number {
-  return (b.lastMessageAt ?? b.createdAt).localeCompare(a.lastMessageAt ?? a.createdAt)
-}
-
-export async function listTopics(user: UserName): Promise<Topic[]> {
-  await ensureUser(user)
-
+async function listFolders(user: UserName): Promise<TopicName[]> {
   let names: string[]
   try {
     names = await fs.readdir(topicsDir(user))
@@ -155,14 +162,54 @@ export async function listTopics(user: UserName): Promise<Topic[]> {
     return []
   }
 
-  const topics: Topic[] = []
+  const folders: TopicName[] = []
   for (const name of names) {
     const id = asTopicName(name)
     if (!id) continue
     if (!(await topicExists(user, id))) continue
-    topics.push(await readTopic(user, id))
+    folders.push(id)
+  }
+  return folders
+}
+
+/**
+ * URL の id（uuid）またはフォルダ名から、実体のフォルダを探す。
+ * 古い会話は uuid が無く、フォルダ名がそのまま URL になっている。
+ */
+export async function resolveTopic(
+  user: UserName,
+  ref: string,
+): Promise<{ folder: TopicName; slug: string } | null> {
+  const folder = asTopicName(ref)
+  if (folder && (await topicExists(user, folder))) {
+    const meta = await readMeta(user, folder)
+    return { folder, slug: publicSlug(meta) }
   }
 
+  for (const name of await listFolders(user)) {
+    const meta = await readMeta(user, name)
+    if (meta.id === ref) return { folder: name, slug: meta.id }
+  }
+  return null
+}
+
+async function locate(user: UserName, ref: string): Promise<TopicName> {
+  const found = await resolveTopic(user, ref)
+  if (!found) notFoundIfMissing({ code: 'ENOENT' })
+  return found.folder
+}
+
+/** 一番新しく話した順。まだ話していないものは作成日で並べる。 */
+function byRecency(a: Topic, b: Topic): number {
+  return (b.lastMessageAt ?? b.createdAt).localeCompare(a.lastMessageAt ?? a.createdAt)
+}
+
+export async function listTopics(user: UserName): Promise<Topic[]> {
+  await ensureUser(user)
+  const topics: Topic[] = []
+  for (const folder of await listFolders(user)) {
+    topics.push(await readTopic(user, folder))
+  }
   return topics.sort(byRecency)
 }
 
@@ -177,24 +224,26 @@ export async function createTopic(
 
   await ensureUser(user)
 
-  const id = await uniqueSlug(user, placeholderSlug())
-  await fs.mkdir(logsDir(user, id), { recursive: true })
-  await fs.mkdir(imagesDir(user, id), { recursive: true })
+  const createdAt = new Date()
+  const folder = await uniqueSlug(user, topicFolderName(createdAt, name))
+  await fs.mkdir(logsDir(user, folder), { recursive: true })
+  await fs.mkdir(imagesDir(user, folder), { recursive: true })
 
   const choice = resolveModel(input.engine, input.model)
   const named = Boolean(name)
   const meta: TopicMeta = {
-    slug: id,
+    slug: folder,
+    id: crypto.randomUUID(),
     name,
-    createdAt: new Date().toISOString(),
+    createdAt: createdAt.toISOString(),
     engine: choice.engine,
     model: choice.model,
     tags: input.tags ?? [],
     ...(named ? { nameTriedAt: AUTO_NAME_LAST, nameTried: true } : {}),
   }
 
-  await writeMeta(user, id, meta)
-  await ensureChatAgentsLink(topicDir(user, id))
+  await writeMeta(user, folder, meta)
+  await ensureChatAgentsLink(topicDir(user, folder))
 
   return toTopic(meta, null)
 }
@@ -202,20 +251,21 @@ export async function createTopic(
 /** エンジンとモデルだけを差し替える。名前を変えるのは renameTopic。 */
 export async function updateTopic(
   user: UserName,
-  id: TopicName,
+  id: string,
   input: { engine?: string; model?: string },
 ): Promise<Topic> {
-  const meta = await readMeta(user, id)
+  const folder = await locate(user, id)
+  const meta = await readMeta(user, folder)
   const choice = resolveModel(input.engine ?? meta.engine, input.model ?? meta.model)
   const next: TopicMeta = { ...meta, engine: choice.engine, model: choice.model }
-  await writeMeta(user, id, next)
-  return toTopic(next, await readLastEntry(user, id))
+  await writeMeta(user, folder, next)
+  return toTopic(next, await readLastEntry(user, folder))
 }
 
-/** 見出しを付け直す。フォルダは動かさない。 */
+/** 見出しを付け直す。uuid のある会話はフォルダ名も合わせる。URL は動かない。 */
 export async function renameTopic(
   user: UserName,
-  id: TopicName,
+  id: string,
   input: { name: string; autoAt?: number },
 ): Promise<Topic> {
   const name = normalizeTopicName(input.name)
@@ -226,7 +276,8 @@ export async function renameTopic(
     throw new BadRequestError('名前が長すぎます')
   }
 
-  const meta = await readMeta(user, id)
+  let folder = await locate(user, id)
+  const meta = await readMeta(user, folder)
   const triedAt = input.autoAt ?? AUTO_NAME_LAST
   const next: TopicMeta = {
     ...meta,
@@ -234,22 +285,37 @@ export async function renameTopic(
     nameTriedAt: triedAt,
     nameTried: triedAt >= AUTO_NAME_LAST,
   }
-  await writeMeta(user, id, next)
-  return toTopic(next, await readLastEntry(user, id))
+
+  if (meta.id) {
+    const dest = await uniqueSlug(user, topicFolderName(new Date(meta.createdAt), name), folder)
+    if (dest !== folder) {
+      await fs.rename(
+        assertInsideDataDir(topicDir(user, folder)),
+        assertInsideDataDir(topicDir(user, dest)),
+      )
+      folder = dest
+    }
+    next.slug = folder
+  }
+
+  await writeMeta(user, folder, next)
+  return toTopic(next, await readLastEntry(user, folder))
 }
 
-export async function writeTags(user: UserName, id: TopicName, tags: string[]): Promise<Topic> {
-  const meta = await readMeta(user, id)
+export async function writeTags(user: UserName, id: string, tags: string[]): Promise<Topic> {
+  const folder = await locate(user, id)
+  const meta = await readMeta(user, folder)
   const next: TopicMeta = { ...meta, tags, tagTried: true }
-  await writeMeta(user, id, next)
-  return toTopic(next, await readLastEntry(user, id))
+  await writeMeta(user, folder, next)
+  return toTopic(next, await readLastEntry(user, folder))
 }
 
 /**
  * 経路の検査に加え、再帰削除の直前にも保存領域の内側かを確かめる。
  */
-export async function deleteTopic(user: UserName, id: TopicName): Promise<void> {
-  const dir = assertInsideDataDir(topicDir(user, id))
+export async function deleteTopic(user: UserName, id: string): Promise<void> {
+  const folder = await locate(user, id)
+  const dir = assertInsideDataDir(topicDir(user, folder))
   try {
     await fs.rm(dir, { recursive: true, force: false })
   } catch (error) {
@@ -257,31 +323,35 @@ export async function deleteTopic(user: UserName, id: TopicName): Promise<void> 
   }
 }
 
-export async function shouldAutoName(user: UserName, id: TopicName): Promise<boolean> {
-  const meta = await readMeta(user, id)
-  const count = await countUserMessages(user, id, AUTO_NAME_LAST)
+export async function shouldAutoName(user: UserName, id: string): Promise<boolean> {
+  const folder = await locate(user, id)
+  const meta = await readMeta(user, folder)
+  const count = await countUserMessages(user, folder, AUTO_NAME_LAST)
   return isAutoNameTurn(count) && nameTryAt(meta) < count
 }
 
-export async function shouldAutoTag(user: UserName, id: TopicName): Promise<boolean> {
-  const meta = await readMeta(user, id)
+export async function shouldAutoTag(user: UserName, id: string): Promise<boolean> {
+  const folder = await locate(user, id)
+  const meta = await readMeta(user, folder)
   if (meta.tagTried) return false
-  return (await countUserMessages(user, id, AUTO_AFTER)) >= AUTO_AFTER
+  return (await countUserMessages(user, folder, AUTO_AFTER)) >= AUTO_AFTER
 }
 
-export async function markNameTried(user: UserName, id: TopicName): Promise<void> {
-  const meta = await readMeta(user, id)
-  const count = await countUserMessages(user, id, AUTO_NAME_LAST)
-  await writeMeta(user, id, {
+export async function markNameTried(user: UserName, id: string): Promise<void> {
+  const folder = await locate(user, id)
+  const meta = await readMeta(user, folder)
+  const count = await countUserMessages(user, folder, AUTO_NAME_LAST)
+  await writeMeta(user, folder, {
     ...meta,
     nameTriedAt: count,
     nameTried: count >= AUTO_NAME_LAST,
   })
 }
 
-export async function markTagTried(user: UserName, id: TopicName): Promise<void> {
-  const meta = await readMeta(user, id)
-  await writeMeta(user, id, { ...meta, tagTried: true })
+export async function markTagTried(user: UserName, id: string): Promise<void> {
+  const folder = await locate(user, id)
+  const meta = await readMeta(user, folder)
+  await writeMeta(user, folder, { ...meta, tagTried: true })
 }
 
 /** タグを改名したとき、全会話の配列を付け替える。 */
@@ -292,12 +362,11 @@ export async function renameTagInTopics(
 ): Promise<void> {
   for (const topic of await listTopics(user)) {
     if (!topic.tags.includes(from)) continue
-    const id = asTopicName(topic.slug)
-    if (!id) continue
+    const folder = await locate(user, topic.slug)
     const tags = topic.tags.map((tag) => (tag === from ? to : tag))
     const unique = [...new Set(tags)]
-    const meta = await readMeta(user, id)
-    await writeMeta(user, id, { ...meta, tags: unique })
+    const meta = await readMeta(user, folder)
+    await writeMeta(user, folder, { ...meta, tags: unique })
   }
 }
 
@@ -305,9 +374,8 @@ export async function renameTagInTopics(
 export async function removeTagFromTopics(user: UserName, tag: string): Promise<void> {
   for (const topic of await listTopics(user)) {
     if (!topic.tags.includes(tag)) continue
-    const id = asTopicName(topic.slug)
-    if (!id) continue
-    const meta = await readMeta(user, id)
-    await writeMeta(user, id, { ...meta, tags: (meta.tags ?? []).filter((item) => item !== tag) })
+    const folder = await locate(user, topic.slug)
+    const meta = await readMeta(user, folder)
+    await writeMeta(user, folder, { ...meta, tags: (meta.tags ?? []).filter((item) => item !== tag) })
   }
 }

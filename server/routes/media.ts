@@ -2,7 +2,8 @@ import fs from 'node:fs/promises'
 import { Hono } from 'hono'
 import { BadRequestError, NotFoundError } from '../errors'
 import { imageAbsPath } from '../store/image'
-import { assertInsideDataDir, assertTopicName } from '../store/paths'
+import { assertInsideDataDir } from '../store/paths'
+import { resolveTopic } from '../store/topic'
 import { resolveMediaSpace } from './space'
 
 export const media = new Hono()
@@ -10,12 +11,16 @@ export const media = new Hono()
 /**
  * 保存済みの画像を返す。データディレクトリの外は絶対に読ませない。
  * 名前の位置には個人ならユーザー名、共有スペースなら `family` が入る。
+ * 会話は uuid（新しい）またはフォルダ名（古い）で指す。
  */
 media.get('/media/:user/:topic/:file', async (c) => {
   const { user } = resolveMediaSpace(c)
-  const id = assertTopicName(c.req.param('topic') ?? '')
+  const found = await resolveTopic(user, c.req.param('topic') ?? '')
+  if (!found) {
+    throw new NotFoundError('会話が見つかりません')
+  }
 
-  const target = imageAbsPath(user, id, c.req.param('file') ?? '')
+  const target = imageAbsPath(user, found.folder, c.req.param('file') ?? '')
   if (!target) {
     throw new BadRequestError('ファイル名が不正です')
   }

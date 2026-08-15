@@ -8,7 +8,7 @@ import { BadRequestError } from '../errors'
 import { streamAgent } from '../lib/agent-stream'
 import { readJson, readText } from '../lib/body'
 import { readRecent } from '../store/log'
-import { asTopicName, tagsDir } from '../store/paths'
+import { tagsDir } from '../store/paths'
 import {
   assertTagName,
   createTag,
@@ -18,7 +18,7 @@ import {
   renameTag,
   writeTag,
 } from '../store/tag'
-import { listTopics } from '../store/topic'
+import { listTopics, resolveTopic } from '../store/topic'
 import { resolveSpace, spacePaths, tagPaths } from './space'
 
 export const tags = new Hono()
@@ -73,11 +73,11 @@ tags.on('POST', tagPaths('/draft'), async (c) => {
   const chats = []
   for (const topic of await listTopics(user)) {
     if (!topic.tags.includes(name)) continue
-    const id = asTopicName(topic.slug)
-    if (!id) continue
+    const found = await resolveTopic(user, topic.slug)
+    if (!found) continue
     chats.push({
       name: topic.name || NO_NAME,
-      history: await readRecent(user, id, days),
+      history: await readRecent(user, found.folder, days),
     })
   }
   if (chats.every((chat) => chat.history.length === 0)) {

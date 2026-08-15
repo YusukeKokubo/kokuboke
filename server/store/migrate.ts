@@ -11,8 +11,8 @@ import {
   type UserName,
 } from './paths'
 import {
-  placeholderSlug,
   readMeta,
+  topicFolderName,
   topicExists,
   uniqueSlug,
   writeMeta,
@@ -89,7 +89,10 @@ export async function migrateNestedTopics(user: UserName): Promise<void> {
     for (const child of children) {
       const childDir = path.join(dir, child)
       const keepId = child.startsWith('untitled-') ? asTopicName(child) : null
-      const id = keepId && !(await topicExists(user, keepId)) ? keepId : await uniqueSlug(user, placeholderSlug())
+      const id =
+        keepId && !(await topicExists(user, keepId))
+          ? keepId
+          : await uniqueSlug(user, topicFolderName(new Date()))
 
       const dest = topicDir(user, id)
       await fs.rename(childDir, dest)

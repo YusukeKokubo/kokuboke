@@ -16,14 +16,14 @@ const {
   markNameTried,
   readTopic,
   renameTopic,
+  resolveTopic,
   shouldAutoName,
   shouldAutoTag,
   topicExists,
   writeTags,
 } = await import('./topic')
 const { appendMessage, readAll } = await import('./log')
-const { asTopicName, assertTopicName, assertUser, imagesDir, logsDir, topicDir } =
-  await import('./paths')
+const { assertTopicName, assertUser, imagesDir, logsDir, topicDir } = await import('./paths')
 const { NotFoundError } = await import('../errors')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
@@ -34,20 +34,24 @@ beforeEach(async () => {
   await fsp.rm(path.join(dataDir, 'taro'), { recursive: true, force: true })
 })
 
-function idOf(slug: string) {
-  const id = asTopicName(slug)
-  assert.ok(id)
-  return id
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+async function folderOf(slug: string) {
+  const found = await resolveTopic(USER, slug)
+  assert.ok(found)
+  return found.folder
 }
 
 describe('createTopic', () => {
-  it('フォルダは untitled- の id で、見出しは json に置く', async () => {
+  it('URL は uuid、フォルダは日付と見出し', async () => {
     const topic = await createTopic(USER, { name: '買い物' })
-    assert.match(topic.slug, /^untitled-\d{8}-\d{4}/)
+    assert.match(topic.slug, UUID)
     assert.equal(topic.name, '買い物')
     assert.deepEqual(topic.tags, [])
 
-    const dir = topicDir(USER, idOf(topic.slug))
+    const folder = await folderOf(topic.slug)
+    assert.match(folder, /^\d{2}-\d{2}-\d{2}-買い物$/)
+    const dir = topicDir(USER, folder)
     assert.ok((await fsp.stat(dir)).isDirectory())
     const link = await fsp.readlink(path.join(dir, 'AGENTS.md'))
     assert.equal(link, path.join('..', '..', 'CLAUDE.md'))
@@ -56,26 +60,42 @@ describe('createTopic', () => {
   it('名前なしでも作れる', async () => {
     const topic = await createTopic(USER, {})
     assert.equal(topic.name, '')
-    assert.match(topic.slug, /^untitled-/)
+    assert.match(topic.slug, UUID)
+    assert.match(await folderOf(topic.slug), /^\d{2}-\d{2}-\d{2}$/)
   })
 })
 
 describe('renameTopic', () => {
-  it('見出しだけ変えてフォルダは動かさない', async () => {
+  it('URL は残して、フォルダ名を見出しに合わせる', async () => {
     const topic = await createTopic(USER, { name: '仮' })
-    const id = idOf(topic.slug)
-    const renamed = await renameTopic(USER, id, { name: '買い物メモ' })
+    const before = await folderOf(topic.slug)
+    const renamed = await renameTopic(USER, before, { name: '買い物メモ' })
 
     assert.equal(renamed.slug, topic.slug)
     assert.equal(renamed.name, '買い物メモ')
-    assert.ok(await topicExists(USER, id))
+    assert.equal(await topicExists(USER, before), false)
+    assert.match(await folderOf(renamed.slug), /^\d{2}-\d{2}-\d{2}-買い物メモ$/)
+  })
+
+  it('uuid の無い古い会話はフォルダを動かさない', async () => {
+    const folder = assertTopicName('untitled-20260814-0938')
+    await fsp.mkdir(topicDir(USER, folder), { recursive: true })
+    await fsp.writeFile(
+      path.join(topicDir(USER, folder), 'topic.json'),
+      JSON.stringify({ slug: folder, name: '', createdAt: '2026-08-14T00:38:00.000Z' }, null, 2),
+    )
+
+    const renamed = await renameTopic(USER, folder, { name: '買い物' })
+    assert.equal(renamed.slug, folder)
+    assert.equal(renamed.name, '買い物')
+    assert.ok(await topicExists(USER, folder))
   })
 })
 
 describe('writeTags', () => {
   it('配列を書き、tagTried が立つ', async () => {
     const topic = await createTopic(USER, {})
-    const id = idOf(topic.slug)
+    const id = await folderOf(topic.slug)
     const next = await writeTags(USER, id, ['秋の旅行'])
     assert.deepEqual(next.tags, ['秋の旅行'])
     assert.equal(await shouldAutoTag(USER, id), false)
@@ -86,14 +106,14 @@ describe('listTopics', () => {
   it('最後に話した順', async () => {
     const older = await createTopic(USER, { name: '古い' })
     const newer = await createTopic(USER, { name: '新しい' })
-    await appendMessage(USER, idOf(older.slug), {
+    await appendMessage(USER, await folderOf(older.slug), {
       id: '1',
       role: 'user',
       text: 'きのう',
       images: [],
       at: '2026-08-10T10:00:00.000Z',
     })
-    await appendMessage(USER, idOf(newer.slug), {
+    await appendMessage(USER, await folderOf(newer.slug), {
       id: '2',
       role: 'user',
       text: 'きょう',
@@ -116,7 +136,7 @@ describe('deleteTopic', () => {
 
   it('logs と images の中身まで消える', async () => {
     const topic = await createTopic(USER, { name: '消す' })
-    const id = idOf(topic.slug)
+    const id = await folderOf(topic.slug)
 
     await appendMessage(USER, id, {
       id: '1',
@@ -136,7 +156,7 @@ describe('deleteTopic', () => {
 
   it('消したあとに書かれても、前の会話は作り直した会話に出てこない', async () => {
     const topic = await createTopic(USER, { name: '子' })
-    const id = idOf(topic.slug)
+    const id = await folderOf(topic.slug)
 
     await appendMessage(USER, id, {
       id: '1',
@@ -156,13 +176,13 @@ describe('deleteTopic', () => {
     })
     const created = await createTopic(USER, { name: '子' })
 
-    const texts = (await readAll(USER, idOf(created.slug))).map((m) => m.text)
+    const texts = (await readAll(USER, await folderOf(created.slug))).map((m) => m.text)
     assert.ok(!texts.includes('前のトピックの返事'), `消した会話が残っている: ${texts.join(' / ')}`)
   })
 })
 
-async function addUser(id: ReturnType<typeof idOf>, text: string) {
-  await appendMessage(USER, id, {
+async function addUser(slug: string, text: string) {
+  await appendMessage(USER, await folderOf(slug), {
     id: text,
     role: 'user',
     text,
@@ -174,7 +194,7 @@ async function addUser(id: ReturnType<typeof idOf>, text: string) {
 describe('shouldAutoName / shouldAutoTag', () => {
   it('1, 3, 5 回目に命名が立つ', async () => {
     const topic = await createTopic(USER, {})
-    const id = idOf(topic.slug)
+    const id = topic.slug
     assert.equal(await shouldAutoName(USER, id), false)
     assert.equal(await shouldAutoTag(USER, id), false)
 
@@ -211,7 +231,7 @@ describe('shouldAutoName / shouldAutoTag', () => {
 
   it('人が付けた名前は自動では付け直さない', async () => {
     const topic = await createTopic(USER, { name: '買い物' })
-    const id = idOf(topic.slug)
+    const id = topic.slug
     for (let i = 0; i < 5; i++) {
       await addUser(id, `発言 ${i}`)
     }
@@ -221,7 +241,7 @@ describe('shouldAutoName / shouldAutoTag', () => {
 
   it('途中で人が付け直したら、あとの自動命名は走らない', async () => {
     const topic = await createTopic(USER, {})
-    const id = idOf(topic.slug)
+    const id = topic.slug
     await addUser(id, '1')
     await renameTopic(USER, id, { name: '仮', autoAt: 1 })
     await renameTopic(USER, id, { name: '自分で付けた' })
@@ -232,7 +252,7 @@ describe('shouldAutoName / shouldAutoTag', () => {
 
   it('1 回目の自動命名に失敗しても 3 回目は再挑戦する', async () => {
     const topic = await createTopic(USER, {})
-    const id = idOf(topic.slug)
+    const id = topic.slug
     await addUser(id, '1')
     await markNameTried(USER, id)
     assert.equal(await shouldAutoName(USER, id), false)

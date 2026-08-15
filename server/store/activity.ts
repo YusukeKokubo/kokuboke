@@ -1,8 +1,8 @@
 import type { ActivityEntry, FamilyActivityEntry } from '../../shared/types'
 import { config } from '../config'
 import { readLastEntry } from './log'
-import { assertUser, asTopicName, familyUser, type UserName } from './paths'
-import { listTopics } from './topic'
+import { assertUser, familyUser, type UserName } from './paths'
+import { listTopics, resolveTopic } from './topic'
 
 const PREVIEW = 80
 
@@ -28,10 +28,10 @@ async function latestTopic(user: UserName): Promise<FamilyActivityEntry | null> 
   }
   if (!latest) return null
 
-  const id = asTopicName(latest.slug)
-  if (!id) return null
+  const found = await resolveTopic(user, latest.slug)
+  if (!found) return null
 
-  const last = await readLastEntry(user, id)
+  const last = await readLastEntry(user, found.folder)
   if (!last) return null
 
   return {

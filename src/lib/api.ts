@@ -111,7 +111,7 @@ export function spaceApi(base: string, author?: string) {
     updateTopic: (id: string, input: { engine: string; model: string }) =>
       json.send<Topic>('PATCH', at(id, '/model'), input),
 
-    /** 見出しだけ変える。フォルダも URL も動かない。 */
+    /** 見出しを変える。URL は動かない。新しい会話はフォルダ名も合わせる。 */
     renameTopic: (id: string, input: { name: string }) =>
       json.send<Topic>('PATCH', at(id, '/name'), input),
 

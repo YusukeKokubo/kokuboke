@@ -2,14 +2,14 @@ import type { Context } from 'hono'
 import { BadRequestError, NotFoundError } from '../errors'
 import type { Audience } from '../agent/prompt'
 import {
+  asTopicName,
   assertAuthor,
-  assertTopicName,
   assertUser,
   familyUser,
   type TopicName,
   type UserName,
 } from '../store/paths'
-import { topicExists } from '../store/topic'
+import { resolveTopic } from '../store/topic'
 import { readProfile } from '../store/user'
 
 /**
@@ -106,18 +106,18 @@ export function resolveMediaSpace(c: Context): Space {
   return segment === FAMILY ? familySpace() : personalSpace(assertUser(segment))
 }
 
-export function target(c: Context): { space: Space; id: TopicName } {
-  return {
-    space: resolveSpace(c),
-    id: assertTopicName(c.req.param('topic') ?? ''),
-  }
-}
-
 /** 経路から取り出したうえで、実体があることまで確かめる。 */
-export async function requireTopic(c: Context): Promise<{ space: Space; id: TopicName }> {
-  const found = target(c)
-  if (!(await topicExists(found.space.user, found.id))) {
+export async function requireTopic(
+  c: Context,
+): Promise<{ space: Space; id: TopicName; slug: string }> {
+  const space = resolveSpace(c)
+  const raw = c.req.param('topic') ?? ''
+  const found = await resolveTopic(space.user, raw)
+  if (!found) {
+    if (!asTopicName(raw)) {
+      throw new BadRequestError('名前が不正です')
+    }
     throw new NotFoundError('会話が見つかりません')
   }
-  return found
+  return { space, id: found.folder, slug: found.slug }
 }

@@ -15,13 +15,13 @@ import { requireTopic, topicPaths } from './space'
 export const messages = new Hono()
 
 messages.on('GET', topicPaths('/messages'), async (c) => {
-  const { space, id } = await requireTopic(c)
+  const { space, id, slug } = await requireTopic(c)
   const history = await readAll(space.user, id)
-  return c.json(history.map((m) => withImageUrls(space.mediaSegment, id, m)))
+  return c.json(history.map((m) => withImageUrls(space.mediaSegment, slug, m)))
 })
 
 messages.on('POST', topicPaths('/messages'), async (c) => {
-  const { space, id } = await requireTopic(c)
+  const { space, id, slug } = await requireTopic(c)
   const { user } = space
 
   const body = await c.req.parseBody({ all: true })
@@ -93,7 +93,7 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
     tag: 'chat',
     fallback: '返答を作れませんでした',
     open: (send) =>
-      send({ type: 'accepted', message: withImageUrls(space.mediaSegment, id, userMessage) }),
+      send({ type: 'accepted', message: withImageUrls(space.mediaSegment, slug, userMessage) }),
     close: async (answer, send) => {
       if (!(await topicExists(user, id))) {
         await send({ type: 'error', message: 'この会話は削除されたよ' }).catch(() => {})

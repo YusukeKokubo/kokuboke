@@ -88,7 +88,7 @@ describe('migrateNestedTopics', () => {
     await migrateNestedTopics(USER)
 
     const names = await fsp.readdir(topicsDir(USER))
-    assert.equal(names.some((name) => name.startsWith('untitled-')), true)
+    assert.equal(names.some((name) => /^\d{2}-\d{2}-\d{2}/.test(name)), true)
     assert.equal(names.includes('買い物'), false)
     assert.equal(names.includes('牛乳'), false)
   })

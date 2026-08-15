@@ -13,16 +13,16 @@ process.env.TZ = 'Asia/Tokyo'
 
 const { readFamilyActivity, listRecentActivity } = await import('./activity')
 const { appendMessage } = await import('./log')
-const { asTopicName, assertUser, familyUser } = await import('./paths')
-const { createTopic } = await import('./topic')
+const { assertUser, familyUser } = await import('./paths')
+const { createTopic, resolveTopic } = await import('./topic')
 const { ensureFamily } = await import('./user')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
-function idOf(slug: string) {
-  const id = asTopicName(slug)
-  assert.ok(id)
-  return id
+async function folderOf(user: ReturnType<typeof assertUser>, slug: string) {
+  const found = await resolveTopic(user, slug)
+  assert.ok(found)
+  return found.folder
 }
 
 function message(
@@ -46,12 +46,12 @@ describe('listRecentActivity', () => {
 
     await appendMessage(
       assertUser('taro'),
-      idOf(math.slug),
+      await folderOf(assertUser('taro'), math.slug),
       message('算数の質問', new Date('2026-08-11T12:00:00+09:00')),
     )
     await appendMessage(
       assertUser('taro'),
-      idOf(history.slug),
+      await folderOf(assertUser('taro'), history.slug),
       message('歴史の質問', new Date('2026-08-10T10:00:00+09:00')),
     )
 
@@ -65,7 +65,7 @@ describe('listRecentActivity', () => {
 
   it('同じ会話の古い発言は出さない', async () => {
     const topic = await createTopic(assertUser('taro'), { name: '子' })
-    const id = idOf(topic.slug)
+    const id = await folderOf(assertUser('taro'), topic.slug)
 
     await appendMessage(assertUser('taro'), id, message('きのう', new Date('2026-08-10T10:00:00+09:00')))
     await appendMessage(assertUser('taro'), id, message('きょう', new Date('2026-08-11T12:00:00+09:00')))
@@ -83,12 +83,12 @@ describe('listRecentActivity', () => {
 
     await appendMessage(
       assertUser('taro'),
-      idOf(a.slug),
+      await folderOf(assertUser('taro'), a.slug),
       message('太郎', new Date('2026-08-10T09:00:00+09:00')),
     )
     await appendMessage(
       assertUser('hanako'),
-      idOf(b.slug),
+      await folderOf(assertUser('hanako'), b.slug),
       message('花子', new Date('2026-08-11T09:00:00+09:00')),
     )
 
@@ -108,7 +108,7 @@ describe('listRecentActivity', () => {
     const old = await createTopic(assertUser('taro'), { name: '古い話' })
     await appendMessage(
       assertUser('taro'),
-      idOf(old.slug),
+      await folderOf(assertUser('taro'), old.slug),
       message('昨日の話', new Date('2026-08-10T10:00:00+09:00')),
     )
     await createTopic(assertUser('taro'), { name: '新しい話' })
@@ -124,7 +124,7 @@ describe('listRecentActivity', () => {
     const long = 'あ'.repeat(100)
     await appendMessage(
       assertUser('taro'),
-      idOf(topic.slug),
+      await folderOf(assertUser('taro'), topic.slug),
       message(`  行1\n\n行2  ${long}`, new Date()),
     )
 
@@ -147,7 +147,10 @@ describe('readFamilyActivity', () => {
   it('いちばん新しい会話を一行返す', async () => {
     const user = familyUser()
     const topic = await createTopic(user, { name: '買い物' })
-    await appendMessage(user, idOf(topic.slug), { ...message('牛乳', new Date()), author: 'taro' })
+    await appendMessage(user, await folderOf(user, topic.slug), {
+      ...message('牛乳', new Date()),
+      author: 'taro',
+    })
 
     const entry = await readFamilyActivity()
     assert.ok(entry)

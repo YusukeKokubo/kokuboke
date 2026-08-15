@@ -82,7 +82,7 @@ export function imageName(stored: string): string {
  * id には `#` も入りうるので、区切りごとに符号化する。
  * 素で入れると `#` から先が断片として切り落とされる。
  */
-export function mediaUrl(segment: string, id: TopicName, stored: string): string {
+export function mediaUrl(segment: string, id: string, stored: string): string {
   return `/media/${[segment, id, imageName(stored)].map(encodeURIComponent).join('/')}`
 }
 
@@ -90,7 +90,7 @@ export function mediaUrl(segment: string, id: TopicName, stored: string): string
  * API で返す形に直す。ログにはファイル名しか入っていない。
  * 先頭の区切りは個人ならユーザー名、共有スペースなら `family`（Space.mediaSegment）。
  */
-export function withImageUrls(segment: string, id: TopicName, message: Message): Message {
+export function withImageUrls(segment: string, id: string, message: Message): Message {
   if (message.images.length === 0) return message
   return { ...message, images: message.images.map((name) => mediaUrl(segment, id, name)) }
 }

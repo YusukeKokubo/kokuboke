@@ -28,7 +28,7 @@ export interface EngineInfo {
 export const NO_NAME = 'まだ名前のない話'
 
 export interface Topic {
-  /** フォルダ名。untitled-日付。改名しても動かない。 */
+  /** URL の id。新しい会話は uuid。古い会話はフォルダ名。 */
   slug: string
   /** まだ名前を付けていないときは空文字。画面側で仮の見出しを出す。 */
   name: string

@@ -11,8 +11,8 @@ process.env.USERS = 'taro'
 
 const { ensureFamily, ensureUser, readClaude, readProfile, writeClaude, writeProfile } =
   await import('./user')
-const { asTopicName, assertUser, familyUser, tagsDir, userDir } = await import('./paths')
-const { createTopic } = await import('./topic')
+const { assertUser, familyUser, tagsDir, userDir } = await import('./paths')
+const { createTopic, resolveTopic } = await import('./topic')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
@@ -69,9 +69,9 @@ describe('CLAUDE.md', () => {
 
   it('会話の AGENTS.md は人直下の CLAUDE.md を指す', async () => {
     const topic = await createTopic(USER, {})
-    const id = asTopicName(topic.slug)
-    assert.ok(id)
-    const link = path.join(userDir(USER), 'topics', id, 'AGENTS.md')
+    const found = await resolveTopic(USER, topic.slug)
+    assert.ok(found)
+    const link = path.join(userDir(USER), 'topics', found.folder, 'AGENTS.md')
     assert.ok((await fsp.lstat(link)).isSymbolicLink())
     assert.equal(await fsp.readlink(link), path.join('..', '..', 'CLAUDE.md'))
   })

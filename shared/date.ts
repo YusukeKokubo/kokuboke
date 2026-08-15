@@ -10,6 +10,11 @@ export function localDate(at: Date = new Date()): string {
   return at.toLocaleDateString('sv-SE')
 }
 
+/** YY-MM-DD。会話フォルダの先頭に使う。 */
+export function shortDate(at: Date = new Date()): string {
+  return localDate(at).slice(2)
+}
+
 export function localTime(at: Date): string {
   return at.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
 }
