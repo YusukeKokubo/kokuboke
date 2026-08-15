@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, FileText, MoreHorizontal, Tags, Trash2, UserRound } from 'lucide-react'
+import { ChevronDown, FileText, MessageSquarePlus, MoreHorizontal, Tags, Trash2, UserRound } from 'lucide-react'
 import type { Topic } from '../../shared/types'
 import { topicLabel } from '@/lib/format'
 import { familySpace, personalSpace, useSpace, type Space } from '@/lib/space'
@@ -220,11 +220,19 @@ function SpaceSection({
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel render={<Link to={space.home} />} onClick={() => setOpenMobile(false)}>
-        {label}
-      </SidebarGroupLabel>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={pathname === space.home}
+              render={<Link to={space.home} />}
+              onClick={() => setOpenMobile(false)}
+            >
+              <MessageSquarePlus />
+              新しい会話
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={atPath(pathname, space.tags)}
