@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { config } from '../config'
-import { familyClaudeMd, userClaudeMd, userProfileMd } from '../templates'
+import { familyClaudeMd, familyProfileMd, userClaudeMd, userProfileMd } from '../templates'
 import { readMarkdown, writeMarkdown } from './markdown'
 import {
   assertUser,
@@ -69,13 +69,14 @@ export async function ensureUser(user: UserName): Promise<void> {
   await ensureAgentsLink(dir)
 }
 
-/** 家族共有スペースのフォルダと雛形を用意する。profile.md は置かない。 */
+/** 家族共有スペースのフォルダと雛形を用意する。 */
 export async function ensureFamily(): Promise<void> {
   const user = familyUser()
   const dir = userDir(user)
   await fs.mkdir(topicsDir(user), { recursive: true })
   await fs.mkdir(tagsDir(user), { recursive: true })
   await writeIfMissing(path.join(dir, 'CLAUDE.md'), familyClaudeMd())
+  await writeIfMissing(path.join(dir, 'profile.md'), familyProfileMd())
   await ensureAgentsLink(dir)
 }
 

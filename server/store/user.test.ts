@@ -85,14 +85,10 @@ describe('家族共有スペース', () => {
     await ensureFamily()
   })
 
-  it('profile.md は置かない', async () => {
-    assert.equal(
-      await fsp
-        .stat(path.join(userDir(FAMILY), 'profile.md'))
-        .then(() => true)
-        .catch(() => false),
-      false,
-    )
+  it('profile.md の雛形を置く', async () => {
+    const text = await readProfile(FAMILY)
+    assert.match(text, /家族のプロフィール/)
+    assert.match(text, /会話のたびに読み込まれる/)
   })
 
   it('CLAUDE.md の雛形を置く', async () => {

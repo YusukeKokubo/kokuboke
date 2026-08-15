@@ -1,13 +1,10 @@
 import { useEffect } from 'react'
-import { Navigate } from 'react-router-dom'
-import { api } from '@/lib/api'
 import { useSpace } from '@/lib/space'
 import { DocPane, type DocSpec } from '@/components/DocsDialog'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 
 /**
  * スペース直下の文書。プロフィールと CLAUDE.md。個人と家族で同じ画面。
- * プロフィールは持ち主が居るスペースだけ。
  */
 function SpaceDocPage({ title, spec }: { title: string; spec: DocSpec }) {
   const space = useSpace()
@@ -39,17 +36,18 @@ function SpaceDocPage({ title, spec }: { title: string; spec: DocSpec }) {
 export function ProfilePage() {
   const space = useSpace()
   const owner = space.owner
-  if (!owner || !space.profile) return <Navigate to={space.home} replace />
 
   return (
     <SpaceDocPage
-      title="プロフィール"
+      title={space.profileTitle}
       spec={{
-        label: 'プロフィール',
-        description: 'どの会話でも覚えておいてほしいこと。会話のたびに読み込まれるよ。',
+        label: space.profileTitle,
+        description: owner
+          ? 'どの会話でも覚えておいてほしいこと。会話のたびに読み込まれるよ。'
+          : '家族みんなについて、どの会話でも覚えておいてほしいこと。会話のたびに読み込まれるよ。',
         placeholder: 'まだ書いていないよ。',
-        load: () => api.getProfile(owner),
-        save: (text) => api.saveProfile(owner, text),
+        load: () => space.api.getProfile(),
+        save: (text) => space.api.saveProfile(text),
       }}
     />
   )

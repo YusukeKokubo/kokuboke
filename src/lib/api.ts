@@ -146,6 +146,11 @@ export function spaceApi(base: string, author?: string) {
     saveClaude: (claude: string) =>
       json.send<Claude>('PUT', `${base}/claude`, { claude }).then(only('claude')),
 
+    getProfile: () => json.get<Profile>(`${base}/profile`).then(only('profile')),
+
+    saveProfile: (profile: string) =>
+      json.send<Profile>('PUT', `${base}/profile`, { profile }).then(only('profile')),
+
     /**
      * 発言を送って、返答を受け取りながら流す。
      * 返答中に重ねて送ると 409 が返り、readSSE がその文言のまま投げる。
@@ -177,7 +182,7 @@ export function spaceApi(base: string, author?: string) {
 
 export type SpaceApi = ReturnType<typeof spaceApi>
 
-/** どのスペースにも属さない口。エンジンの一覧と、管理画面と、profile.md。 */
+/** どのスペースにも属さない口。エンジンの一覧と、管理画面。 */
 export const api = {
   engines: () => json.get<EngineInfo[]>('/api/engines'),
 
@@ -186,13 +191,6 @@ export const api = {
     json
       .get<{ entry: FamilyActivityEntry | null }>('/api/family/activity')
       .then((doc) => doc.entry),
-
-  // profile.md は本人の人物像なので個人のスペースだけ。共有スペースには無い。
-  getProfile: (user: string) =>
-    json.get<Profile>(`/api/users/${path(user)}/profile`).then(only('profile')),
-
-  saveProfile: (user: string, profile: string) =>
-    json.send<Profile>('PUT', `/api/users/${path(user)}/profile`, { profile }).then(only('profile')),
 
   /** 動いているイメージと main のずれ。鍵が合わなければ 404 になる。 */
   updateStatus: (key: string) =>

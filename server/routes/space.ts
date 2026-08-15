@@ -33,7 +33,7 @@ export interface Space {
   busyKey(id: TopicName): string
   /** 発言者。共有スペースは必ず名乗る。個人は URL 自体がその人のものなので付けない。 */
   authorOf(body: Record<string, unknown>): string | undefined
-  /** profile.md の中身。共有スペースには置かないので空文字。 */
+  /** profile.md の中身。無ければ空文字。 */
   profile(): Promise<string>
 }
 
@@ -67,7 +67,7 @@ function familySpace(): Space {
       }
       return assertAuthor(raw)
     },
-    profile: async () => '',
+    profile: () => readProfile(user),
   }
 }
 

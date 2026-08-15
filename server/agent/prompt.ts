@@ -57,7 +57,7 @@ ${who}
 }
 
 export function chatPrompt(input: {
-  /** 個人のスペースの profile.md。共有スペースには無いので空文字。 */
+  /** スペース直下の profile.md。無ければ空文字。 */
   profile: string
   /** 付いているタグの覚え書き。無ければ空。 */
   tags: { name: string; text: string }[]

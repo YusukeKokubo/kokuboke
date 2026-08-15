@@ -74,7 +74,7 @@ export type ChatEvent =
  */
 export type SummaryEvent = AgentProgressEvent | { type: 'done'; text: string; modelLabel: string }
 
-/** ユーザー直下の profile.md。無ければ空文字。 */
+/** スペース直下の profile.md。無ければ空文字。 */
 export interface Profile {
   profile: string
 }

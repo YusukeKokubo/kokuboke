@@ -243,18 +243,16 @@ function SpaceSection({
               タグ
             </SidebarMenuButton>
           </SidebarMenuItem>
-          {space.profile && (
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                isActive={pathname === space.profile}
-                render={<Link to={space.profile} />}
-                onClick={() => setOpenMobile(false)}
-              >
-                <UserRound />
-                プロフィール
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          )}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={pathname === space.profile}
+              render={<Link to={space.profile} />}
+              onClick={() => setOpenMobile(false)}
+            >
+              <UserRound />
+              プロフィール
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={pathname === space.claude}

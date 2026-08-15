@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { markdownDoc } from '../lib/doc'
-import { assertUser } from '../store/paths'
 import {
   readClaude as readUserClaude,
   readProfile,
@@ -13,10 +12,10 @@ export const docs = new Hono()
 
 markdownDoc(
   docs,
-  '/api/users/:user/profile',
+  spacePaths('/profile'),
   'profile',
-  (c) => readProfile(assertUser(c.req.param('user') ?? '')),
-  (c, text) => writeProfile(assertUser(c.req.param('user') ?? ''), text),
+  (c) => readProfile(resolveSpace(c).user),
+  (c, text) => writeProfile(resolveSpace(c).user, text),
 )
 
 markdownDoc(

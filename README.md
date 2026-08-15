@@ -20,8 +20,9 @@
 /data
 ├── _family/                   家族共有スペース（予約名。FAMILY_DIR で変えられる）
 │   ├── CLAUDE.md              家族みんなの秘書役の設定（手書き）
+│   ├── profile.md             家族の覚え書き（手書き）
 │   ├── tags.json              個人と同じ
-│   ├── tags/                  個人と同じ。profile.md は無い
+│   ├── tags/                  個人と同じ
 │   └── topics/
 └── taro/
     ├── CLAUDE.md              人物の設定（手書き。どの会話でも効く）
@@ -42,7 +43,7 @@ NAS で見たときに日付順になる。見出しを付け直すとフォル�
 
 整理はタグ。結びは `topic.json` の `tags` 配列で、本文は `tags/{タグ名}.md`。
 会話に付いているタグの本文は、話すたびにプロンプトへ入る。タグが無ければ覚え書きは無い。
-人／家族直下の `CLAUDE.md` と、個人の `profile.md` は残す。会話ごとの `CLAUDE.md` と
+人／家族直下の `CLAUDE.md` と `profile.md` は残す。会話ごとの `CLAUDE.md` と
 `summary.md` は置かない。
 
 起動時に、昔の二段（器の下に子）があれば一段へ移す。器名をタグにし、子を
@@ -317,8 +318,8 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 
 家族共有スペースは、上の表の `/api/users/:user` を `/api/family` に、
 `/media/:user` を `/media/family` に置き換えた経路で、同じハンドラが応える。
-違いは二つだけ。送信に `author`（`USERS` にある名前）が必須で、`profile.md` が無い。
-順番待ちも粒度が違う。個人は人ごとに一つずつだが、共有スペースは会話ごとなので、
+違いは送信に `author`（`USERS` にある名前）が必須なことと、順番待ちの粒度。
+個人は人ごとに一つずつだが、共有スペースは会話ごとなので、
 別の話なら家族が同時に話せる。
 
 送信は `multipart/form-data` で、本文が `text`、画像が `images`（4 枚まで）。
@@ -378,7 +379,7 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 - `/user/:user/CLAUDE.md` — その人の `CLAUDE.md`。
 - `/user/:user/:id` — チャット。日付の区切り、画像付きの吹き出し、
   返答が届くにつれて伸びていく表示、見出しの下のタグ。
-- `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/CLAUDE.md` / `/family/:id` — 家族共有スペースの同じ画面。プロフィールは無い。
+- `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/profile.md` / `/family/CLAUDE.md` / `/family/:id` — 家族共有スペースの同じ画面。
 - `/admin` — イメージの差し替え。
 
 返答を作っているあいだは、ファイルを開いたりウェブを見に行ったりしていることを

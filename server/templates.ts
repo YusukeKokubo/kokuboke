@@ -53,3 +53,12 @@ export function userProfileMd(user: string): string {
 会話のたびに読み込まれる。書き換えるのは人の側だけ。
 `
 }
+
+/** 家族共有スペース直下に置く、家族の覚え書き。手で書くもので、AI は書き換えない。 */
+export function familyProfileMd(): string {
+  return `# 家族のプロフィール
+
+どの会話でも覚えておいてほしいことをここに書く。
+会話のたびに読み込まれる。書き換えるのは人の側だけ。
+`
+}

@@ -15,14 +15,16 @@ export interface Space {
   tags: string
   /** 一つのタグ本文への経路。 */
   tagHref(tag: string): string
-  /** プロフィール（`profile.md`）への経路。共有スペースには無い。 */
-  profile?: string
+  /** プロフィール（`profile.md`）への経路。 */
+  profile: string
   /** CLAUDE.md への経路。 */
   claude: string
   title: string
   subtitle: string
   /** タグ一覧の見出し。家族か個人か、タイトルだけで分かるようにする。 */
   tagsTitle: string
+  /** プロフィールの見出し。家族か個人か、タイトルだけで分かるようにする。 */
+  profileTitle: string
   /** CLAUDE.md の見出し。家族か個人か、タイトルだけで分かるようにする。 */
   claudeTitle: string
   /** まだ何も無いときの誘い文。 */
@@ -78,7 +80,7 @@ export function tagHref(home: string, tag: string): string {
   return `${tagsHref(home)}/${encodeURIComponent(tag)}.md`
 }
 
-/** プロフィールへの経路。ファイルは `profile.md`。個人のスペースだけ。 */
+/** プロフィールへの経路。ファイルは `profile.md`。 */
 export function profileHref(home: string): string {
   return `${home}/profile.md`
 }
@@ -101,6 +103,7 @@ export function personalSpace(user: string): Space {
     title: user,
     subtitle: '会話',
     tagsTitle: `${user}のタグ`,
+    profileTitle: `${user}のプロフィール`,
     claudeTitle: `${user}のCLAUDE.md`,
     owner: user,
     greeting: `${user}さん、何か話そうか`,
@@ -126,10 +129,12 @@ export function familySpace(author: string): Space {
     home: '/family',
     tags: tagsHref('/family'),
     tagHref: (tag) => tagHref('/family', tag),
+    profile: profileHref('/family'),
     claude: claudeHref('/family'),
     title: '共有スペース',
     subtitle: '家族のメモ・買い物',
     tagsTitle: '家族のタグ',
+    profileTitle: '家族のプロフィール',
     claudeTitle: '家族のCLAUDE.md',
     greeting: '何を残す？',
     emptyHint: (
