@@ -41,10 +41,9 @@ function idOf(slug: string) {
 
 describe('createTopic', () => {
   it('フォルダは untitled- の id で、見出しは json に置く', async () => {
-    const topic = await createTopic(USER, { name: '買い物', emoji: '🛒' })
+    const topic = await createTopic(USER, { name: '買い物' })
     assert.match(topic.slug, /^untitled-\d{8}-\d{4}/)
     assert.equal(topic.name, '買い物')
-    assert.equal(topic.emoji, '🛒')
     assert.deepEqual(topic.tags, [])
 
     const dir = topicDir(USER, idOf(topic.slug))
@@ -64,11 +63,10 @@ describe('renameTopic', () => {
   it('見出しだけ変えてフォルダは動かさない', async () => {
     const topic = await createTopic(USER, { name: '仮' })
     const id = idOf(topic.slug)
-    const renamed = await renameTopic(USER, id, { name: '買い物メモ', emoji: '📝' })
+    const renamed = await renameTopic(USER, id, { name: '買い物メモ' })
 
     assert.equal(renamed.slug, topic.slug)
     assert.equal(renamed.name, '買い物メモ')
-    assert.equal(renamed.emoji, '📝')
     assert.ok(await topicExists(USER, id))
   })
 })

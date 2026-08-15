@@ -235,7 +235,7 @@ export default function AdminPage() {
                       <span className="min-w-0 truncate">
                         {entry.user}
                         <span className="mx-1.5 opacity-40">·</span>
-                        {entry.emoji} {topicLabel(entry)}
+                        {topicLabel(entry)}
                       </span>
                       <span className="shrink-0">{relativeLabel(entry.at)}</span>
                     </div>

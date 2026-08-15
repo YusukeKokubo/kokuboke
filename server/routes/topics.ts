@@ -36,13 +36,10 @@ topics.on('GET', spacePaths('/topics'), async (c) => {
 
 topics.on('POST', spacePaths('/topics'), async (c) => {
   const { user } = resolveSpace(c)
-  const body = await readJson<{ name?: string; emoji?: string; engine?: string; model?: string }>(
-    c.req.raw,
-  )
+  const body = await readJson<{ name?: string; engine?: string; model?: string }>(c.req.raw)
   return c.json(
     await createTopic(user, {
       name: String(body.name ?? ''),
-      emoji: body.emoji,
       engine: body.engine,
       model: body.model,
     }),
@@ -57,11 +54,11 @@ topics.on('GET', topicPaths(), async (c) => {
 
 topics.on('PATCH', topicPaths('/name'), async (c) => {
   const { space, id } = await requireTopic(c)
-  const body = await readJson<{ name?: string; emoji?: string }>(c.req.raw)
+  const body = await readJson<{ name?: string }>(c.req.raw)
   if (typeof body.name !== 'string') {
     throw new BadRequestError('名前を入力してください')
   }
-  return c.json(await renameTopic(space.user, id, { name: body.name, emoji: body.emoji }))
+  return c.json(await renameTopic(space.user, id, { name: body.name }))
 })
 
 topics.on('PATCH', topicPaths('/model'), async (c) => {
@@ -167,7 +164,7 @@ topics.on('POST', topicPaths('/tags'), async (c) => {
 
   const names: string[] = []
   for (const raw of proposed) {
-    const tag = await ensureTag(user, raw)
+    const tag = await ensureTag(user, raw.name, raw.emoji)
     if (tag) names.push(tag)
   }
   return c.json(await writeTags(user, id, [...new Set(names)]))

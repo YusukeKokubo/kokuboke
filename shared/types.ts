@@ -32,7 +32,6 @@ export interface Topic {
   slug: string
   /** まだ名前を付けていないときは空文字。画面側で仮の見出しを出す。 */
   name: string
-  emoji: string
   createdAt: string
   engine: EngineId
   model: string
@@ -44,6 +43,7 @@ export interface Topic {
 
 export interface Tag {
   name: string
+  emoji: string
   /** tags/{name}.md の中身。無ければ空文字。 */
   text: string
 }
@@ -125,7 +125,6 @@ export interface UpdateResult {
 export interface FamilyActivityEntry {
   slug: string
   name: string
-  emoji: string
   /** 空白を畳んだ先頭〜80字。 */
   text: string
   imageCount: number

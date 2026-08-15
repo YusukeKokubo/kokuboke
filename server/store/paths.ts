@@ -87,6 +87,11 @@ export function tagFile(user: UserName, tag: TopicName): string {
   return path.join(tagsDir(user), `${tag}.md`)
 }
 
+/** タグ名 → 絵文字。本文の markdown とは別ファイル。 */
+export function tagsMetaFile(user: UserName): string {
+  return path.join(userDir(user), 'tags.json')
+}
+
 /** 検証済みの id から会話ディレクトリを組み立てる。 */
 export function topicDir(user: UserName, id: TopicName): string {
   return path.join(topicsDir(user), id)

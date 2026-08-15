@@ -20,16 +20,18 @@
 /data
 ├── _family/                   家族共有スペース（予約名。FAMILY_DIR で変えられる）
 │   ├── CLAUDE.md              家族みんなの秘書役の設定（手書き）
+│   ├── tags.json              個人と同じ
 │   ├── tags/                  個人と同じ。profile.md は無い
 │   └── topics/
 └── taro/
     ├── CLAUDE.md              人物の設定（手書き。どの会話でも効く）
     ├── profile.md             人物像の覚え書き（手書き）
+    ├── tags.json              タグ名 → 絵文字
     ├── tags/
     │   └── 秋の旅行.md         タグの本文。ファイル名がタグ名
     └── topics/
         └── untitled-20260814-0938/
-            ├── topic.json     見出し・絵文字・エンジン・タグ・nameTried / tagTried
+            ├── topic.json     見出し・エンジン・タグ・nameTried / tagTried
             ├── AGENTS.md      → ../../CLAUDE.md
             ├── logs/          YYYYMMDD.md（閲覧用） / YYYYMMDD.jsonl（読み戻し用）
             └── images/        YYYYMMDD_HHMMSS.jpg
@@ -51,9 +53,10 @@
 
 「追加」で始めた会話には名前がない。`topic.json` の `name` は空で、フォルダは
 `untitled-20260814-0938` のような id になる。本人が三回話したところで会話を読ませ、
-短い名前と絵文字を付ける。フォルダは動かさない。
+短い名前を付ける。フォルダは動かさない。
 
-同じタイミングでタグも一度付ける。無いタグなら空の `tags/{タグ名}.md` を作る。
+同じタイミングでタグも一度付ける。無いタグなら空の `tags/{タグ名}.md` を作り、
+内容に合う絵文字を `tags.json` に残す。
 人が外したものも、付け直すと戻ることがある。自動は `nameTried` / `tagTried` で
 一度だけ。気に入らなければ、チャット画面のタイトルやタグからいつでも変えられる。
 
@@ -289,7 +292,7 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | POST | `/api/users/:user/topics` | 会話の作成。フォルダは untitled id |
 | GET | `/api/users/:user/topics/:id` | 会話の取得 |
 | PATCH | `/api/users/:user/topics/:id/model` | エンジンとモデルを変える |
-| PATCH | `/api/users/:user/topics/:id/name` | 見出しと絵文字を変える。フォルダは動かない |
+| PATCH | `/api/users/:user/topics/:id/name` | 見出しを変える。フォルダは動かない |
 | POST | `/api/users/:user/topics/:id/name` | 会話を読ませて名前を付ける |
 | PATCH | `/api/users/:user/topics/:id/tags` | 人がタグを付け外しする |
 | POST | `/api/users/:user/topics/:id/tags` | 会話を読ませてタグを付ける |
@@ -300,7 +303,7 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | POST | `/api/users/:user/tags` | タグの新規 |
 | GET | `/api/users/:user/tags/:tag` | タグ本文を読む |
 | PUT | `/api/users/:user/tags/:tag` | タグ本文を保存する |
-| PATCH | `/api/users/:user/tags/:tag` | タグの改名。会話の配列も付け替える |
+| PATCH | `/api/users/:user/tags/:tag` | タグの改名と絵文字。会話の配列も付け替える |
 | DELETE | `/api/users/:user/tags/:tag` | タグの削除。会話からは外す |
 | POST | `/api/users/:user/tags/:tag/draft` | タグ本文の下書き。SSE で流す（保存はしない） |
 | GET | `/api/users/:user/profile` | プロフィール（`profile.md`）を読む |

@@ -23,7 +23,6 @@ export interface TopicMeta {
   slug: string
   /** 名前をまだ付けていないときは空文字。 */
   name: string
-  emoji: string
   createdAt: string
   engine?: EngineId
   model?: string
@@ -77,7 +76,6 @@ export async function readMeta(user: UserName, id: TopicName): Promise<TopicMeta
     return {
       slug: id,
       name: parsed.name ?? '',
-      emoji: parsed.emoji ?? '💬',
       createdAt: parsed.createdAt ?? new Date().toISOString(),
       engine: parsed.engine,
       model: parsed.model,
@@ -97,7 +95,6 @@ function toTopic(meta: TopicMeta, last: { at: string; text: string } | null): To
   return {
     slug: meta.slug,
     name: meta.name,
-    emoji: meta.emoji,
     createdAt: meta.createdAt,
     engine: choice.engine,
     model: choice.model,
@@ -149,7 +146,7 @@ export async function listTopics(user: UserName): Promise<Topic[]> {
 
 export async function createTopic(
   user: UserName,
-  input: { name?: string; emoji?: string; engine?: string; model?: string; tags?: string[] },
+  input: { name?: string; engine?: string; model?: string; tags?: string[] },
 ): Promise<Topic> {
   const name = (input.name ?? '').trim()
   if (name.length > 40) {
@@ -166,7 +163,6 @@ export async function createTopic(
   const meta: TopicMeta = {
     slug: id,
     name,
-    emoji: input.emoji || '💬',
     createdAt: new Date().toISOString(),
     engine: choice.engine,
     model: choice.model,
@@ -196,7 +192,7 @@ export async function updateTopic(
 export async function renameTopic(
   user: UserName,
   id: TopicName,
-  input: { name: string; emoji?: string },
+  input: { name: string },
 ): Promise<Topic> {
   const name = normalizeTopicName(input.name)
   if (!name) {
@@ -210,7 +206,6 @@ export async function renameTopic(
   const next: TopicMeta = {
     ...meta,
     name,
-    emoji: input.emoji?.trim() || meta.emoji,
     nameTried: true,
   }
   await writeMeta(user, id, next)

@@ -1,22 +1,21 @@
+import { takeEmoji } from '../../shared/emoji'
 import { normalizeTopicName } from '../store/paths'
 
 /**
- * 命名の返事から名前と絵文字を取り出す。JSON で返すよう頼んでいるが、
+ * 命名の返事から名前を取り出す。JSON で返すよう頼んでいるが、
  * 前置きやコードブロックが混じることがあるので、緩く拾う。
  */
-export function parseName(raw: string): { name: string; emoji?: string } | null {
+export function parseName(raw: string): { name: string } | null {
   const body = raw.replace(/```[a-z]*\n?/gi, '').trim()
 
   let name = ''
-  let emoji: string | undefined
 
   const start = body.indexOf('{')
   const end = body.lastIndexOf('}')
   if (start !== -1 && end > start) {
     try {
-      const parsed = JSON.parse(body.slice(start, end + 1)) as { name?: unknown; emoji?: unknown }
+      const parsed = JSON.parse(body.slice(start, end + 1)) as { name?: unknown }
       if (typeof parsed.name === 'string') name = parsed.name
-      if (typeof parsed.emoji === 'string') emoji = parsed.emoji
     } catch {
       // JSON になっていなければ下の行拾いに任せる
     }
@@ -34,13 +33,16 @@ export function parseName(raw: string): { name: string; emoji?: string } | null 
   name = normalizeTopicName(name.replace(/^[-*\s"'「『]+|["'」』\s]+$/g, '')).slice(0, 40)
   if (!name) return null
 
-  // 絵文字は一文字だけ受け取る。判断できない形なら既定に任せる。
-  const first = emoji ? Array.from(emoji)[0] : undefined
-  return { name, emoji: first && /\p{Extended_Pictographic}/u.test(first) ? first : undefined }
+  return { name }
 }
 
-/** タグ付けの返事から名前の配列を取り出す。 */
-export function parseTags(raw: string): string[] {
+export interface ProposedTag {
+  name: string
+  emoji?: string
+}
+
+/** タグ付けの返事から名前と、あれば絵文字を取り出す。 */
+export function parseTags(raw: string): ProposedTag[] {
   const body = raw.replace(/```[a-z]*\n?/gi, '').trim()
   const start = body.indexOf('{')
   const end = body.lastIndexOf('}')
@@ -50,9 +52,20 @@ export function parseTags(raw: string): string[] {
     const parsed = JSON.parse(body.slice(start, end + 1)) as { tags?: unknown }
     if (!Array.isArray(parsed.tags)) return []
     return parsed.tags
-      .filter((tag): tag is string => typeof tag === 'string')
-      .map((tag) => normalizeTopicName(tag))
-      .filter(Boolean)
+      .map((tag): ProposedTag | null => {
+        if (typeof tag === 'string') {
+          const name = normalizeTopicName(tag)
+          return name ? { name } : null
+        }
+        if (!tag || typeof tag !== 'object') return null
+        const item = tag as { name?: unknown; emoji?: unknown }
+        if (typeof item.name !== 'string') return null
+        const name = normalizeTopicName(item.name)
+        if (!name) return null
+        const emoji = takeEmoji(item.emoji)
+        return emoji ? { name, emoji } : { name }
+      })
+      .filter((tag): tag is ProposedTag => tag !== null)
       .slice(0, 5)
   } catch {
     return []

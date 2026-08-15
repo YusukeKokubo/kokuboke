@@ -280,7 +280,6 @@ function SpaceSection({
                     render={<Link to={space.href(topic.slug)} />}
                     onClick={() => setOpenMobile(false)}
                   >
-                    <span className="shrink-0">{topic.emoji}</span>
                     <span className={topic.name ? '' : 'text-muted-foreground'}>
                       {topicLabel(topic)}
                     </span>

@@ -13,30 +13,21 @@ const { parseName, parseTags } = await import('./name')
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
 describe('parseName', () => {
-  it('JSON 形式の返事から名前と絵文字を取る', () => {
-    assert.deepEqual(parseName('{"name":"夕食の相談","emoji":"🍚"}'), {
-      name: '夕食の相談',
-      emoji: '🍚',
-    })
+  it('JSON 形式の返事から名前を取る', () => {
+    assert.deepEqual(parseName('{"name":"夕食の相談"}'), { name: '夕食の相談' })
   })
 
   it('前置きやコードブロックが混じっても JSON を拾う', () => {
-    const raw = ['提案はこれです。', '```json', '{"name":"週末の予定","emoji":"🗓️"}', '```'].join('\n')
-    assert.deepEqual(parseName(raw), { name: '週末の予定', emoji: '🗓' })
+    const raw = ['提案はこれです。', '```json', '{"name":"週末の予定"}', '```'].join('\n')
+    assert.deepEqual(parseName(raw), { name: '週末の予定' })
   })
 
   it('JSON でなければ最初の行を名前として使う', () => {
-    assert.deepEqual(parseName('  買い物メモ  \n理由: 毎日の記録です'), {
-      name: '買い物メモ',
-      emoji: undefined,
-    })
+    assert.deepEqual(parseName('  買い物メモ  \n理由: 毎日の記録です'), { name: '買い物メモ' })
   })
 
-  it('絵文字が判断できない形なら絵文字を捨てる', () => {
-    assert.deepEqual(parseName('{"name":"肌の記録","emoji":"(sparkle)"}'), {
-      name: '肌の記録',
-      emoji: undefined,
-    })
+  it('昔の返事に絵文字が混じっていても名前だけ取る', () => {
+    assert.deepEqual(parseName('{"name":"肌の記録","emoji":"✨"}'), { name: '肌の記録' })
   })
 
   it('名前を取り出せなければ null を返す', () => {
@@ -44,13 +35,9 @@ describe('parseName', () => {
   })
 
   it('本文に中括弧が混じっていても最初の行から名前を拾う', () => {
-    assert.deepEqual(parseName('夕食の相談\n{"emoji": "🍚"}'), {
-      name: '夕食の相談',
-      emoji: '🍚',
-    })
+    assert.deepEqual(parseName('夕食の相談\n{"emoji": "🍚"}'), { name: '夕食の相談' })
     assert.deepEqual(parseName('散歩の記録\n\n理由: 迷ったので {"note": "散歩"} にしました'), {
       name: '散歩の記録',
-      emoji: undefined,
     })
   })
 
@@ -82,19 +69,37 @@ describe('parseName', () => {
     assert.equal(parseName('- "夕食の相談"')?.name, '夕食の相談')
     assert.equal(parseName('* 『夕食の相談』')?.name, '夕食の相談')
   })
-
-  it('絵文字が複数来たら一文字目だけ取る', () => {
-    assert.equal(parseName('{"name":"旅行の計画","emoji":"🍚🍜🍣"}')?.emoji, '🍚')
-  })
 })
 
 describe('parseTags', () => {
-  it('JSON から配列を取る', () => {
-    assert.deepEqual(parseTags('{"tags":["秋の旅行","買い物"]}'), ['秋の旅行', '買い物'])
+  it('JSON から名前と絵文字を取る', () => {
+    assert.deepEqual(parseTags('{"tags":[{"name":"秋の旅行","emoji":"🍂"},{"name":"買い物","emoji":"🛒"}]}'), [
+      { name: '秋の旅行', emoji: '🍂' },
+      { name: '買い物', emoji: '🛒' },
+    ])
+  })
+
+  it('文字列だけの昔の形も名前として拾う', () => {
+    assert.deepEqual(parseTags('{"tags":["秋の旅行","買い物"]}'), [
+      { name: '秋の旅行' },
+      { name: '買い物' },
+    ])
   })
 
   it('コードブロックが混じっても拾う', () => {
-    assert.deepEqual(parseTags('```json\n{"tags":["宿"]}\n```'), ['宿'])
+    assert.deepEqual(parseTags('```json\n{"tags":[{"name":"宿","emoji":"🏨"}]}\n```'), [
+      { name: '宿', emoji: '🏨' },
+    ])
+  })
+
+  it('絵文字が判断できない形なら絵文字を捨てる', () => {
+    assert.deepEqual(parseTags('{"tags":[{"name":"肌の記録","emoji":"(sparkle)"}]}'), [
+      { name: '肌の記録' },
+    ])
+  })
+
+  it('絵文字が複数来たら一文字目だけ取る', () => {
+    assert.equal(parseTags('{"tags":[{"name":"旅行","emoji":"🍚🍜🍣"}]}')[0]?.emoji, '🍚')
   })
 
   it('配列が無ければ空', () => {

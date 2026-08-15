@@ -25,16 +25,25 @@ beforeEach(async () => {
 
 describe('createTag / readTag / writeTag', () => {
   it('作った本文が tags/{name}.md に残る', async () => {
-    const tag = await createTag(USER, { name: '秋の旅行', text: '  京都に行く  ' })
+    const tag = await createTag(USER, { name: '秋の旅行', text: '  京都に行く  ', emoji: '🍂' })
     assert.equal(tag.name, '秋の旅行')
+    assert.equal(tag.emoji, '🍂')
     assert.equal(tag.text, '京都に行く\n')
     assert.equal(await fsp.readFile(tagFile(USER, assertTopicName('秋の旅行')), 'utf8'), '京都に行く\n')
     assert.equal((await readTag(USER, assertTopicName('秋の旅行'))).text, '京都に行く\n')
   })
 
   it('同じ名前は ConflictError', async () => {
-    await createTag(USER, { name: '買い物' })
+    const tag = await createTag(USER, { name: '買い物' })
+    assert.equal(tag.emoji, '🏷️')
     await assert.rejects(() => createTag(USER, { name: '買い物' }), ConflictError)
+  })
+
+  it('名前を変えずに絵文字だけ変えられる', async () => {
+    await createTag(USER, { name: '買い物' })
+    const next = await renameTag(USER, assertTopicName('買い物'), { emoji: '🛒' })
+    assert.equal(next.name, '買い物')
+    assert.equal(next.emoji, '🛒')
   })
 
   it('無いタグは NotFoundError', async () => {
@@ -44,9 +53,16 @@ describe('createTag / readTag / writeTag', () => {
 
 describe('ensureTag', () => {
   it('無いタグなら空ファイルを作る', async () => {
-    const name = await ensureTag(USER, '新しい話題')
+    const name = await ensureTag(USER, '新しい話題', '✨')
     assert.equal(name, '新しい話題')
     assert.equal(await fsp.readFile(tagFile(USER, assertTopicName('新しい話題')), 'utf8'), '')
+    assert.equal((await readTag(USER, assertTopicName('新しい話題'))).emoji, '✨')
+  })
+
+  it('既にあるタグの絵文字は上書きしない', async () => {
+    await createTag(USER, { name: '秋の旅行', emoji: '🍂' })
+    await ensureTag(USER, '秋の旅行', '🏨')
+    assert.equal((await readTag(USER, assertTopicName('秋の旅行'))).emoji, '🍂')
   })
 
   it('既にあるファイルは触らない', async () => {
@@ -63,8 +79,9 @@ describe('renameTag / deleteTag', () => {
     const id = asTopicName(topic.slug)
     assert.ok(id)
 
-    const renamed = await renameTag(USER, assertTopicName('旅行'), { name: '秋の旅行' })
+    const renamed = await renameTag(USER, assertTopicName('旅行'), { name: '秋の旅行', emoji: '🍂' })
     assert.equal(renamed.name, '秋の旅行')
+    assert.equal(renamed.emoji, '🍂')
     assert.deepEqual((await readTopic(USER, id)).tags, ['秋の旅行'])
     await assert.rejects(() => fsp.stat(tagFile(USER, assertTopicName('旅行'))), { code: 'ENOENT' })
   })

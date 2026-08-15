@@ -41,7 +41,7 @@ beforeEach(async () => {
 
 describe('listRecentActivity', () => {
   it('ユーザーごとに最新の会話だけを返す', async () => {
-    const math = await createTopic(assertUser('taro'), { name: '算数', emoji: '📐' })
+    const math = await createTopic(assertUser('taro'), { name: '算数' })
     const history = await createTopic(assertUser('taro'), { name: '歴史' })
 
     await appendMessage(
@@ -60,7 +60,6 @@ describe('listRecentActivity', () => {
     assert.equal(entries[0]?.user, 'taro')
     assert.equal(entries[0]?.slug, math.slug)
     assert.equal(entries[0]?.text, '算数の質問')
-    assert.equal(entries[0]?.emoji, '📐')
     assert.equal(entries[0]?.name, '算数')
   })
 

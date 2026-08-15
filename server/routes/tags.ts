@@ -6,8 +6,7 @@ import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { BadRequestError } from '../errors'
 import { streamAgent } from '../lib/agent-stream'
-import { readJson } from '../lib/body'
-import { markdownDoc } from '../lib/doc'
+import { readJson, readText } from '../lib/body'
 import { readRecent } from '../store/log'
 import { asTopicName, tagsDir } from '../store/paths'
 import {
@@ -30,36 +29,32 @@ tags.on('GET', spacePaths('/tags'), async (c) => {
 
 tags.on('POST', spacePaths('/tags'), async (c) => {
   const { user } = resolveSpace(c)
-  const body = await readJson<{ name?: string; text?: string }>(c.req.raw)
+  const body = await readJson<{ name?: string; text?: string; emoji?: string }>(c.req.raw)
   if (typeof body.name !== 'string') {
     throw new BadRequestError('タグ名を入力してください')
   }
-  return c.json(await createTag(user, { name: body.name, text: body.text }), 201)
+  return c.json(await createTag(user, { name: body.name, text: body.text, emoji: body.emoji }), 201)
 })
 
-markdownDoc(
-  tags,
-  tagPaths(),
-  'text',
-  async (c) => {
-    const { user } = resolveSpace(c)
-    const tag = await readTag(user, assertTagName(c.req.param('tag') ?? ''))
-    return tag.text
-  },
-  async (c, text) => {
-    const { user } = resolveSpace(c)
-    await writeTag(user, assertTagName(c.req.param('tag') ?? ''), text)
-  },
-)
+tags.on('GET', tagPaths(), async (c) => {
+  const { user } = resolveSpace(c)
+  return c.json(await readTag(user, assertTagName(c.req.param('tag') ?? '')))
+})
+
+tags.on('PUT', tagPaths(), async (c) => {
+  const { user } = resolveSpace(c)
+  const tag = assertTagName(c.req.param('tag') ?? '')
+  return c.json(await writeTag(user, tag, await readText(c.req.raw, 'text')))
+})
 
 tags.on('PATCH', tagPaths(), async (c) => {
   const { user } = resolveSpace(c)
   const tag = assertTagName(c.req.param('tag') ?? '')
-  const body = await readJson<{ name?: string }>(c.req.raw)
-  if (typeof body.name !== 'string') {
+  const body = await readJson<{ name?: string; emoji?: string }>(c.req.raw)
+  if (body.name === undefined && body.emoji === undefined) {
     throw new BadRequestError('タグ名を入力してください')
   }
-  return c.json(await renameTag(user, tag, { name: body.name }))
+  return c.json(await renameTag(user, tag, { name: body.name, emoji: body.emoji }))
 })
 
 tags.on('DELETE', tagPaths(), async (c) => {

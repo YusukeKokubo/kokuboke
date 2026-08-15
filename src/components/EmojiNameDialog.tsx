@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { EMOJI } from '@/lib/emoji'
+import { DEFAULT_TAG_EMOJI, EMOJI } from '@/lib/emoji'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,7 +19,7 @@ interface Props {
   description: string
   submitLabel: string
   placeholder: string
-  /** 改名のとき。無ければ空の名前と 💬 から始める。 */
+  /** 改名のとき。無ければ空の名前と既定の絵文字から始める。 */
   initial?: { name: string; emoji: string }
   onSubmit: (input: { name: string; emoji: string }) => Promise<void>
 }
@@ -35,14 +35,14 @@ export function EmojiNameDialog({
   onSubmit,
 }: Props) {
   const [name, setName] = useState('')
-  const [emoji, setEmoji] = useState('💬')
+  const [emoji, setEmoji] = useState(DEFAULT_TAG_EMOJI)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
     setName(initial?.name ?? '')
-    setEmoji(initial?.emoji ?? '💬')
+    setEmoji(initial?.emoji ?? DEFAULT_TAG_EMOJI)
     setError(null)
   }, [open, initial?.name, initial?.emoji])
 

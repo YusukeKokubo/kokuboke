@@ -55,7 +55,6 @@ const json = {
 
 interface NewTopic {
   name?: string
-  emoji?: string
   engine?: string
   model?: string
 }
@@ -113,7 +112,7 @@ export function spaceApi(base: string, author?: string) {
       json.send<Topic>('PATCH', at(id, '/model'), input),
 
     /** 見出しだけ変える。フォルダも URL も動かない。 */
-    renameTopic: (id: string, input: { name: string; emoji?: string }) =>
+    renameTopic: (id: string, input: { name: string }) =>
       json.send<Topic>('PATCH', at(id, '/name'), input),
 
     autoName: (id: string) => json.send<Topic>('POST', at(id, '/name')),
@@ -129,15 +128,16 @@ export function spaceApi(base: string, author?: string) {
 
     listTags: () => json.get<Tag[]>(`${base}/tags`),
 
-    createTag: (input: { name: string; text?: string }) =>
+    createTag: (input: { name: string; text?: string; emoji?: string }) =>
       json.send<Tag>('POST', `${base}/tags`, input),
 
-    getTag: (tag: string) => json.get<{ text: string }>(tagAt(tag)).then(only('text')),
+    getTag: (tag: string) => json.get<Tag>(tagAt(tag)),
 
     saveTag: (tag: string, text: string) =>
-      json.send<{ text: string }>('PUT', tagAt(tag), { text }).then(only('text')),
+      json.send<Tag>('PUT', tagAt(tag), { text }).then((doc) => doc.text),
 
-    renameTag: (tag: string, name: string) => json.send<Tag>('PATCH', tagAt(tag), { name }),
+    renameTag: (tag: string, input: { name?: string; emoji?: string }) =>
+      json.send<Tag>('PATCH', tagAt(tag), input),
 
     deleteTag: (tag: string) => json.send<void>('DELETE', tagAt(tag)),
 

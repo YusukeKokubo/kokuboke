@@ -6,7 +6,7 @@ import { relativeLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
 import { Button } from '@/components/ui/button'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
-import { Input } from '@/components/ui/input'
+import { EmojiNameDialog } from '@/components/EmojiNameDialog'
 import { DocPane } from '@/components/DocsDialog'
 import {
   Dialog,
@@ -31,8 +31,7 @@ function TagList() {
   const space = useSpace()
   const navigate = useNavigate()
   const [tags, setTags] = useState<Tag[] | null>(null)
-  const [creating, setCreating] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(() => {
@@ -48,48 +47,22 @@ function TagList() {
 
   useEffect(load, [load])
 
-  async function create() {
-    const name = creating.trim()
-    if (!name || busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      const created = await space.api.createTag({ name })
-      navigate(space.tagHref(created.name))
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '作れませんでした')
-      setBusy(false)
-    }
-  }
-
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-3 py-3">
       <SpaceHeaderSlot>
-        <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold">{space.tagsTitle}</h1>
-          <p className="text-muted-foreground text-xs">
-            付いているタグの本文は、話すたびに読み込まれるよ
-          </p>
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-semibold">{space.tagsTitle}</h1>
+            <p className="text-muted-foreground text-xs">
+              付いているタグの本文は、話すたびに読み込まれるよ
+            </p>
+          </div>
+          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            作る
+          </Button>
         </div>
       </SpaceHeaderSlot>
-      <form
-        className="flex gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void create()
-        }}
-      >
-        <Input
-          value={creating}
-          onChange={(event) => setCreating(event.target.value)}
-          placeholder="新しいタグ"
-          disabled={busy}
-        />
-        <Button type="submit" size="sm" disabled={busy || !creating.trim()}>
-          <Plus className="size-4" />
-          作る
-        </Button>
-      </form>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
 
@@ -106,6 +79,9 @@ function TagList() {
               to={space.tagHref(item.name)}
               className="hover:bg-accent active:bg-accent flex min-w-0 items-center gap-3 rounded-xl border p-3 transition-colors"
             >
+              <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full text-xl">
+                {item.emoji}
+              </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-medium">{item.name}</span>
                 <span className="text-muted-foreground block truncate text-xs">
@@ -116,6 +92,19 @@ function TagList() {
           </li>
         ))}
       </ul>
+
+      <EmojiNameDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        title="タグを作る"
+        description="会話に付けて、覚え書きを残せるよ。"
+        submitLabel="作る"
+        placeholder="例: 秋の旅行"
+        onSubmit={async ({ name, emoji }) => {
+          const created = await space.api.createTag({ name, emoji })
+          navigate(space.tagHref(created.name))
+        }}
+      />
     </main>
   )
 }
@@ -123,27 +112,30 @@ function TagList() {
 function TagDoc({ name }: { name: string }) {
   const space = useSpace()
   const navigate = useNavigate()
-  const [exists, setExists] = useState<boolean | null>(null)
+  const [tag, setTag] = useState<Tag | null>(null)
   const [topics, setTopics] = useState<Topic[] | null>(null)
-  const [renaming, setRenaming] = useState(name)
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const exists = tag !== null ? true : topics === null && error === null ? null : false
 
   useEffect(() => {
     let cancelled = false
+    setTag(null)
+    setTopics(null)
+    setError(null)
     Promise.all([space.api.getTag(name), space.api.listTopics()])
-      .then(([, list]) => {
+      .then(([current, list]) => {
         if (cancelled) return
         space.confirm()
-        setExists(true)
+        setTag(current)
         setTopics(list.filter((topic) => topic.tags.includes(name)))
         setError(null)
       })
       .catch((cause: Error) => {
         if (cancelled) return
-        setExists(false)
+        setTag(null)
         setTopics(null)
         setError(cause.message)
       })
@@ -151,22 +143,6 @@ function TagDoc({ name }: { name: string }) {
       cancelled = true
     }
   }, [space, name])
-
-  async function rename() {
-    const next = renaming.trim()
-    if (!next || busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      const tag = await space.api.renameTag(name, next)
-      setRenameOpen(false)
-      navigate(space.tagHref(tag.name), { replace: true })
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '名前を変えられませんでした')
-    } finally {
-      setBusy(false)
-    }
-  }
 
   async function remove() {
     if (busy) return
@@ -186,7 +162,9 @@ function TagDoc({ name }: { name: string }) {
       <SpaceHeaderSlot>
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-semibold">{name}</h1>
+            <h1 className="truncate text-base font-semibold">
+              {tag ? `${tag.emoji} ${tag.name}` : name}
+            </h1>
             <p className="text-muted-foreground truncate text-xs">
               {topics === null ? space.tagsTitle : `${space.tagsTitle} · 会話 ${topics.length} 件`}
             </p>
@@ -198,10 +176,7 @@ function TagDoc({ name }: { name: string }) {
                 size="sm"
                 variant="ghost"
                 disabled={busy}
-                onClick={() => {
-                  setRenaming(name)
-                  setRenameOpen(true)
-                }}
+                onClick={() => setRenameOpen(true)}
               >
                 <Pencil className="size-3.5" />
                 改名
@@ -227,7 +202,7 @@ function TagDoc({ name }: { name: string }) {
                 label: name,
                 description: '',
                 placeholder: 'まだ何も覚えていないよ。',
-                load: () => space.api.getTag(name),
+                load: () => space.api.getTag(name).then((current) => current.text),
                 save: (text) => space.api.saveTag(name, text),
                 draft: (signal) => space.api.draftTag(name, signal),
               }}
@@ -250,9 +225,6 @@ function TagDoc({ name }: { name: string }) {
                       to={space.href(topic.slug)}
                       className="hover:bg-accent active:bg-accent flex items-center gap-3 rounded-xl border p-3 transition-colors"
                     >
-                      <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full text-xl">
-                        {topic.emoji}
-                      </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline justify-between gap-2">
                           <span
@@ -277,35 +249,20 @@ function TagDoc({ name }: { name: string }) {
         )}
       </main>
 
-      <Dialog open={renameOpen} onOpenChange={(next) => !busy && setRenameOpen(next)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>タグの名前を変える</DialogTitle>
-            <DialogDescription>付いている会話も、一緒に付け替えるよ。</DialogDescription>
-          </DialogHeader>
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void rename()
-            }}
-          >
-            <Input
-              value={renaming}
-              onChange={(event) => setRenaming(event.target.value)}
-              disabled={busy}
-            />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setRenameOpen(false)} disabled={busy}>
-                キャンセル
-              </Button>
-              <Button type="submit" disabled={busy || !renaming.trim()}>
-                変える
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <EmojiNameDialog
+        open={renameOpen}
+        onOpenChange={(next) => !busy && setRenameOpen(next)}
+        title="タグの名前を変える"
+        description="付いている会話も、一緒に付け替えるよ。"
+        submitLabel="変える"
+        placeholder="例: 秋の旅行"
+        initial={tag ? { name: tag.name, emoji: tag.emoji } : undefined}
+        onSubmit={async ({ name: next, emoji }) => {
+          const renamed = await space.api.renameTag(name, { name: next, emoji })
+          setRenameOpen(false)
+          navigate(space.tagHref(renamed.name), { replace: true })
+        }}
+      />
 
       <Dialog open={deleting} onOpenChange={(next) => !busy && setDeleting(next)}>
         <DialogContent className="sm:max-w-md">

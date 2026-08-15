@@ -15,14 +15,13 @@ function preview(text: string): string {
  * まだ話していなければ null。
  */
 async function latestTopic(user: UserName): Promise<FamilyActivityEntry | null> {
-  let latest: { slug: string; name: string; emoji: string; at: string } | null = null
+  let latest: { slug: string; name: string; at: string } | null = null
   for (const topic of await listTopics(user)) {
     if (!topic.lastMessageAt) continue
     if (!latest || topic.lastMessageAt > latest.at) {
       latest = {
         slug: topic.slug,
         name: topic.name,
-        emoji: topic.emoji,
         at: topic.lastMessageAt,
       }
     }
@@ -38,7 +37,6 @@ async function latestTopic(user: UserName): Promise<FamilyActivityEntry | null> 
   return {
     slug: latest.slug,
     name: latest.name,
-    emoji: latest.emoji,
     text: preview(last.text),
     imageCount: last.images.length,
     at: last.at,

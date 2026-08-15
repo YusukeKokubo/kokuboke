@@ -109,10 +109,9 @@ ${renderHistory(input.history)}
 - 何の話かがひと目で分かる、12 文字くらいまでの短い名前にします。
 - 「〜について」「〜の話」のような言い回しは付けません。
 - 記号や引用符は使わず、短い言葉にします。
-- 内容に合う絵文字を一つ選びます。
 
 次の形の JSON だけを返してください。
-{"name": "見出し", "emoji": "🍳"}`
+{"name": "見出し"}`
 }
 
 export function tagSystemPrompt(): string {
@@ -138,9 +137,10 @@ ${known}
 - 既にあるタグで足りるならそれを使います。新しい話題なら新しいタグを足します。
 - 1 つから 3 つまで。無いときは空の配列にします。
 - 記号や引用符は使いません。
+- 新しいタグには、内容に合う絵文字を一つ付けます。既にあるタグの絵文字は変えません。
 
 次の形の JSON だけを返してください。
-{"tags": ["秋の旅行"]}`
+{"tags": [{"name": "秋の旅行", "emoji": "🍂"}]}`
 }
 
 export function tagDraftSystemPrompt(input: { audience: Audience; tagName: string }): string {

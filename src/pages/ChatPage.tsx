@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Pencil, RefreshCw, X } from 'lucide-react'
-import type { Message, Topic } from '../../shared/types'
+import type { Message, Tag, Topic } from '../../shared/types'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
-import { EmojiNameDialog } from '@/components/EmojiNameDialog'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
 import { Input } from '@/components/ui/input'
@@ -16,6 +15,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -45,7 +45,8 @@ export default function ChatPage() {
   const [notice, setNotice] = useState<string | null>(null)
   const [modelOpen, setModelOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
-  const [knownTags, setKnownTags] = useState<string[]>([])
+  const [knownTags, setKnownTags] = useState<Tag[]>([])
+  const [renameDraft, setRenameDraft] = useState('')
   const [tagDraft, setTagDraft] = useState('')
   const [tagBusy, setTagBusy] = useState(false)
   const [booted, setBooted] = useState(false)
@@ -71,7 +72,7 @@ export default function ChatPage() {
         space.confirm()
         setMeta(topicMeta)
         setMessages(history)
-        setKnownTags(tags.map((tag) => tag.name))
+        setKnownTags(tags)
         setBooted(true)
         requestAnimationFrame(scrollToBottom)
       })
@@ -138,7 +139,7 @@ export default function ChatPage() {
     try {
       const next = await space.api.autoTag(id)
       setMeta(next)
-      setKnownTags((prev) => [...new Set([...prev, ...next.tags])])
+      setKnownTags(await space.api.listTags())
     } catch (cause) {
       console.warn('[tags]', cause)
     } finally {
@@ -151,7 +152,7 @@ export default function ChatPage() {
     try {
       const next = await space.api.writeTags(id, tags)
       setMeta(next)
-      setKnownTags((prev) => [...new Set([...prev, ...next.tags])])
+      setKnownTags(await space.api.listTags())
     } catch (cause) {
       setNotice(cause instanceof Error ? cause.message : 'タグを変えられませんでした')
     } finally {
@@ -231,7 +232,8 @@ export default function ChatPage() {
     void handleSend(input)
   }, [booted, handleSend])
 
-  const unused = knownTags.filter((tag) => !meta?.tags.includes(tag))
+  const unused = knownTags.filter((tag) => !meta?.tags.includes(tag.name))
+  const tagByName = new Map(knownTags.map((tag) => [tag.name, tag]))
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col">
@@ -240,7 +242,11 @@ export default function ChatPage() {
           <div className="min-w-0">
             <button
               type="button"
-              onClick={() => meta && setRenameOpen(true)}
+              onClick={() => {
+                if (!meta) return
+                setRenameDraft(meta.name)
+                setRenameOpen(true)
+              }}
               className="flex max-w-full items-center gap-1"
             >
               <h1
@@ -249,7 +255,7 @@ export default function ChatPage() {
                   meta && !meta.name && 'text-muted-foreground',
                 )}
               >
-                {meta ? `${meta.emoji} ${topicLabel(meta)}` : '…'}
+                {meta ? topicLabel(meta) : '…'}
               </h1>
               <Pencil className="text-muted-foreground size-3 shrink-0" />
             </button>
@@ -272,7 +278,7 @@ export default function ChatPage() {
                   className="bg-secondary text-muted-foreground inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px]"
                 >
                   <Link to={space.tagHref(tag)} className="hover:underline">
-                    {tag}
+                    {[tagByName.get(tag)?.emoji, tag].filter(Boolean).join(' ')}
                   </Link>
                   <button
                     type="button"
@@ -301,7 +307,7 @@ export default function ChatPage() {
                 />
                 <datalist id="known-tags">
                   {unused.map((tag) => (
-                    <option key={tag} value={tag} />
+                    <option key={tag.name} value={tag.name} />
                   ))}
                 </datalist>
               </form>
@@ -378,18 +384,45 @@ export default function ChatPage() {
         </DialogContent>
       </Dialog>
 
-      <EmojiNameDialog
-        open={renameOpen}
-        onOpenChange={setRenameOpen}
-        title="名前を変える"
-        description="会話はそのまま。フォルダの名前は変わらないよ。"
-        submitLabel="変える"
-        placeholder="例: 肌の記録"
-        initial={meta ? { name: meta.name, emoji: meta.emoji } : undefined}
-        onSubmit={async ({ name, emoji }) => {
-          setMeta(await space.api.renameTopic(id, { name, emoji }))
-        }}
-      />
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>名前を変える</DialogTitle>
+            <DialogDescription>会話はそのまま。フォルダの名前は変わらないよ。</DialogDescription>
+          </DialogHeader>
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(event) => {
+              event.preventDefault()
+              const name = renameDraft.trim()
+              if (!name) return
+              void space.api
+                .renameTopic(id, { name })
+                .then((next) => {
+                  setMeta(next)
+                  setRenameOpen(false)
+                })
+                .catch((cause: Error) => setNotice(cause.message))
+            }}
+          >
+            <Input
+              value={renameDraft}
+              onChange={(event) => setRenameDraft(event.target.value)}
+              placeholder="例: 肌の記録"
+              maxLength={40}
+              autoFocus
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setRenameOpen(false)}>
+                キャンセル
+              </Button>
+              <Button type="submit" disabled={!renameDraft.trim()}>
+                変える
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
