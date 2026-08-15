@@ -22,7 +22,7 @@ import { ensureChatAgentsLink, ensureUser } from './user'
 export interface TopicMeta {
   /** フォルダ名。`YY-MM-DD` または `YY-MM-DD-見出し`。 */
   slug: string
-  /** URL 用の uuid。古い会話には無い。 */
+  /** URL 用の uuid。 */
   id?: string
   /** 名前をまだ付けていないときは空文字。 */
   name: string
@@ -172,10 +172,7 @@ async function listFolders(user: UserName): Promise<TopicName[]> {
   return folders
 }
 
-/**
- * URL の id（uuid）またはフォルダ名から、実体のフォルダを探す。
- * 古い会話は uuid が無く、フォルダ名がそのまま URL になっている。
- */
+/** URL の uuid、またはフォルダ名から、実体のフォルダを探す。 */
 export async function resolveTopic(
   user: UserName,
   ref: string,
@@ -262,7 +259,7 @@ export async function updateTopic(
   return toTopic(next, await readLastEntry(user, folder))
 }
 
-/** 見出しを付け直す。uuid のある会話はフォルダ名も合わせる。URL は動かない。 */
+/** 見出しを付け直す。フォルダ名も合わせる。URL は動かない。 */
 export async function renameTopic(
   user: UserName,
   id: string,
@@ -286,17 +283,16 @@ export async function renameTopic(
     nameTried: triedAt >= AUTO_NAME_LAST,
   }
 
-  if (meta.id) {
-    const dest = await uniqueSlug(user, topicFolderName(new Date(meta.createdAt), name), folder)
-    if (dest !== folder) {
-      await fs.rename(
-        assertInsideDataDir(topicDir(user, folder)),
-        assertInsideDataDir(topicDir(user, dest)),
-      )
-      folder = dest
-    }
-    next.slug = folder
+  const dest = await uniqueSlug(user, topicFolderName(new Date(meta.createdAt), name), folder)
+  if (dest !== folder) {
+    await fs.rename(
+      assertInsideDataDir(topicDir(user, folder)),
+      assertInsideDataDir(topicDir(user, dest)),
+    )
+    folder = dest
   }
+  next.slug = folder
+  if (!next.id) next.id = crypto.randomUUID()
 
   await writeMeta(user, folder, next)
   return toTopic(next, await readLastEntry(user, folder))

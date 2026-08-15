@@ -11,7 +11,7 @@ export const media = new Hono()
 /**
  * 保存済みの画像を返す。データディレクトリの外は絶対に読ませない。
  * 名前の位置には個人ならユーザー名、共有スペースなら `family` が入る。
- * 会話は uuid（新しい）またはフォルダ名（古い）で指す。
+ * 会話は uuid、またはフォルダ名で指す。
  */
 media.get('/media/:user/:topic/:file', async (c) => {
   const { user } = resolveMediaSpace(c)

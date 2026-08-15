@@ -10,9 +10,9 @@ process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 process.env.TZ = 'Asia/Tokyo'
 
-const { migrateNestedTopics, migrateTopicIds } = await import('./migrate')
+const { migrateNestedTopics } = await import('./migrate')
 const { assertUser, tagFile, topicDir, topicsDir } = await import('./paths')
-const { readTopic, resolveTopic, topicExists } = await import('./topic')
+const { readTopic, topicExists } = await import('./topic')
 const { ensureUser } = await import('./user')
 const { asTopicName, assertTopicName } = await import('./paths')
 
@@ -128,64 +128,5 @@ describe('migrateNestedTopics', () => {
 
     await migrateNestedTopics(USER)
     assert.equal((await readTopic(USER, id)).name, '既に一段')
-  })
-})
-
-describe('migrateTopicIds', () => {
-  it('untitled フォルダに uuid を振り、日付と見出しへ動かす', async () => {
-    const folder = assertTopicName('untitled-20260814-0938')
-    await writeJson(path.join(topicDir(USER, folder), 'topic.json'), {
-      slug: folder,
-      name: '家族構成',
-      emoji: '👨',
-      createdAt: '2026-08-14T00:38:40.300Z',
-    })
-
-    await migrateTopicIds(USER)
-
-    assert.equal(await topicExists(USER, folder), false)
-    const dest = assertTopicName('26-08-14-家族構成')
-    assert.equal(await topicExists(USER, dest), true)
-    const topic = await readTopic(USER, dest)
-    assert.match(topic.slug, /^[0-9a-f-]{36}$/)
-    assert.equal(topic.name, '家族構成')
-    const raw = JSON.parse(await fsp.readFile(path.join(topicDir(USER, dest), 'topic.json'), 'utf8'))
-    assert.equal(raw.emoji, '👨')
-    assert.equal(raw.id, topic.slug)
-    assert.equal(raw.slug, dest)
-  })
-
-  it('名前が無い会話は日付だけのフォルダになる', async () => {
-    const folder = assertTopicName('untitled-20260815-0033')
-    await writeJson(path.join(topicDir(USER, folder), 'topic.json'), {
-      slug: folder,
-      name: '',
-      createdAt: '2026-08-14T15:33:11.011Z',
-    })
-
-    await migrateTopicIds(USER)
-
-    const dest = assertTopicName('26-08-15')
-    assert.equal(await topicExists(USER, dest), true)
-    const found = await resolveTopic(USER, (await readTopic(USER, dest)).slug)
-    assert.ok(found)
-    assert.equal(found.folder, dest)
-  })
-
-  it('すでに揃っている会話は触らない', async () => {
-    const dest = assertTopicName('26-08-14-買い物')
-    const id = '11111111-2222-4333-8444-555555555555'
-    await writeJson(path.join(topicDir(USER, dest), 'topic.json'), {
-      slug: dest,
-      id,
-      name: '買い物',
-      createdAt: '2026-08-14T00:00:00.000Z',
-    })
-    const before = await fsp.readFile(path.join(topicDir(USER, dest), 'topic.json'), 'utf8')
-
-    await migrateTopicIds(USER)
-
-    assert.equal(await fsp.readFile(path.join(topicDir(USER, dest), 'topic.json'), 'utf8'), before)
-    assert.equal((await readTopic(USER, dest)).slug, id)
   })
 })

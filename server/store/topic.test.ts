@@ -76,20 +76,6 @@ describe('renameTopic', () => {
     assert.equal(await topicExists(USER, before), false)
     assert.match(await folderOf(renamed.slug), /^\d{2}-\d{2}-\d{2}-買い物メモ$/)
   })
-
-  it('uuid の無い古い会話はフォルダを動かさない', async () => {
-    const folder = assertTopicName('untitled-20260814-0938')
-    await fsp.mkdir(topicDir(USER, folder), { recursive: true })
-    await fsp.writeFile(
-      path.join(topicDir(USER, folder), 'topic.json'),
-      JSON.stringify({ slug: folder, name: '', createdAt: '2026-08-14T00:38:00.000Z' }, null, 2),
-    )
-
-    const renamed = await renameTopic(USER, folder, { name: '買い物' })
-    assert.equal(renamed.slug, folder)
-    assert.equal(renamed.name, '買い物')
-    assert.ok(await topicExists(USER, folder))
-  })
 })
 
 describe('writeTags', () => {
