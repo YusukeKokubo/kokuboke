@@ -113,3 +113,52 @@ export async function migrateNestedTopics(user: UserName): Promise<void> {
     await fs.rm(dir, { recursive: true, force: true })
   }
 }
+
+/**
+ * 古い untitled フォルダに uuid を振り、`YY-MM-DD` / `YY-MM-DD-見出し` へ動かす。
+ * すでに id があり、フォルダ名も合っていれば触らない。
+ * topic.json の知らないキー（昔の emoji など）は残す。
+ */
+export async function migrateTopicIds(user: UserName): Promise<void> {
+  const root = topicsDir(user)
+  let names: string[]
+  try {
+    names = await fs.readdir(root)
+  } catch {
+    return
+  }
+
+  for (const name of names) {
+    const folder = asTopicName(name)
+    if (!folder) continue
+    const file = path.join(topicDir(user, folder), 'topic.json')
+    if (!(await hasTopicJson(topicDir(user, folder)))) continue
+
+    let raw: Record<string, unknown>
+    try {
+      raw = JSON.parse(await fs.readFile(file, 'utf8')) as Record<string, unknown>
+    } catch {
+      continue
+    }
+
+    const topicName = typeof raw.name === 'string' ? raw.name : ''
+    const createdAt =
+      typeof raw.createdAt === 'string' && !Number.isNaN(Date.parse(raw.createdAt))
+        ? new Date(raw.createdAt)
+        : new Date()
+    const id = typeof raw.id === 'string' && raw.id ? raw.id : crypto.randomUUID()
+    const dest = await uniqueSlug(user, topicFolderName(createdAt, topicName), folder)
+
+    let current = folder
+    if (dest !== folder) {
+      await fs.rename(topicDir(user, folder), topicDir(user, dest))
+      current = dest
+    }
+
+    if (raw.id === id && raw.slug === current) continue
+    await fs.writeFile(
+      path.join(topicDir(user, current), 'topic.json'),
+      JSON.stringify({ ...raw, id, slug: current }, null, 2) + '\n',
+    )
+  }
+}

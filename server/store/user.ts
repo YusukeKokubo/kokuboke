@@ -108,8 +108,9 @@ export async function ensureAllUsers(): Promise<void> {
 
 async function migrateThenLink(user: UserName): Promise<void> {
   // topic.ts がこのファイルを読むので、移行は動的に取り込む。
-  const { migrateNestedTopics } = await import('./migrate')
+  const { migrateNestedTopics, migrateTopicIds } = await import('./migrate')
   await migrateNestedTopics(user)
+  await migrateTopicIds(user)
   await ensureTopicAgentsLinks(user)
 }
 
