@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-rou
 import { Capacitor } from '@capacitor/core'
 import { api } from '@/lib/api'
 import { rememberUser, rememberedUser } from '@/lib/remember'
+import { useDocumentTitle } from '@/lib/title'
 import { FamilySpace, PersonalSpace } from '@/lib/space'
 import { SpaceShell } from '@/components/SpaceHeader'
 import TopicListPage from './pages/TopicListPage'
@@ -60,6 +61,7 @@ export default function App() {
  * 何が悪いのか分からなくなる。名前は入れた時点で照らし合わせておく。
  */
 function UserPicker() {
+  useDocumentTitle(null)
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const remembered = rememberedUser()
@@ -127,6 +129,7 @@ function UserPicker() {
 }
 
 function NotFound() {
+  useDocumentTitle('ページが見つかりません')
   return (
     <main className="flex min-h-dvh items-center justify-center p-8">
       <p className="text-muted text-sm">ページが見つかりません</p>

@@ -5,6 +5,7 @@ import type { ActivityEntry, UpdateStatus } from '../../shared/types'
 import { api } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { personalHome, topicHref } from '@/lib/space'
+import { useDocumentTitle } from '@/lib/title'
 import { Button } from '@/components/ui/button'
 
 const KEY = 'kokuboke:admin'
@@ -29,6 +30,7 @@ function rememberedKey(fromUrl: string | null): string {
 type Phase = 'idle' | 'requested' | 'waiting' | 'done' | 'failed'
 
 export default function AdminPage() {
+  useDocumentTitle('管理')
   const [params] = useSearchParams()
   const [key] = useState(() => rememberedKey(params.get('key')))
   const [status, setStatus] = useState<UpdateStatus | null>(null)

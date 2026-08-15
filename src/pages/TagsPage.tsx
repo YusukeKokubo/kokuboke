@@ -4,6 +4,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Tag, Topic } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
+import { useDocumentTitle } from '@/lib/title'
 import { Button } from '@/components/ui/button'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 import { EmojiNameDialog } from '@/components/EmojiNameDialog'
@@ -30,6 +31,7 @@ export default function TagsPage() {
 function TagList() {
   const space = useSpace()
   const navigate = useNavigate()
+  useDocumentTitle(space.tagsTitle)
   const [tags, setTags] = useState<Tag[] | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -119,6 +121,7 @@ function TagDoc({ name }: { name: string }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const exists = tag !== null ? true : topics === null && error === null ? null : false
+  useDocumentTitle(tag ? `${tag.emoji} ${tag.name}` : name)
 
   useEffect(() => {
     let cancelled = false

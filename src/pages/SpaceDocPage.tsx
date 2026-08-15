@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useSpace } from '@/lib/space'
+import { useDocumentTitle } from '@/lib/title'
 import { DocPane, type DocSpec } from '@/components/DocsDialog'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 
@@ -8,6 +9,7 @@ import { SpaceHeaderSlot } from '@/components/SpaceHeader'
  */
 function SpaceDocPage({ title, spec }: { title: string; spec: DocSpec }) {
   const space = useSpace()
+  useDocumentTitle(title)
 
   useEffect(() => {
     space.confirm()

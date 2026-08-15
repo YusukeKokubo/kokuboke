@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSpace } from '@/lib/space'
+import { useDocumentTitle } from '@/lib/title'
 import { Composer } from '@/components/Composer'
 import { useTopics } from '@/components/TopicSidebar'
 
 export default function TopicListPage() {
   const space = useSpace()
   const navigate = useNavigate()
+  useDocumentTitle(space.title)
   const { reload } = useTopics()
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)

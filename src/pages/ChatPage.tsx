@@ -4,6 +4,7 @@ import { Pencil, RefreshCw, X } from 'lucide-react'
 import type { Message, Tag, Topic } from '../../shared/types'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
+import { useDocumentTitle } from '@/lib/title'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Composer } from '@/components/Composer'
@@ -52,6 +53,7 @@ export default function ChatPage() {
   const [tagBusy, setTagBusy] = useState(false)
   const [booted, setBooted] = useState(false)
   const { reload: reloadTopics } = useTopics()
+  useDocumentTitle(meta ? topicLabel(meta) : null)
 
   const content = useRef<HTMLElement>(null)
   const stick = useRef(true)
