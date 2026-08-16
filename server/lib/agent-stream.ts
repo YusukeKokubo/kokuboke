@@ -31,6 +31,11 @@ export function streamAgent<E>(
     open?: (send: Send<E>) => Promise<void>
     /** 流し終わったあと。集まった本文を受け取る。 */
     close: (text: string, send: Send<E>) => Promise<void>
+    /**
+     * 枠を返したあと、接続とは切って走らせる後始末。
+     * 命名のように、画面が閉じても止めない仕事向け。
+     */
+    followUp?: () => void | Promise<void>
   },
 ) {
   return streamSSE(c, async (stream) => {
@@ -67,6 +72,12 @@ export function streamAgent<E>(
       }).catch(() => {})
     } finally {
       run.release()
+    }
+
+    if (run.followUp) {
+      void Promise.resolve(run.followUp()).catch((error) => {
+        console.error(`[${run.tag}:followUp]`, error)
+      })
     }
   })
 }

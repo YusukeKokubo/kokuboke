@@ -65,7 +65,7 @@ export type AgentProgressEvent =
 export type ChatEvent =
   | AgentProgressEvent
   | { type: 'accepted'; message: Message }
-  /** shouldName / shouldTag が立っていたら、画面から命名・タグ付けを頼む頃合い。 */
+  /** shouldName / shouldTag が立っていたら、サーバーが命名・タグ付けを始める頃合い。 */
   | { type: 'done'; message: Message; shouldName?: boolean; shouldTag?: boolean }
 
 /**

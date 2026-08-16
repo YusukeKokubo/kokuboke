@@ -1,24 +1,20 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import { collectAgent, ENGINES, resolveModel } from '../agent'
-import { parseName, parseTags } from '../agent/name'
-import { namePrompt, nameSystemPrompt, tagPrompt, tagSystemPrompt } from '../agent/prompt'
+import { ENGINES } from '../agent'
+import { applyAutoName, applyAutoTag } from '../agent/auto'
 import { limiter } from '../agent/queue'
-import { config } from '../config'
 import { BadRequestError } from '../errors'
 import { readJson } from '../lib/body'
 import { readFamilyActivity } from '../store/activity'
-import { countUserMessages, readRecent } from '../store/log'
-import { topicDir } from '../store/paths'
-import { ensureTag, listTags } from '../store/tag'
+import { ensureTag } from '../store/tag'
 import {
   createTopic,
   deleteTopic,
   listTopics,
-  markNameTried,
-  markTagTried,
   readTopic,
   renameTopic,
+  shouldAutoName,
+  shouldAutoTag,
   updateTopic,
   writeTags,
 } from '../store/topic'
@@ -97,39 +93,12 @@ topics.on('DELETE', topicPaths(), async (c) => {
 
 topics.on('POST', topicPaths('/name'), async (c) => {
   const { space, id } = await requireTopic(c)
-  const { user } = space
-  const current = await readTopic(user, id)
-
-  const history = await readRecent(user, id, Math.max(config.contextDays, 14))
-  if (history.length === 0) {
-    throw new BadRequestError('まだ記録がありません')
-  }
-
-  const choice = resolveModel(current.engine, current.model)
-  const release = await limiter.acquire(space.busyKey(id))
-
-  let text: string
+  const release = await limiter.acquireWhenFree(space.busyKey(id))
   try {
-    text = await collectAgent(choice, {
-      cwd: topicDir(user, id),
-      prompt: namePrompt({ history, currentName: current.name || undefined }),
-      systemPrompt: nameSystemPrompt(),
-      signal: c.req.raw.signal,
-    })
-  } catch (error) {
-    console.error('[name]', error)
-    text = ''
-  }
-
-  try {
-    const proposed = parseName(text)
-    if (!proposed) {
-      await markNameTried(user, id)
-      throw new HTTPException(502, { message: '名前を作れませんでした' })
+    if (!(await shouldAutoName(space.user, id))) {
+      return c.json(await readTopic(space.user, id))
     }
-
-    const autoAt = await countUserMessages(user, id)
-    return c.json(await renameTopic(user, id, { ...proposed, autoAt }))
+    return c.json(await applyAutoName(space.user, id))
   } finally {
     release()
   }
@@ -137,42 +106,13 @@ topics.on('POST', topicPaths('/name'), async (c) => {
 
 topics.on('POST', topicPaths('/tags'), async (c) => {
   const { space, id } = await requireTopic(c)
-  const { user } = space
-  const current = await readTopic(user, id)
-  const history = await readRecent(user, id, Math.max(config.contextDays, 14))
-  if (history.length === 0) {
-    throw new BadRequestError('まだ記録がありません')
-  }
-
-  const known = (await listTags(user)).map((tag) => tag.name)
-  const choice = resolveModel(current.engine, current.model)
-  const release = await limiter.acquire(space.busyKey(id))
-
-  let text: string
+  const release = await limiter.acquireWhenFree(space.busyKey(id))
   try {
-    text = await collectAgent(choice, {
-      cwd: topicDir(user, id),
-      prompt: tagPrompt({ history, known }),
-      systemPrompt: tagSystemPrompt(),
-      signal: c.req.raw.signal,
-    })
-  } catch (error) {
-    console.error('[tags]', error)
-    text = ''
+    if (!(await shouldAutoTag(space.user, id))) {
+      return c.json(await readTopic(space.user, id))
+    }
+    return c.json(await applyAutoTag(space.user, id))
   } finally {
     release()
   }
-
-  const proposed = parseTags(text)
-  if (proposed.length === 0) {
-    await markTagTried(user, id)
-    return c.json(await readTopic(user, id))
-  }
-
-  const names: string[] = []
-  for (const raw of proposed) {
-    const tag = await ensureTag(user, raw.name, raw.emoji)
-    if (tag) names.push(tag)
-  }
-  return c.json(await writeTags(user, id, [...new Set(names)]))
 })

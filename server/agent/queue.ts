@@ -5,7 +5,7 @@ import { config } from '../config'
  * Claude Code は 1 プロセスあたり数百 MB 使う。NAS のメモリを守るため、
  * 全体の同時実行数を絞り、同じユーザーの多重送信は待たせずに弾く。
  */
-class Limiter {
+export class Limiter {
   private active = 0
   private waiting: Array<() => void> = []
   private busyUsers = new Set<string>()
@@ -36,6 +36,22 @@ class Limiter {
       this.active--
       this.busyUsers.delete(user)
       this.waiting.shift()?.()
+    }
+  }
+
+  /**
+   * 先客がいれば終わるまで待ってから枠を取る。
+   * 命名のように「画面が閉じても続け、あとから結果だけ取りに来る」用途向け。
+   * 発言の送信は待たせずに弾くので、そちらは acquire のまま。
+   */
+  async acquireWhenFree(user: string): Promise<() => void> {
+    for (;;) {
+      try {
+        return await this.acquire(user)
+      } catch (error) {
+        if (!(error instanceof HTTPException) || error.status !== 409) throw error
+        await new Promise<void>((resolve) => setTimeout(resolve, 50))
+      }
     }
   }
 

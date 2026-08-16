@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { ChatEvent, Message } from '../../shared/types'
 import { resolveModel } from '../agent'
+import { applyAutoName, applyAutoTag } from '../agent/auto'
 import { chatPrompt, chatSystemPrompt } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { BadRequestError, NotFoundError } from '../errors'
@@ -84,6 +85,8 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
     throw error
   }
 
+  let autoAfter = false
+
   return streamAgent<ChatEvent>(c, {
     choice,
     cwd: topicDir(user, id),
@@ -108,12 +111,29 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
         at: new Date().toISOString(),
       }
       await appendMessage(user, id, assistantMessage)
+      const shouldName = await shouldAutoName(user, id)
+      const shouldTag = await shouldAutoTag(user, id)
+      autoAfter = shouldName || shouldTag
       await send({
         type: 'done',
         message: assistantMessage,
-        shouldName: await shouldAutoName(user, id),
-        shouldTag: await shouldAutoTag(user, id),
-      })
+        shouldName,
+        shouldTag,
+      }).catch(() => {})
+    },
+    followUp: async () => {
+      if (!autoAfter) return
+      const hold = await limiter.acquireWhenFree(space.busyKey(id))
+      try {
+        if (await shouldAutoName(user, id)) {
+          await applyAutoName(user, id).catch((error) => console.error('[name]', error))
+        }
+        if (await shouldAutoTag(user, id)) {
+          await applyAutoTag(user, id).catch((error) => console.error('[tags]', error))
+        }
+      } finally {
+        hold()
+      }
     },
   })
 })
