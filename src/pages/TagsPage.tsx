@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Tag, Topic } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
@@ -17,6 +17,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 /**
  * タグの一覧と、一つのタグ本文。個人と家族で同じ画面。
@@ -34,6 +41,9 @@ function TagList() {
   useDocumentTitle(space.tagsTitle)
   const [tags, setTags] = useState<Tag[] | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [deleting, setDeleting] = useState<Tag | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(() => {
@@ -48,6 +58,21 @@ function TagList() {
   }, [space])
 
   useEffect(load, [load])
+
+  async function confirmDelete() {
+    if (!deleting || deleteBusy) return
+    setDeleteBusy(true)
+    setDeleteError(null)
+    try {
+      await space.api.deleteTag(deleting.name)
+      setDeleting(null)
+      load()
+    } catch (cause) {
+      setDeleteError(cause instanceof Error ? cause.message : '削除できませんでした')
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-3 py-3">
@@ -76,10 +101,10 @@ function TagList() {
 
       <ul className="flex flex-col gap-1.5">
         {tags?.map((item) => (
-          <li key={item.name}>
+          <li key={item.name} className="flex min-w-0 items-stretch rounded-xl border">
             <Link
               to={space.tagHref(item.name)}
-              className="hover:bg-accent active:bg-accent flex min-w-0 items-center gap-3 rounded-xl border p-3 transition-colors"
+              className="hover:bg-accent active:bg-accent flex min-w-0 flex-1 items-center gap-3 rounded-xl p-3 transition-colors"
             >
               <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full text-xl">
                 {item.emoji}
@@ -91,6 +116,28 @@ function TagList() {
                 </span>
               </span>
             </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button type="button" variant="ghost" size="icon-sm" className="mr-2 self-center" />}
+              >
+                <MoreHorizontal />
+                <span className="sr-only">{item.name} の操作</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => {
+                      setDeleteError(null)
+                      setDeleting(item)
+                    }}
+                  >
+                    <Trash2 />
+                    削除
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </li>
         ))}
       </ul>
@@ -106,6 +153,19 @@ function TagList() {
           const created = await space.api.createTag({ name, emoji })
           navigate(space.tagHref(created.name))
         }}
+      />
+
+      <TagDeleteDialog
+        name={deleting?.name ?? null}
+        open={deleting !== null}
+        busy={deleteBusy}
+        error={deleteError}
+        onOpenChange={(open) => {
+          if (open || deleteBusy) return
+          setDeleting(null)
+          setDeleteError(null)
+        }}
+        onConfirm={() => void confirmDelete()}
       />
     </main>
   )
@@ -267,24 +327,55 @@ function TagDoc({ name }: { name: string }) {
         }}
       />
 
-      <Dialog open={deleting} onOpenChange={(next) => !busy && setDeleting(next)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>タグを削除する</DialogTitle>
-            <DialogDescription>
-              「{name}」を消します。会話からは外れるよ。元に戻せません。
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeleting(false)} disabled={busy}>
-              キャンセル
-            </Button>
-            <Button type="button" variant="destructive" onClick={() => void remove()} disabled={busy}>
-              削除する
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TagDeleteDialog
+        name={name}
+        open={deleting}
+        busy={busy}
+        error={error}
+        onOpenChange={(open) => {
+          if (open || busy) return
+          setDeleting(false)
+        }}
+        onConfirm={() => void remove()}
+      />
     </>
+  )
+}
+
+function TagDeleteDialog({
+  name,
+  open,
+  busy,
+  error,
+  onOpenChange,
+  onConfirm,
+}: {
+  name: string | null
+  open: boolean
+  busy: boolean
+  error?: string | null
+  onOpenChange: (open: boolean) => void
+  onConfirm: () => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>タグを削除する</DialogTitle>
+          <DialogDescription>
+            {name ? `「${name}」を消します。会話からは外れるよ。元に戻せません。` : ''}
+          </DialogDescription>
+        </DialogHeader>
+        {error && <p className="text-destructive text-sm">{error}</p>}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+            キャンセル
+          </Button>
+          <Button type="button" variant="destructive" onClick={onConfirm} disabled={busy}>
+            削除する
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
