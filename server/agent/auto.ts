@@ -9,7 +9,7 @@ import { markNameTried, markTagTried, readTopic, renameTopic, writeTags } from '
 import { collectAgent } from './collect'
 import { resolveModel } from './model'
 import { parseName, parseTags } from './name'
-import { namePrompt, nameSystemPrompt, tagPrompt, tagSystemPrompt } from './prompt'
+import { namePrompt, nameSystemPrompt, tagNote, tagPrompt, tagSystemPrompt } from './prompt'
 
 /**
  * 会話を読んで名前を付ける。リクエストの切断信号は見ない。
@@ -52,13 +52,20 @@ export async function applyAutoTag(user: UserName, id: TopicName): Promise<Topic
     throw new BadRequestError('まだ記録がありません')
   }
 
-  const known = (await listTags(user)).map((tag) => tag.name)
+  const known = (await listTags(user)).map((tag) => ({
+    name: tag.name,
+    note: tagNote(tag.text),
+  }))
   const choice = resolveModel(current.engine, current.model)
   let text = ''
   try {
     text = await collectAgent(choice, {
       cwd: topicDir(user, id),
-      prompt: tagPrompt({ history, known }),
+      prompt: tagPrompt({
+        history,
+        known,
+        topicName: current.name || undefined,
+      }),
       systemPrompt: tagSystemPrompt(),
     })
   } catch (error) {

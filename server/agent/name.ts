@@ -66,7 +66,7 @@ export function parseTags(raw: string): ProposedTag[] {
         return emoji ? { name, emoji } : { name }
       })
       .filter((tag): tag is ProposedTag => tag !== null)
-      .slice(0, 5)
+      .slice(0, 2)
   } catch {
     return []
   }

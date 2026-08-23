@@ -106,4 +106,13 @@ describe('parseTags', () => {
     assert.deepEqual(parseTags('{"name":"秋の旅行"}'), [])
     assert.deepEqual(parseTags('タグは無い'), [])
   })
+
+  it('3 つ以上は捨てて 2 つまで', () => {
+    assert.equal(
+      parseTags(
+        '{"tags":[{"name":"旅行"},{"name":"学習"},{"name":"健康"}]}',
+      ).length,
+      2,
+    )
+  })
 })

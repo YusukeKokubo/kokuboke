@@ -119,14 +119,34 @@ ${refine}
 }
 
 export function tagSystemPrompt(): string {
-  return `あなたは会話に短いタグを付ける係です。
+  return `あなたは会話に大分類のタグを付ける係です。
 
+- タグは会話の見出しではなく、また話すテーマの覚え書きです。同じタグの会話をまたいで積みます。
+- 大分類だけで足ります。中分類や小分類は作りません。
 - ファイルは読み書きしません。タグを決めるところまでが仕事です。
 - 前置き・説明・報告は書かないでください。返すのは指定された JSON 一つだけです。`
 }
 
-export function tagPrompt(input: { history: Message[]; known: string[] }): string {
-  const known = input.known.length > 0 ? input.known.join('、') : '（まだ無い）'
+/** 既存タグの本文から、分類の手がかりになる一行を取る。 */
+export function tagNote(text: string): string | undefined {
+  const line = text.replace(/\s+/g, ' ').trim()
+  if (!line) return undefined
+  return line.slice(0, 40)
+}
+
+export function tagPrompt(input: {
+  history: Message[]
+  known: { name: string; note?: string }[]
+  topicName?: string
+}): string {
+  const known =
+    input.known.length > 0
+      ? input.known.map((tag) => (tag.note ? `- ${tag.name}: ${tag.note}` : `- ${tag.name}`)).join('\n')
+      : '（まだ無い）'
+  const aboutName = input.topicName
+    ? `いまの会話名は「${input.topicName}」です。これをタグ名にしないでください。\n\n`
+    : ''
+
   return `<conversation>
 ${renderHistory(input.history)}
 </conversation>
@@ -135,16 +155,20 @@ ${renderHistory(input.history)}
 ${known}
 </known_tags>
 
-この会話にタグを付けてください。
+${aboutName}この会話に大分類のタグを付けてください。
 
-- 話題がひと目で分かる、短い名前にします。
-- 既にあるタグで足りるならそれを使います。新しい話題なら新しいタグを足します。
-- 1 つから 3 つまで。無いときは空の配列にします。
+- 既にある大分類で当たるなら、それを使います。新しくは作りません。
+- 新しいタグを足してよいのは、これから何度も話しそうな大分類がまだ無いときだけです。
+- 会話の見出しや一度きりの出来事はタグにしません。
+  「大英博物館展予習」なら「美術館博物館巡り」です。「大英博物館展」は付けません。
+  「四国の宿を探す」なら「旅行」です。
+- 一度きりの質問や雑談には付けません。空の配列にします。
+- 1 つまで。どうしても二つ必要なときだけ 2 つ。3 つは付けません。
 - 記号や引用符は使いません。
 - 新しいタグには、内容に合う絵文字を一つ付けます。既にあるタグの絵文字は変えません。
 
 次の形の JSON だけを返してください。
-{"tags": [{"name": "秋の旅行", "emoji": "🍂"}]}`
+{"tags": [{"name": "美術館博物館巡り", "emoji": "🖼️"}]}`
 }
 
 export function tagDraftSystemPrompt(input: { audience: Audience; tagName: string }): string {

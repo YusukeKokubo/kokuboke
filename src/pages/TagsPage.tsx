@@ -81,7 +81,7 @@ function TagList() {
           <div className="min-w-0">
             <h1 className="truncate text-base font-semibold">{space.tagsTitle}</h1>
             <p className="text-muted-foreground text-xs">
-              付いているタグの本文は、話すたびに読み込まれるよ
+              大分類だけ。本文は、話すたびに読み込まれるよ
             </p>
           </div>
           <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>

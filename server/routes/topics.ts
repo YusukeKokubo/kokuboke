@@ -14,7 +14,6 @@ import {
   readTopic,
   renameTopic,
   shouldAutoName,
-  shouldAutoTag,
   updateTopic,
   writeTags,
 } from '../store/topic'
@@ -108,9 +107,6 @@ topics.on('POST', topicPaths('/tags'), async (c) => {
   const { space, id } = await requireTopic(c)
   const release = await limiter.acquireWhenFree(space.busyKey(id))
   try {
-    if (!(await shouldAutoTag(space.user, id))) {
-      return c.json(await readTopic(space.user, id))
-    }
     return c.json(await applyAutoTag(space.user, id))
   } finally {
     release()

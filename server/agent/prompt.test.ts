@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { chatPrompt, tagDraftPrompt } from './prompt'
+import { chatPrompt, tagDraftPrompt, tagNote, tagPrompt, tagSystemPrompt } from './prompt'
 
 describe('chatPrompt', () => {
   it('付いているタグの本文を載せる', () => {
@@ -24,6 +24,36 @@ describe('chatPrompt', () => {
       imagePaths: [],
     })
     assert.equal(text.includes('<tag'), false)
+  })
+})
+
+describe('tagNote', () => {
+  it('空なら undefined', () => {
+    assert.equal(tagNote(''), undefined)
+    assert.equal(tagNote('   \n'), undefined)
+  })
+
+  it('空白を畳んで 40 字まで', () => {
+    assert.equal(tagNote('京都に  行く\n来週'), '京都に 行く 来週')
+    assert.equal(tagNote('あ'.repeat(50)), 'あ'.repeat(40))
+  })
+})
+
+describe('tagPrompt', () => {
+  it('大分類だけを使い、会話名はタグにしない', () => {
+    const text = tagPrompt({
+      history: [],
+      known: [{ name: '旅行', note: '四国へ行く' }, { name: '学習' }],
+      topicName: '大英博物館展予習',
+    })
+    assert.match(text, /<known_tags>/)
+    assert.match(text, /- 旅行: 四国へ行く/)
+    assert.match(text, /- 学習/)
+    assert.match(text, /大英博物館展予習/)
+    assert.match(text, /これをタグ名にしない/)
+    assert.match(text, /美術館博物館巡り/)
+    assert.match(text, /大分類/)
+    assert.match(tagSystemPrompt(), /大分類だけで足ります/)
   })
 })
 
