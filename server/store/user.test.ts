@@ -9,9 +9,17 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kokuboke-test-'))
 process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 
-const { ensureFamily, ensureUser, readClaude, readProfile, writeClaude, writeProfile } =
-  await import('./user')
-const { assertUser, familyUser, tagsDir, userDir } = await import('./paths')
+const {
+  ensureFamily,
+  ensureUser,
+  readClaude,
+  readOrganize,
+  readProfile,
+  writeClaude,
+  writeOrganize,
+  writeProfile,
+} = await import('./user')
+const { assertUser, familyUser, organizeFile, tagsDir, userDir } = await import('./paths')
 const { createTopic, resolveTopic } = await import('./topic')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
@@ -66,6 +74,28 @@ describe('CLAUDE.md', () => {
   it('tags/ を用意する', async () => {
     assert.ok((await fsp.stat(tagsDir(USER))).isDirectory())
   })
+})
+
+describe('organize.md', () => {
+  it('雛形を置く', async () => {
+    const text = await readOrganize(USER)
+    assert.match(text, /整理の方針/)
+    assert.match(text, /一度きりの出来事は書かない/)
+    assert.ok((await fsp.stat(organizeFile(USER))).isFile())
+  })
+
+  it('書いたものが userDir の organize.md に残る', async () => {
+    await writeOrganize(USER, '  展覧会は美術館博物館巡り  ')
+    assert.equal(await fsp.readFile(organizeFile(USER), 'utf8'), '展覧会は美術館博物館巡り\n')
+    assert.equal(await readOrganize(USER), '展覧会は美術館博物館巡り\n')
+  })
+
+  it('AGENTS.md のリンクは触らない', async () => {
+    await writeOrganize(USER, '差し替え')
+    const link = path.join(userDir(USER), 'AGENTS.md')
+    assert.ok((await fsp.lstat(link)).isSymbolicLink())
+    assert.equal(await fsp.readlink(link), 'CLAUDE.md')
+  })
 
   it('会話の AGENTS.md は人直下の CLAUDE.md を指す', async () => {
     const topic = await createTopic(USER, {})
@@ -95,6 +125,11 @@ describe('家族共有スペース', () => {
     const text = await readClaude(FAMILY)
     assert.match(text, /家族の共有スペース/)
     assert.match(text, /秘書役/)
+  })
+
+  it('organize.md の雛形を置く', async () => {
+    const text = await readOrganize(FAMILY)
+    assert.match(text, /家族の整理の方針/)
   })
 
   it('AGENTS.md のリンクを張る', async () => {

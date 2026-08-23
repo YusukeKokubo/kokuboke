@@ -1,5 +1,6 @@
 import type { Message } from '../../shared/types'
 import { localTime } from '../../shared/date'
+import { formatRevisions, type Revision } from '../store/revision'
 
 const MAX_HISTORY_CHARS = 20_000
 
@@ -113,7 +114,23 @@ export function nameSystemPrompt(): string {
 - 前置き・説明・報告は書かないでください。返すのは指定された JSON 一つだけです。`
 }
 
-export function namePrompt(input: { history: Message[]; currentName?: string }): string {
+export type ClassifyHints = {
+  revisions?: Revision[]
+  policy?: string
+}
+
+/** 手直しログと整理の方針。会話のプロンプトには載せない。 */
+export function classifyBlock(input: ClassifyHints): string {
+  const parts: string[] = []
+  const revisions = formatRevisions(input.revisions ?? [])
+  if (revisions) parts.push(`<revisions>\n${revisions}\n</revisions>`)
+  const policy = input.policy?.trim()
+  if (policy) parts.push(`<organize_policy>\n${policy}\n</organize_policy>`)
+  if (parts.length === 0) return ''
+  return `${parts.join('\n\n')}\n\n`
+}
+
+export function namePrompt(input: { history: Message[]; currentName?: string } & ClassifyHints): string {
   const refine = input.currentName
     ? `いまの名前は「${input.currentName}」です。会話を踏まえて、このままでよければ同じ名前を、より適切なら付け直してください。`
     : 'この会話に名前を付けてください。'
@@ -122,7 +139,7 @@ export function namePrompt(input: { history: Message[]; currentName?: string }):
 ${renderHistory(input.history)}
 </conversation>
 
-${refine}
+${classifyBlock(input)}${refine}
 
 - 何の話かがひと目で分かる、12 文字くらいまでの短い名前にします。
 - 「〜について」「〜の話」のような言い回しは付けません。
@@ -157,7 +174,7 @@ export function tagPrompt(input: {
   history: Message[]
   known: { name: string; note?: string; group?: string }[]
   topicName?: string
-}): string {
+} & ClassifyHints): string {
   const known = input.known.length > 0 ? input.known.map(formatKnownTag).join('\n') : '（まだ無い）'
   const aboutName = input.topicName
     ? `いまの会話名は「${input.topicName}」です。これをタグ名にしないでください。\n\n`
@@ -171,7 +188,7 @@ ${renderHistory(input.history)}
 ${known}
 </known_tags>
 
-${aboutName}この会話に大分類のタグを付けてください。
+${classifyBlock(input)}${aboutName}この会話に大分類のタグを付けてください。
 
 - 既にある大分類で当たるなら、それを使います。新しくは作りません。
 - 新しいタグを足してよいのは、これから何度も話しそうな大分類がまだ無いときだけです。
@@ -251,7 +268,7 @@ export function organizeSystemPrompt(): string {
 
 export function organizePrompt(input: {
   tags: { name: string; group: string; note?: string; topics: string[] }[]
-}): string {
+} & ClassifyHints): string {
   const lines =
     input.tags.length > 0
       ? input.tags
@@ -268,7 +285,7 @@ export function organizePrompt(input: {
 ${lines}
 </tags>
 
-この一覧を大分類へ寄せる提案をしてください。
+${classifyBlock(input)}この一覧を大分類へ寄せる提案をしてください。
 
 - 会話名まがいを大分類へ寄せます。「大英博物館展」なら「美術館博物館巡り」です。
 - 既にある大分類で足りるなら、そちらへ寄せます。新しい大分類は、これから何度も話しそうなテーマが無いときだけです。
@@ -278,4 +295,46 @@ ${lines}
 
 次の形の JSON だけを返してください。
 {"actions":[{"type":"merge","from":"大英博物館展","to":"美術館博物館巡り"},{"type":"shelf","name":"美術館博物館巡り","group":"文化"},{"type":"remove","name":"動作確認用"}]}`
+}
+
+export function organizeDraftSystemPrompt(): string {
+  return `あなたは分類の方針を短くまとめる係です。
+
+- ファイルは書き換えません。新しい本文の全文を返すところまでが仕事です。
+  保存するかどうかは人が決めます。
+- 繰り返した直しだけを規則にします。一回だけの例外は書きません。
+- 会話の見出しや一度きりの出来事、献立や予定は書きません。それらはタグ本文の仕事です。
+- 前置き・説明・報告は書かないでください。返すのは本文だけです。`
+}
+
+export function organizeDraftPrompt(input: {
+  current: string
+  revisions: Revision[]
+  tags: { name: string; group: string; note?: string }[]
+}): string {
+  const parts: string[] = []
+  if (input.current.trim()) {
+    parts.push(`<current>\n${input.current.trim()}\n</current>`)
+  }
+  const revisions = formatRevisions(input.revisions)
+  if (revisions) parts.push(`<revisions>\n${revisions}\n</revisions>`)
+  const tags =
+    input.tags.length > 0
+      ? input.tags
+          .map((tag) => {
+            const shelf = tag.group || '棚なし'
+            const note = tag.note ? `: ${tag.note}` : ''
+            return `- ${tag.name}（${shelf}）${note}`
+          })
+          .join('\n')
+      : '（まだ無い）'
+  parts.push(`<tags>\n${tags}\n</tags>`)
+  parts.push(`上の手直しとタグ一覧を踏まえて、分類の方針を書き直してください。
+
+- すでに書かれている方針は消さずに、変わったところだけ直し、繰り返した直しを足します。
+- 一回の例外は規則にしないでください。同じ直しがまだ一度だけなら、今の本文のままでよいです。
+- イベント名や献立、一度きりの予定は書かないでください。
+- そのままファイルに保存できる形で、本文だけを返します。全体をコードブロックで
+  囲まないでください。`)
+  return parts.join('\n\n')
 }

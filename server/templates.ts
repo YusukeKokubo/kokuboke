@@ -62,3 +62,22 @@ export function familyProfileMd(): string {
 会話のたびに読み込まれる。書き換えるのは人の側だけ。
 `
 }
+
+/** スペース直下に置く、分類の方針。命名・タグ付け・整理のときに読む。 */
+export function userOrganizeMd(user: string): string {
+  return `# ${user} の整理の方針
+
+タグの大分類の付け方。命名・タグ付け・「整理する」のときに読む。
+繰り返した直しだけを短く書く。一度きりの出来事は書かない。
+書き換えるのは人の側だけ。
+`
+}
+
+export function familyOrganizeMd(): string {
+  return `# 家族の整理の方針
+
+タグの大分類の付け方。命名・タグ付け・「整理する」のときに読む。
+繰り返した直しだけを短く書く。一度きりの出来事は書かない。
+書き換えるのは人の側だけ。
+`
+}

@@ -14,7 +14,7 @@ export interface DocSpec {
   placeholder: string
   load: () => Promise<string>
   save: (text: string) => Promise<string>
-  /** AI に下書きさせられる文書だけ。いまはタグ本文だけ。 */
+  /** AI に下書きさせられる文書だけ。タグ本文と整理の方針。 */
   draft?: (signal: AbortSignal) => AsyncGenerator<SummaryEvent>
 }
 
@@ -75,7 +75,7 @@ export function DocPane({
       }
     } catch (cause) {
       if (!controller.signal.aborted) {
-        doc.setNotice(cause instanceof Error ? cause.message : '覚え書きを整理できませんでした')
+        doc.setNotice(cause instanceof Error ? cause.message : '下書きを作れませんでした')
       }
     } finally {
       abort.current = null

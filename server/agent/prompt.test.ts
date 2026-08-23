@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { chatPrompt, organizePrompt, tagDraftPrompt, tagNote, tagPrompt, tagSystemPrompt } from './prompt'
+import {
+  chatPrompt,
+  classifyBlock,
+  organizeDraftPrompt,
+  organizePrompt,
+  tagDraftPrompt,
+  tagNote,
+  tagPrompt,
+  tagSystemPrompt,
+} from './prompt'
 
 describe('chatPrompt', () => {
   it('付いているタグの本文を載せる', () => {
@@ -59,6 +68,31 @@ describe('chatPrompt', () => {
     })
     assert.equal(text.includes('<tag'), false)
   })
+
+  it('手直しログは載せない', () => {
+    const text = chatPrompt({
+      profile: '朝は弱い',
+      tags: [],
+      history: [],
+      text: 'おはよう',
+      imagePaths: [],
+    })
+    assert.equal(text.includes('<revisions>'), false)
+    assert.equal(text.includes('<organize_policy>'), false)
+  })
+})
+
+describe('classifyBlock', () => {
+  it('手直しと方針を載せる', () => {
+    const text = classifyBlock({
+      revisions: [{ at: '2026-08-23T00:00:00.000Z', kind: 'name', from: '旧', to: '新' }],
+      policy: '展覧会は美術館博物館巡り',
+    })
+    assert.match(text, /<revisions>/)
+    assert.match(text, /「旧」→「新」/)
+    assert.match(text, /<organize_policy>/)
+    assert.match(text, /美術館博物館巡り/)
+  })
 })
 
 describe('tagNote', () => {
@@ -89,6 +123,22 @@ describe('tagPrompt', () => {
     assert.match(text, /大分類/)
     assert.match(tagSystemPrompt(), /大分類だけで足ります/)
     assert.match(text, /"group": "文化"/)
+    assert.equal(text.includes('<revisions>'), false)
+  })
+
+  it('手直しログと方針を載せる', () => {
+    const text = tagPrompt({
+      history: [],
+      known: [],
+      revisions: [
+        { at: '2026-08-23T00:00:00.000Z', kind: 'tag', from: ['大英博物館展'], to: ['美術館博物館巡り'] },
+      ],
+      policy: '展覧会は美術館博物館巡り',
+    })
+    assert.match(text, /<revisions>/)
+    assert.match(text, /大英博物館展/)
+    assert.match(text, /<organize_policy>/)
+    assert.match(text, /展覧会は美術館博物館巡り/)
   })
 })
 
@@ -104,6 +154,36 @@ describe('organizePrompt', () => {
     assert.match(text, /スキンケア（暮らし）/)
     assert.match(text, /化粧水/)
     assert.match(text, /type":"merge"/)
+  })
+
+  it('手直しログを載せる', () => {
+    const text = organizePrompt({
+      tags: [{ name: '旅行', group: '旅', topics: [] }],
+      revisions: [
+        {
+          at: '2026-08-23T00:00:00.000Z',
+          kind: 'organize',
+          accepted: [{ type: 'merge', from: '大英博物館展', to: '美術館博物館巡り' }],
+          rejected: [],
+        },
+      ],
+    })
+    assert.match(text, /<revisions>/)
+    assert.match(text, /大英博物館展/)
+  })
+})
+
+describe('organizeDraftPrompt', () => {
+  it('今の方針と手直しを載せる', () => {
+    const text = organizeDraftPrompt({
+      current: '展覧会は美術館博物館巡り',
+      revisions: [{ at: '2026-08-23T00:00:00.000Z', kind: 'name', from: '旧', to: '新' }],
+      tags: [{ name: '旅行', group: '旅' }],
+    })
+    assert.match(text, /展覧会は美術館博物館巡り/)
+    assert.match(text, /<revisions>/)
+    assert.match(text, /旅行（旅）/)
+    assert.match(text, /一回の例外は規則にしない/)
   })
 })
 

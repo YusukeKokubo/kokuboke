@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Loader2, MoreHorizontal, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
-import type { Tag, TagOrganizeAction, Topic } from '../../shared/types'
+import { organizeActionKey, type Tag, type TagOrganizeAction, type Topic } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
 import { useDocumentTitle } from '@/lib/title'
@@ -392,12 +392,6 @@ function sectionTags(tags: Tag[]): { group: string; tags: Tag[] }[] {
   return sections
 }
 
-function actionKey(action: TagOrganizeAction): string {
-  if (action.type === 'merge') return `merge:${action.from}:${action.to}`
-  if (action.type === 'shelf') return `shelf:${action.name}:${action.group}`
-  return `remove:${action.name}`
-}
-
 function actionLabel(action: TagOrganizeAction): string {
   if (action.type === 'merge') return `「${action.from}」を「${action.to}」へ寄せる`
   if (action.type === 'shelf') return `「${action.name}」を棚「${action.group}」へ`
@@ -448,7 +442,7 @@ function OrganizeDialog({
           if (event.type === 'error') setError(event.message)
           if (event.type === 'done') {
             setActions(event.actions)
-            setPicked(new Set(event.actions.map(actionKey)))
+            setPicked(new Set(event.actions.map(organizeActionKey)))
             setActivity(null)
           }
         }
@@ -466,7 +460,7 @@ function OrganizeDialog({
 
   async function apply() {
     if (!actions || applying) return
-    const selected = actions.filter((action) => picked.has(actionKey(action)))
+    const selected = actions.filter((action) => picked.has(organizeActionKey(action)))
     if (selected.length === 0) {
       onOpenChange(false)
       return
@@ -474,7 +468,7 @@ function OrganizeDialog({
     setApplying(true)
     setError(null)
     try {
-      await space.api.applyOrganize(selected)
+      await space.api.applyOrganize(selected, actions)
       onOpenChange(false)
       onApplied()
     } catch (cause) {
@@ -507,7 +501,7 @@ function OrganizeDialog({
         {actions && actions.length > 0 && (
           <ul className="flex max-h-72 flex-col gap-1.5 overflow-y-auto">
             {actions.map((action) => {
-              const key = actionKey(action)
+              const key = organizeActionKey(action)
               const on = picked.has(key)
               return (
                 <li key={key}>

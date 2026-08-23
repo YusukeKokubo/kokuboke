@@ -5,6 +5,7 @@ import type {
   EngineInfo,
   FamilyActivityEntry,
   Message,
+  Organize,
   OrganizeEvent,
   Profile,
   SummaryEvent,
@@ -146,8 +147,8 @@ export function spaceApi(base: string, author?: string) {
       yield* readSSE<OrganizeEvent>(res)
     },
 
-    applyOrganize: (actions: TagOrganizeAction[]) =>
-      json.send<Tag[]>('POST', `${base}/tags/organize/apply`, { actions }),
+    applyOrganize: (actions: TagOrganizeAction[], proposed: TagOrganizeAction[] = []) =>
+      json.send<Tag[]>('POST', `${base}/tags/organize/apply`, { actions, proposed }),
 
     deleteTag: (tag: string) => json.send<void>('DELETE', tagAt(tag)),
 
@@ -160,6 +161,17 @@ export function spaceApi(base: string, author?: string) {
 
     saveProfile: (profile: string) =>
       json.send<Profile>('PUT', `${base}/profile`, { profile }).then(only('profile')),
+
+    getOrganize: () => json.get<Organize>(`${base}/organize`).then(only('organize')),
+
+    saveOrganize: (organize: string) =>
+      json.send<Organize>('PUT', `${base}/organize`, { organize }).then(only('organize')),
+
+    /** 整理の方針の下書き。ここではファイルは変わらない。 */
+    draftOrganize: async function* (signal?: AbortSignal): AsyncGenerator<SummaryEvent> {
+      const res = await fetch(`${base}/organize/draft`, { method: 'POST', signal })
+      yield* readSSE<SummaryEvent>(res)
+    },
 
     /**
      * 発言を送って、返答を受け取りながら流す。

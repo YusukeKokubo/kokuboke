@@ -21,12 +21,16 @@
 ├── _family/                   家族共有スペース（予約名。FAMILY_DIR で変えられる）
 │   ├── CLAUDE.md              家族みんなの秘書役の設定（手書き）
 │   ├── profile.md             家族の覚え書き（手書き）
+│   ├── organize.md            個人と同じ
+│   ├── revisions.jsonl        個人と同じ
 │   ├── tags.json              個人と同じ
 │   ├── tags/                  個人と同じ
 │   └── topics/
 └── taro/
     ├── CLAUDE.md              人物の設定（手書き。どの会話でも効く）
     ├── profile.md             人物像の覚え書き（手書き）
+    ├── organize.md            分類の方針（人が採用したときだけ書く）
+    ├── revisions.jsonl        人が直した見出し・タグ・整理の対
     ├── tags.json              タグ名 → 絵文字と棚
     ├── tags/
     │   └── 秋の旅行.md         タグの本文。ファイル名がタグ名
@@ -46,8 +50,9 @@ NAS で見たときに日付順になる。見出しを付け直すとフォル�
 会話に付いているタグの本文は、話すたびにプロンプトへ入る。タグが無ければ覚え書きは無い。
 タグは大分類だけを使う。一覧の見出しは `tags.json` の棚（`group`）で、会話には付かない。
 人は雑な名前でよく、3 回目と「付け直す」と一覧の「整理する」が大分類と棚へ寄せる。
-確定は人。人／家族直下の `CLAUDE.md` と `profile.md` は残す。会話ごとの `CLAUDE.md` と
-`summary.md` は置かない。
+確定は人。人／家族直下の `CLAUDE.md` と `profile.md` は人格と人の事実のまま残す。
+分類の学びは `revisions.jsonl`（フロー）と `organize.md`（ストック）へ。会話ごとの
+`CLAUDE.md` と `summary.md` は置かない。
 
 起動時に、昔の二段（器の下に子）があれば一段へ移す。器名をタグにし、子を
 `topics/{id}/` へ動かす。`untitled-` で始まっていればそれを id に使い、そうでなければ
@@ -69,6 +74,9 @@ NAS で見たときに日付順になる。見出しを付け直すとフォル�
 人が直した棚は戻さない。自動のタグ付けは `tagTried` で一度だけ。気に入らなければ、
 チャット画面のタイトルやタグからいつでも変えられる。付け直すボタンは何度でも走る。
 一覧の「整理する」は寄せ・棚・削除の提案までで、どれを書くかは人が選ぶ。
+人が直した対は `revisions.jsonl` に残し、次の命名・タグ付け・整理に見せる。
+同じ直しが繰り返されたら、方針ページの下書きが `organize.md` へまとめる案を出す。
+保存するまではファイルは変わらない。
 
 命名にもタグ付けにも、その会話のエンジン・モデルを使う。
 
@@ -312,7 +320,7 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | GET | `/api/users/:user/tags` | タグ一覧 |
 | POST | `/api/users/:user/tags` | タグの新規 |
 | POST | `/api/users/:user/tags/organize` | 一覧の整理案。SSE で流す（保存はしない） |
-| POST | `/api/users/:user/tags/organize/apply` | 選んだ整理案を書く |
+| POST | `/api/users/:user/tags/organize/apply` | 選んだ整理案を書く。提案全部も渡し、見送りをログする |
 | GET | `/api/users/:user/tags/:tag` | タグ本文を読む |
 | PUT | `/api/users/:user/tags/:tag` | タグ本文を保存する |
 | PATCH | `/api/users/:user/tags/:tag` | タグの改名・絵文字・棚。会話の配列も付け替える |
@@ -322,6 +330,9 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | PUT | `/api/users/:user/profile` | プロフィールを保存する |
 | GET | `/api/users/:user/claude` | ユーザーの `CLAUDE.md` を読む |
 | PUT | `/api/users/:user/claude` | ユーザーの `CLAUDE.md` を保存する |
+| GET | `/api/users/:user/organize` | 整理の方針（`organize.md`）を読む |
+| PUT | `/api/users/:user/organize` | 整理の方針を保存する |
+| POST | `/api/users/:user/organize/draft` | 方針の下書き。SSE で流す（保存はしない） |
 | GET | `/media/:user/:id/:file` | 保存済み画像・添付ファイル |
 | GET | `/api/family/activity` | 共有スペースの直近の一行（個人の一覧に出す入口） |
 
@@ -386,9 +397,10 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 - `/user/:user/tags/:tag.md` — タグ本文。ファイルは `tags/{tag}.md`。
 - `/user/:user/profile.md` — プロフィール。ファイルは `profile.md`。
 - `/user/:user/CLAUDE.md` — その人の `CLAUDE.md`。
+- `/user/:user/organize.md` — 整理の方針。ファイルは `organize.md`。
 - `/user/:user/:id` — チャット。日付の区切り、画像付きの吹き出し、
   返答が届くにつれて伸びていく表示、見出しの下のタグ。
-- `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/profile.md` / `/family/CLAUDE.md` / `/family/:id` — 家族共有スペースの同じ画面。
+- `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/profile.md` / `/family/CLAUDE.md` / `/family/organize.md` / `/family/:id` — 家族共有スペースの同じ画面。
 - `/admin` — イメージの差し替え。
 
 返答を作っているあいだは、ファイルを開いたりウェブを見に行ったりしていることを

@@ -19,6 +19,8 @@ export interface Space {
   profile: string
   /** CLAUDE.md への経路。 */
   claude: string
+  /** organize.md への経路。 */
+  organize: string
   title: string
   subtitle: string
   /** タグ一覧の見出し。家族か個人か、タイトルだけで分かるようにする。 */
@@ -27,6 +29,8 @@ export interface Space {
   profileTitle: string
   /** CLAUDE.md の見出し。家族か個人か、タイトルだけで分かるようにする。 */
   claudeTitle: string
+  /** 整理の方針の見出し。家族か個人か、タイトルだけで分かるようにする。 */
+  organizeTitle: string
   /** まだ何も無いときの誘い文。 */
   emptyHint: ReactNode
   /** トップで新しい会話を始めるときの呼びかけ。 */
@@ -90,6 +94,11 @@ export function claudeHref(home: string): string {
   return `${home}/CLAUDE.md`
 }
 
+/** organize.md への経路。会話 id より先に置くので、`:id` に食われない。 */
+export function organizeHref(home: string): string {
+  return `${home}/organize.md`
+}
+
 /** 個人のスペース記述子。Sidebar からも組み立てる。 */
 export function personalSpace(user: string): Space {
   const home = personalHome(user)
@@ -100,11 +109,13 @@ export function personalSpace(user: string): Space {
     tagHref: (tag) => tagHref(home, tag),
     profile: profileHref(home),
     claude: claudeHref(home),
+    organize: organizeHref(home),
     title: user,
     subtitle: '会話',
     tagsTitle: `${user}のタグ`,
     profileTitle: `${user}のプロフィール`,
     claudeTitle: `${user}のCLAUDE.md`,
+    organizeTitle: `${user}の整理の方針`,
     owner: user,
     greeting: `${user}さん、何か話そうか`,
     emptyHint: (
@@ -131,11 +142,13 @@ export function familySpace(author: string): Space {
     tagHref: (tag) => tagHref('/family', tag),
     profile: profileHref('/family'),
     claude: claudeHref('/family'),
+    organize: organizeHref('/family'),
     title: '共有スペース',
     subtitle: '家族のメモ・買い物',
     tagsTitle: '家族のタグ',
     profileTitle: '家族のプロフィール',
     claudeTitle: '家族のCLAUDE.md',
+    organizeTitle: '家族の整理の方針',
     greeting: '何を残す？',
     emptyHint: (
       <>

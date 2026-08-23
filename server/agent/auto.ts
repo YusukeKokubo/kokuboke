@@ -4,12 +4,18 @@ import { config } from '../config'
 import { BadRequestError } from '../errors'
 import { countUserMessages, readRecent } from '../store/log'
 import { topicDir, type TopicName, type UserName } from '../store/paths'
+import { readRevisions } from '../store/revision'
 import { ensureTag, listTags, renameTag } from '../store/tag'
 import { markNameTried, markTagTried, readTopic, renameTopic, writeTags } from '../store/topic'
+import { readOrganize } from '../store/user'
 import { collectAgent } from './collect'
 import { resolveModel } from './model'
 import { parseName, parseTags } from './name'
 import { namePrompt, nameSystemPrompt, tagNote, tagPrompt, tagSystemPrompt } from './prompt'
+
+async function classifyHints(user: UserName) {
+  return { revisions: await readRevisions(user), policy: await readOrganize(user) }
+}
 
 /**
  * 会話を読んで名前を付ける。リクエストの切断信号は見ない。
@@ -27,7 +33,11 @@ export async function applyAutoName(user: UserName, id: TopicName): Promise<Topi
   try {
     text = await collectAgent(choice, {
       cwd: topicDir(user, id),
-      prompt: namePrompt({ history, currentName: current.name || undefined }),
+      prompt: namePrompt({
+        history,
+        currentName: current.name || undefined,
+        ...(await classifyHints(user)),
+      }),
       systemPrompt: nameSystemPrompt(),
     })
   } catch (error) {
@@ -75,6 +85,7 @@ export async function applyAutoTag(
         history,
         known,
         topicName: current.name || undefined,
+        ...(await classifyHints(user)),
       }),
       systemPrompt: tagSystemPrompt(),
     })
@@ -97,5 +108,5 @@ export async function applyAutoTag(
     }
     names.push(tag)
   }
-  return writeTags(user, id, [...new Set(names)])
+  return writeTags(user, id, [...new Set(names)], { proposed: true })
 }

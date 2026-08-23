@@ -18,6 +18,7 @@ import {
 } from './paths'
 import { shortDate } from '../../shared/date'
 import { countUserMessages, readLastEntry } from './log'
+import { appendRevision } from './revision'
 import { ensureChatAgentsLink, ensureUser } from './user'
 
 export interface TopicMeta {
@@ -40,6 +41,10 @@ export interface TopicMeta {
   nameTried?: boolean
   /** 自動でタグを付けにいったかどうか。失敗しても二度は試さない。 */
   tagTried?: boolean
+  /** 自動命名が最後に付けた見出し。人が直した対を残すために持つ。 */
+  proposedName?: string
+  /** 自動タグ付けが最後に付けた配列。人が直した対を残すために持つ。 */
+  proposedTags?: string[]
 }
 
 /** 本人がこの回数話したところで、会話を読んで名前を付け（直し）にいく。 */
@@ -117,6 +122,10 @@ export async function readMeta(user: UserName, id: TopicName): Promise<TopicMeta
       nameTried: parsed.nameTried,
       nameTriedAt: typeof parsed.nameTriedAt === 'number' ? parsed.nameTriedAt : undefined,
       tagTried: parsed.tagTried,
+      proposedName: typeof parsed.proposedName === 'string' ? parsed.proposedName : undefined,
+      proposedTags: Array.isArray(parsed.proposedTags)
+        ? parsed.proposedTags.filter((tag): tag is string => typeof tag === 'string')
+        : undefined,
     }
     if (parsed.id !== topicId) await writeMeta(user, id, meta)
     return meta
@@ -281,11 +290,16 @@ export async function renameTopic(
   let folder = await locate(user, id)
   const meta = await readMeta(user, folder)
   const triedAt = input.autoAt ?? AUTO_NAME_LAST
+  const fromAuto = input.autoAt !== undefined
   const next: TopicMeta = {
     ...meta,
     name,
     nameTriedAt: triedAt,
     nameTried: triedAt >= AUTO_NAME_LAST,
+    ...(fromAuto ? { proposedName: name } : {}),
+  }
+  if (!fromAuto && meta.name !== name) {
+    await appendRevision(user, { kind: 'name', from: meta.name, to: name, topic: meta.id })
   }
 
   const dest = await uniqueSlug(user, topicFolderName(new Date(meta.createdAt), name), folder)
@@ -302,12 +316,32 @@ export async function renameTopic(
   return toTopic(next, await readLastEntry(user, folder))
 }
 
-export async function writeTags(user: UserName, id: string, tags: string[]): Promise<Topic> {
+export async function writeTags(
+  user: UserName,
+  id: string,
+  tags: string[],
+  input: { proposed?: boolean } = {},
+): Promise<Topic> {
   const folder = await locate(user, id)
   const meta = await readMeta(user, folder)
-  const next: TopicMeta = { ...meta, tags, tagTried: true }
+  const next: TopicMeta = {
+    ...meta,
+    tags,
+    tagTried: true,
+    ...(input.proposed ? { proposedTags: tags } : {}),
+  }
+  if (!input.proposed && !sameTagSet(meta.tags ?? [], tags)) {
+    await appendRevision(user, { kind: 'tag', from: meta.tags ?? [], to: tags, topic: meta.id })
+  }
   await writeMeta(user, folder, next)
   return toTopic(next, await readLastEntry(user, folder))
+}
+
+function sameTagSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false
+  const left = [...a].sort()
+  const right = [...b].sort()
+  return left.every((item, i) => item === right[i])
 }
 
 /**

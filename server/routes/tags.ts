@@ -10,6 +10,7 @@ import { streamAgent } from '../lib/agent-stream'
 import { readJson, readText } from '../lib/body'
 import { readRecent } from '../store/log'
 import { asTopicName, tagsDir } from '../store/paths'
+import { appendRevision, readRevisions, splitOrganizeActions } from '../store/revision'
 import {
   applyOrganize,
   assertTagName,
@@ -21,7 +22,17 @@ import {
   writeTag,
 } from '../store/tag'
 import { listTopics, resolveTopic } from '../store/topic'
+import { readOrganize } from '../store/user'
 import { resolveSpace, spacePaths, tagPaths } from './space'
+
+function asOrganizeActions(raw: unknown): TagOrganizeAction[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter((item): item is TagOrganizeAction => {
+    if (!item || typeof item !== 'object') return false
+    const action = item as TagOrganizeAction
+    return action.type === 'merge' || action.type === 'shelf' || action.type === 'remove'
+  })
+}
 
 export const tags = new Hono()
 
@@ -72,6 +83,8 @@ tags.on('POST', spacePaths('/tags/organize'), async (c) => {
         note: tagNote(tag.text),
         topics: topics.filter((topic) => topic.tags.includes(tag.name)).map((topic) => topic.name || NO_NAME),
       })),
+      revisions: await readRevisions(user),
+      policy: await readOrganize(user),
     }),
     systemPrompt: organizeSystemPrompt(),
     release,
@@ -84,19 +97,20 @@ tags.on('POST', spacePaths('/tags/organize'), async (c) => {
 
 tags.on('POST', spacePaths('/tags/organize/apply'), async (c) => {
   const space = resolveSpace(c)
-  const body = await readJson<{ actions?: unknown }>(c.req.raw)
+  const body = await readJson<{ actions?: unknown; proposed?: unknown }>(c.req.raw)
   if (!Array.isArray(body.actions)) {
     throw new BadRequestError('整理の指定が不正です')
   }
-  const actions = body.actions.filter((item): item is TagOrganizeAction => {
-    if (!item || typeof item !== 'object') return false
-    const action = item as TagOrganizeAction
-    return action.type === 'merge' || action.type === 'shelf' || action.type === 'remove'
-  })
+  const actions = asOrganizeActions(body.actions)
+  const proposed = asOrganizeActions(body.proposed)
+  const { accepted, rejected } = splitOrganizeActions(proposed, actions)
   const key = asTopicName('organize')
   if (!key) throw new BadRequestError('整理できませんでした')
   const release = await limiter.acquire(space.busyKey(key))
   try {
+    if (rejected.length > 0) {
+      await appendRevision(space.user, { kind: 'organize', accepted, rejected })
+    }
     return c.json(await applyOrganize(space.user, actions))
   } finally {
     release()
@@ -121,14 +135,34 @@ tags.on('PATCH', tagPaths(), async (c) => {
   if (body.name === undefined && body.emoji === undefined && body.group === undefined) {
     throw new BadRequestError('タグ名を入力してください')
   }
-  return c.json(
-    await renameTag(user, tag, { name: body.name, emoji: body.emoji, group: body.group }),
-  )
+  const current = await readTag(user, tag)
+  const next = await renameTag(user, tag, { name: body.name, emoji: body.emoji, group: body.group })
+  if (body.name !== undefined && current.name !== next.name) {
+    await appendRevision(user, {
+      kind: 'organize',
+      accepted: [{ type: 'merge', from: current.name, to: next.name }],
+      rejected: [],
+    })
+  }
+  if (body.group !== undefined && current.group !== next.group && next.group) {
+    await appendRevision(user, {
+      kind: 'organize',
+      accepted: [{ type: 'shelf', name: next.name, group: next.group }],
+      rejected: [],
+    })
+  }
+  return c.json(next)
 })
 
 tags.on('DELETE', tagPaths(), async (c) => {
   const { user } = resolveSpace(c)
-  await deleteTag(user, assertTagName(c.req.param('tag') ?? ''))
+  const name = assertTagName(c.req.param('tag') ?? '')
+  await deleteTag(user, name)
+  await appendRevision(user, {
+    kind: 'organize',
+    accepted: [{ type: 'remove', name }],
+    rejected: [],
+  })
   return c.body(null, 204)
 })
 

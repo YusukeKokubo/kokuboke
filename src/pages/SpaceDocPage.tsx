@@ -5,7 +5,7 @@ import { DocPane, type DocSpec } from '@/components/DocsDialog'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 
 /**
- * スペース直下の文書。プロフィールと CLAUDE.md。個人と家族で同じ画面。
+ * スペース直下の文書。プロフィールと CLAUDE.md と整理の方針。個人と家族で同じ画面。
  */
 function SpaceDocPage({ title, spec }: { title: string; spec: DocSpec }) {
   const space = useSpace()
@@ -70,6 +70,27 @@ export function ClaudePage() {
         placeholder: 'まだ書いていないよ。',
         load: () => space.api.getClaude(),
         save: (text) => space.api.saveClaude(text),
+      }}
+    />
+  )
+}
+
+export function OrganizePage() {
+  const space = useSpace()
+  const owner = space.owner
+
+  return (
+    <SpaceDocPage
+      title={space.organizeTitle}
+      spec={{
+        label: space.organizeTitle,
+        description: owner
+          ? 'タグの大分類の付け方。命名と整理のときに読むよ。'
+          : '家族のタグの大分類の付け方。命名と整理のときに読むよ。',
+        placeholder: 'まだ書いていないよ。',
+        load: () => space.api.getOrganize(),
+        save: (text) => space.api.saveOrganize(text),
+        draft: (signal) => space.api.draftOrganize(signal),
       }}
     />
   )

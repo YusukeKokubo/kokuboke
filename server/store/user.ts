@@ -1,12 +1,20 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { config } from '../config'
-import { familyClaudeMd, familyProfileMd, userClaudeMd, userProfileMd } from '../templates'
+import {
+  familyClaudeMd,
+  familyOrganizeMd,
+  familyProfileMd,
+  userClaudeMd,
+  userOrganizeMd,
+  userProfileMd,
+} from '../templates'
 import { readMarkdown, writeMarkdown } from './markdown'
 import {
   assertUser,
   familyUser,
   isTopicName,
+  organizeFile,
   tagsDir,
   topicsDir,
   userDir,
@@ -66,6 +74,7 @@ export async function ensureUser(user: UserName): Promise<void> {
   await fs.mkdir(tagsDir(user), { recursive: true })
   await writeIfMissing(path.join(dir, 'CLAUDE.md'), userClaudeMd(user))
   await writeIfMissing(path.join(dir, 'profile.md'), userProfileMd(user))
+  await writeIfMissing(organizeFile(user), userOrganizeMd(user))
   await ensureAgentsLink(dir)
 }
 
@@ -77,6 +86,7 @@ export async function ensureFamily(): Promise<void> {
   await fs.mkdir(tagsDir(user), { recursive: true })
   await writeIfMissing(path.join(dir, 'CLAUDE.md'), familyClaudeMd())
   await writeIfMissing(path.join(dir, 'profile.md'), familyProfileMd())
+  await writeIfMissing(organizeFile(user), familyOrganizeMd())
   await ensureAgentsLink(dir)
 }
 
@@ -128,4 +138,12 @@ export async function readClaude(user: UserName): Promise<string> {
 
 export async function writeClaude(user: UserName, text: string): Promise<void> {
   await writeMarkdown(path.join(userDir(user), 'CLAUDE.md'), text)
+}
+
+export async function readOrganize(user: UserName): Promise<string> {
+  return readMarkdown(organizeFile(user))
+}
+
+export async function writeOrganize(user: UserName, text: string): Promise<void> {
+  await writeMarkdown(organizeFile(user), text)
 }

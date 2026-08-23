@@ -92,6 +92,16 @@ export function tagsMetaFile(user: UserName): string {
   return path.join(userDir(user), 'tags.json')
 }
 
+/** 人が直した見出し・タグ・整理の対。追記だけ。 */
+export function revisionsFile(user: UserName): string {
+  return path.join(userDir(user), 'revisions.jsonl')
+}
+
+/** 採用した分類の方針。tags/ には置かない（タグとして拾われる）。 */
+export function organizeFile(user: UserName): string {
+  return path.join(userDir(user), 'organize.md')
+}
+
 /** 検証済みの id から会話ディレクトリを組み立てる。 */
 export function topicDir(user: UserName, id: TopicName): string {
   return path.join(topicsDir(user), id)

@@ -61,6 +61,13 @@ export type TagOrganizeAction =
   | { type: 'shelf'; name: string; group: string }
   | { type: 'remove'; name: string }
 
+/** 整理案の同一性。採用と見送りを分けるときに使う。 */
+export function organizeActionKey(action: TagOrganizeAction): string {
+  if (action.type === 'merge') return `merge:${action.from}:${action.to}`
+  if (action.type === 'shelf') return `shelf:${action.name}:${action.group}`
+  return `remove:${action.name}`
+}
+
 /**
  * CLI を走らせているあいだの知らせ。会話とタグの下書きで同じ形なので、
  * サーバーの流す側（streamAgent）も画面の受ける側もここを共有する。
@@ -99,6 +106,11 @@ export interface Profile {
 /** ユーザー直下の CLAUDE.md。無ければ空文字。 */
 export interface Claude {
   claude: string
+}
+
+/** スペース直下の organize.md。無ければ空文字。 */
+export interface Organize {
+  organize: string
 }
 
 /** 動いているイメージと GitHub の main のずれ。管理画面が見る。 */
