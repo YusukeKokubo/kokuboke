@@ -6,6 +6,11 @@ export interface Message {
   text: string
   /** /media/... 形式の URL。 */
   images: string[]
+  /**
+   * テキスト・PDF。保存はファイル名、返すときは /media/... 。
+   * 古いログには無いので、読む側は空配列として扱う。
+   */
+  files?: string[]
   /** ISO 8601 */
   at: string
   /** 共有スペースの user 発言だけ。個人スペースでは付けない。 */
@@ -140,6 +145,7 @@ export interface FamilyActivityEntry {
   /** 空白を畳んだ先頭〜80字。 */
   text: string
   imageCount: number
+  fileCount: number
   at: string
   id: string
   /** 直近の発言が user なら、その author。共有スペースだけ付く。 */

@@ -1,25 +1,48 @@
 import { useEffect, useRef, useState } from 'react'
-import { ImagePlus, Loader2, SendHorizontal, X } from 'lucide-react'
+import { FileText, Loader2, Paperclip, SendHorizontal, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
+export type ComposerInput = { text: string; images: File[]; files: File[] }
+
 interface Props {
   disabled: boolean
-  onSend: (input: { text: string; images: File[] }) => void | Promise<void>
-  /** true なら送信が失敗したとき本文と画像を戻す。既定は false（投げたら忘れる）。 */
+  onSend: (input: ComposerInput) => void | Promise<void>
+  /** true なら送信が失敗したとき本文と添付を戻す。既定は false（投げたら忘れる）。 */
   keepOnFailure?: boolean
   /** dock は会話の下に貼る。inline はトップの開始欄。 */
   placement?: 'dock' | 'inline'
   placeholder?: string
 }
 
-const MAX_IMAGES = 4
+const MAX_ATTACHMENTS = 4
 
 // 拡張子でしか判別できないことがある。HEIC は type が空で届く環境がある。
 const IMAGE_EXTENSIONS = /\.(jpe?g|png|gif|webp|avif|heic|heif)$/i
+const FILE_EXTENSIONS = /\.(pdf|txt|md|csv|json)$/i
 
 function isImage(file: File): boolean {
   return file.type.startsWith('image/') || IMAGE_EXTENSIONS.test(file.name)
+}
+
+function isDocument(file: File): boolean {
+  if (FILE_EXTENSIONS.test(file.name)) return true
+  if (file.type === 'application/pdf' || file.type === 'application/json') return true
+  return file.type.startsWith('text/') && !file.name.includes('.')
+}
+
+function isAttachable(file: File): boolean {
+  return isImage(file) || isDocument(file)
+}
+
+function split(files: File[]): { images: File[]; files: File[] } {
+  const images: File[] = []
+  const docs: File[] = []
+  for (const file of files) {
+    if (isImage(file)) images.push(file)
+    else docs.push(file)
+  }
+  return { images, files: docs }
 }
 
 export function Composer({
@@ -30,7 +53,7 @@ export function Composer({
   placeholder = 'メッセージを入力',
 }: Props) {
   const [text, setText] = useState('')
-  const [images, setImages] = useState<File[]>([])
+  const [attachments, setAttachments] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -39,10 +62,10 @@ export function Composer({
   const dragDepth = useRef(0)
 
   useEffect(() => {
-    const urls = images.map((file) => URL.createObjectURL(file))
+    const urls = attachments.map((file) => (isImage(file) ? URL.createObjectURL(file) : ''))
     setPreviews(urls)
-    return () => urls.forEach((url) => URL.revokeObjectURL(url))
-  }, [images])
+    return () => urls.forEach((url) => url && URL.revokeObjectURL(url))
+  }, [attachments])
 
   // 入力量に合わせて高さを変える。一定を超えたら中でスクロールさせる。
   useEffect(() => {
@@ -52,15 +75,15 @@ export function Composer({
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`
   }, [text])
 
-  const canSend = !disabled && (text.trim().length > 0 || images.length > 0)
+  const canSend = !disabled && (text.trim().length > 0 || attachments.length > 0)
 
   async function submit() {
     if (!canSend) return
-    const payload = { text, images }
+    const payload = { text, ...split(attachments) }
     // 送った分はすぐ吹き出しになって出るので、入力欄は待たずに空にする。
     // 待つと生成が終わるまで同じ文が二重に見える。
     setText('')
-    setImages([])
+    setAttachments([])
     if (!keepOnFailure) {
       onSend(payload)
       return
@@ -71,14 +94,14 @@ export function Composer({
       // 送れなかったときだけ打った内容を戻す。送っている間は入力できないので、
       // 書きかけを上から潰すことはない。
       setText(payload.text)
-      setImages(payload.images)
+      setAttachments([...payload.images, ...payload.files])
     }
   }
 
   function add(files: File[]) {
-    const picked = files.filter(isImage)
+    const picked = files.filter(isAttachable)
     if (picked.length === 0) return
-    setImages((prev) => [...prev, ...picked].slice(0, MAX_IMAGES))
+    setAttachments((prev) => [...prev, ...picked].slice(0, MAX_ATTACHMENTS))
   }
 
   function pick(event: React.ChangeEvent<HTMLInputElement>) {
@@ -87,7 +110,7 @@ export function Composer({
     event.target.value = ''
   }
 
-  const accepting = !disabled && images.length < MAX_IMAGES
+  const accepting = !disabled && attachments.length < MAX_ATTACHMENTS
 
   // 貼り付けは入力欄に focus が無くても効かせたいので document で拾う。
   useEffect(() => {
@@ -95,7 +118,7 @@ export function Composer({
 
     function onPaste(event: ClipboardEvent) {
       const clipboard = event.clipboardData
-      const files = Array.from(clipboard?.files ?? []).filter(isImage)
+      const files = Array.from(clipboard?.files ?? []).filter(isAttachable)
       if (files.length === 0) return
       // 文字も一緒に入っているときは、そちらは普通に貼らせる。
       if (!clipboard?.types.includes('text/plain')) event.preventDefault()
@@ -150,19 +173,26 @@ export function Composer({
     >
       {dragging && (
         <div className="bg-background border-muted-foreground/50 text-muted-foreground pointer-events-none absolute inset-0 z-10 m-1 flex items-center justify-center rounded-lg border-2 border-dashed text-sm">
-          {accepting ? '写真をここに落とす' : `写真は ${MAX_IMAGES} 枚まで`}
+          {accepting ? 'ファイルをここに落とす' : `添付は ${MAX_ATTACHMENTS} つまで`}
         </div>
       )}
 
-      {previews.length > 0 && (
+      {attachments.length > 0 && (
         <div className="flex gap-2 overflow-x-auto px-3 pt-3">
-          {previews.map((url, index) => (
-            <div key={url} className="relative shrink-0">
-              <img src={url} alt="" className="h-20 w-20 rounded-lg border object-cover" />
+          {attachments.map((file, index) => (
+            <div key={`${file.name}-${file.size}-${index}`} className="relative shrink-0">
+              {previews[index] ? (
+                <img src={previews[index]} alt="" className="h-20 w-20 rounded-lg border object-cover" />
+              ) : (
+                <div className="flex h-20 w-36 items-center gap-2 rounded-lg border px-2.5">
+                  <FileText className="text-muted-foreground size-5 shrink-0" />
+                  <span className="truncate text-xs">{file.name}</span>
+                </div>
+              )}
               <button
                 type="button"
-                aria-label="この画像を外す"
-                onClick={() => setImages((prev) => prev.filter((_, i) => i !== index))}
+                aria-label={isImage(file) ? 'この画像を外す' : 'このファイルを外す'}
+                onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== index))}
                 className="bg-background/90 absolute -top-1.5 -right-1.5 rounded-full border p-0.5"
               >
                 <X className="size-3.5" />
@@ -182,7 +212,7 @@ export function Composer({
         <input
           ref={fileInput}
           type="file"
-          accept="image/*"
+          accept="image/*,.pdf,.txt,.md,.csv,.json,application/pdf,text/plain,text/markdown,text/csv,application/json"
           multiple
           className="hidden"
           onChange={pick}
@@ -192,11 +222,11 @@ export function Composer({
           size="icon"
           variant="ghost"
           className="size-10 shrink-0"
-          aria-label="写真を選ぶ"
+          aria-label="ファイルを選ぶ"
           disabled={!accepting}
           onClick={() => fileInput.current?.click()}
         >
-          <ImagePlus className="size-5" />
+          <Paperclip className="size-5" />
         </Button>
 
         <Textarea

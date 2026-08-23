@@ -15,6 +15,40 @@ describe('chatPrompt', () => {
     assert.match(text, /京都に行く/)
   })
 
+  it('添付ファイルのパスを載せる', () => {
+    const text = chatPrompt({
+      profile: '',
+      tags: [],
+      history: [],
+      text: 'これ見て',
+      imagePaths: ['/tmp/a.jpg'],
+      filePaths: ['/tmp/b.pdf'],
+    })
+    assert.match(text, /添付（Read ツールで開いてください）/)
+    assert.match(text, /\/tmp\/a\.jpg（画像）/)
+    assert.match(text, /\/tmp\/b\.pdf（ファイル）/)
+  })
+
+  it('履歴のファイル添付も書く', () => {
+    const text = chatPrompt({
+      profile: '',
+      tags: [],
+      history: [
+        {
+          id: '1',
+          role: 'user',
+          text: '資料',
+          images: [],
+          files: ['a.pdf'],
+          at: '2026-08-23T02:00:00.000Z',
+        },
+      ],
+      text: '続き',
+      imagePaths: [],
+    })
+    assert.match(text, /ファイル 1/)
+  })
+
   it('空のタグ本文は載せない', () => {
     const text = chatPrompt({
       profile: '',
@@ -87,6 +121,7 @@ describe('tagDraftPrompt', () => {
               role: 'user',
               text: '牛乳も足して',
               images: [],
+              files: [],
               at: '2026-08-13T02:00:00.000Z',
             },
           ],

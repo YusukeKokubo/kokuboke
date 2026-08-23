@@ -6,6 +6,7 @@ import { resolveModel } from '../agent'
 import {
   asTopicName,
   assertInsideDataDir,
+  filesDir,
   imagesDir,
   logsDir,
   normalizeTopicName,
@@ -228,6 +229,7 @@ export async function createTopic(
   const folder = await uniqueSlug(user, topicFolderName(createdAt, name))
   await fs.mkdir(logsDir(user, folder), { recursive: true })
   await fs.mkdir(imagesDir(user, folder), { recursive: true })
+  await fs.mkdir(filesDir(user, folder), { recursive: true })
 
   const choice = resolveModel(input.engine, input.model)
   const named = Boolean(name)

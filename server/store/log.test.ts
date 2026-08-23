@@ -207,6 +207,22 @@ describe('人が読む md', () => {
     )
   })
 
+  it('ファイルは md の隣を指す相対パスで書く', async () => {
+    await appendMessage(USER, TOPIC, {
+      ...message('資料', new Date()),
+      files: ['20260823_120000_ab12_宿題.pdf'],
+    })
+
+    const md = await fsp.readFile(
+      path.join(logsDir(USER, TOPIC), `${localDate().replaceAll('-', '')}.md`),
+      'utf8',
+    )
+    assert.ok(
+      md.includes('[20260823_120000_ab12_宿題.pdf](files/20260823_120000_ab12_宿題.pdf)'),
+      `md の中身が想定と違う:\n${md}`,
+    )
+  })
+
   it('author 付きの発言は md に名前を出す', async () => {
     await appendMessage(USER, TOPIC, { ...message('買い物', new Date()), author: 'taro' })
 

@@ -3,6 +3,7 @@ import path from 'node:path'
 import type { Message } from '../../shared/types'
 import { config } from '../config'
 import { localDate, localTime, stamp } from '../../shared/date'
+import { fileName } from './file'
 import { imageName } from './image'
 import { logsDir, type TopicName, type UserName } from './paths'
 
@@ -132,6 +133,10 @@ function renderMarkdown(message: Message): string {
   for (const stored of message.images) {
     // md から見て images/ は隣なので相対で置く。
     lines.push(`![](images/${imageName(stored)})`, '')
+  }
+  for (const stored of message.files ?? []) {
+    const name = fileName(stored)
+    lines.push(`[${name}](files/${name})`, '')
   }
   return lines.join('\n')
 }

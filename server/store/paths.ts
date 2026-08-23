@@ -105,6 +105,10 @@ export function imagesDir(user: UserName, id: TopicName): string {
   return path.join(topicDir(user, id), 'images')
 }
 
+export function filesDir(user: UserName, id: TopicName): string {
+  return path.join(topicDir(user, id), 'files')
+}
+
 /**
  * 危ない操作の直前だけに置く追加の確認。組み立てたパスがデータディレクトリの
  * 外へ出ていないかを見る。

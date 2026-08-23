@@ -23,7 +23,7 @@ const {
   writeTags,
 } = await import('./topic')
 const { appendMessage, readAll } = await import('./log')
-const { assertTopicName, assertUser, imagesDir, logsDir, topicDir } = await import('./paths')
+const { assertTopicName, assertUser, filesDir, imagesDir, logsDir, topicDir } = await import('./paths')
 const { NotFoundError } = await import('../errors')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
@@ -120,7 +120,7 @@ describe('deleteTopic', () => {
     await assert.rejects(() => deleteTopic(USER, assertTopicName('無い会話')), NotFoundError)
   })
 
-  it('logs と images の中身まで消える', async () => {
+  it('logs と images と files の中身まで消える', async () => {
     const topic = await createTopic(USER, { name: '消す' })
     const id = await folderOf(topic.slug)
 
@@ -132,12 +132,15 @@ describe('deleteTopic', () => {
       at: new Date().toISOString(),
     })
     await fsp.writeFile(path.join(imagesDir(USER, id), '20260813_120000_ab12.jpg'), 'dummy')
+    await fsp.mkdir(filesDir(USER, id), { recursive: true })
+    await fsp.writeFile(path.join(filesDir(USER, id), '20260823_120000_ab12_宿題.pdf'), 'dummy')
 
     await deleteTopic(USER, id)
 
     assert.equal(await topicExists(USER, id), false)
     await assert.rejects(() => fsp.readdir(logsDir(USER, id)), { code: 'ENOENT' })
     await assert.rejects(() => fsp.readdir(imagesDir(USER, id)), { code: 'ENOENT' })
+    await assert.rejects(() => fsp.readdir(filesDir(USER, id)), { code: 'ENOENT' })
   })
 
   it('消したあとに書かれても、前の会話は作り直した会話に出てこない', async () => {

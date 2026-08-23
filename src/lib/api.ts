@@ -167,13 +167,14 @@ export function spaceApi(base: string, author?: string) {
      */
     sendMessage: async function* (
       id: string,
-      input: { text: string; images: File[] },
+      input: { text: string; images: File[]; files?: File[] },
       signal?: AbortSignal,
     ): AsyncGenerator<ChatEvent> {
       const form = new FormData()
       form.set('text', input.text)
       if (author) form.set('author', author)
       for (const image of input.images) form.append('images', image)
+      for (const file of input.files ?? []) form.append('files', file)
 
       const res = await fetch(at(id, '/messages'), { method: 'POST', body: form, signal })
       yield* readSSE<ChatEvent>(res)

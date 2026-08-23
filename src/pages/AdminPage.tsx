@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Check, Download, ImageIcon, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Check, Download, FileText, ImageIcon, RefreshCw } from 'lucide-react'
 import type { ActivityEntry, UpdateStatus } from '../../shared/types'
 import { api } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
@@ -242,9 +242,17 @@ export default function AdminPage() {
                       <span className="shrink-0">{relativeLabel(entry.at)}</span>
                     </div>
                     <p className="flex items-center gap-1.5 truncate leading-relaxed">
-                      {entry.text || (entry.imageCount > 0 ? '（画像）' : '（空）')}
+                      {entry.text ||
+                        (entry.imageCount > 0
+                          ? '（画像）'
+                          : entry.fileCount > 0
+                            ? '（ファイル）'
+                            : '（空）')}
                       {entry.imageCount > 0 && (
                         <ImageIcon className="text-muted-foreground size-3.5 shrink-0" />
+                      )}
+                      {entry.fileCount > 0 && (
+                        <FileText className="text-muted-foreground size-3.5 shrink-0" />
                       )}
                     </p>
                   </Link>

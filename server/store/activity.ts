@@ -39,6 +39,7 @@ async function latestTopic(user: UserName): Promise<FamilyActivityEntry | null> 
     name: latest.name,
     text: preview(last.text),
     imageCount: last.images.length,
+    fileCount: last.files?.length ?? 0,
     at: last.at,
     id: last.id,
     author: last.role === 'user' ? last.author : undefined,

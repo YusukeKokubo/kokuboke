@@ -7,6 +7,7 @@ import { limiter } from '../agent/queue'
 import { BadRequestError, NotFoundError } from '../errors'
 import { streamAgent } from '../lib/agent-stream'
 import { appendMessage, readAll, readRecent } from '../store/log'
+import { isDocument, saveFile } from '../store/file'
 import { saveImage, withImageUrls } from '../store/image'
 import { topicDir } from '../store/paths'
 import { readTagTexts } from '../store/tag'
@@ -28,15 +29,15 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
   const body = await c.req.parseBody({ all: true })
   const text = typeof body.text === 'string' ? body.text : ''
   const author = space.authorOf(body)
-  const files = ([] as unknown[])
-    .concat(body['images'] ?? [])
+  const incoming = ([] as unknown[])
+    .concat(body['images'] ?? [], body['files'] ?? [])
     .filter((f): f is File => f instanceof File && f.size > 0)
 
-  if (!text.trim() && files.length === 0) {
+  if (!text.trim() && incoming.length === 0) {
     throw new BadRequestError('メッセージが空です')
   }
-  if (files.length > 4) {
-    throw new BadRequestError('画像は一度に 4 枚までです')
+  if (incoming.length > 4) {
+    throw new BadRequestError('添付は一度に 4 つまでです')
   }
 
   const release = await limiter.acquire(space.busyKey(id))
@@ -51,16 +52,19 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
       throw new NotFoundError('この会話は削除されたよ')
     }
 
-    const saved = []
-    for (const file of files) {
-      saved.push(await saveImage(user, id, file))
+    const savedImages = []
+    const savedFiles = []
+    for (const file of incoming) {
+      if (isDocument(file)) savedFiles.push(await saveFile(user, id, file))
+      else savedImages.push(await saveImage(user, id, file))
     }
 
     userMessage = {
       id: crypto.randomUUID(),
       role: 'user',
       text: text.trim(),
-      images: saved.map((s) => s.name),
+      images: savedImages.map((s) => s.name),
+      files: savedFiles.map((s) => s.name),
       at: new Date().toISOString(),
       author,
     }
@@ -78,7 +82,8 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
       history: history.filter((m) => m.id !== userMessage.id),
       text: userMessage.text,
       author,
-      imagePaths: saved.map((s) => s.absPath),
+      imagePaths: savedImages.map((s) => s.absPath),
+      filePaths: savedFiles.map((s) => s.absPath),
     })
   } catch (error) {
     release()

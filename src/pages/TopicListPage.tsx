@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSpace } from '@/lib/space'
 import { useDocumentTitle } from '@/lib/title'
-import { Composer } from '@/components/Composer'
+import { Composer, type ComposerInput } from '@/components/Composer'
 import { useTopics } from '@/components/TopicSidebar'
 
 export default function TopicListPage() {
@@ -13,7 +13,7 @@ export default function TopicListPage() {
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function start(input: { text: string; images: File[] }) {
+  async function start(input: ComposerInput) {
     if (starting) return
     setStarting(true)
     setError(null)

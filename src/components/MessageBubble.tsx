@@ -1,7 +1,15 @@
+import { FileText } from 'lucide-react'
 import type { Message } from '../../shared/types'
 import { cn } from '@/lib/utils'
 import { timeLabel } from '@/lib/format'
 import { Markdown } from '@/components/Markdown'
+
+function fileLabel(url: string): string {
+  const stored = decodeURIComponent(url.split('/').pop() ?? url)
+  // 保存名は YYYYMMDD_HHMMSS_xxxx_元の名前.ext
+  const match = stored.match(/^\d{8}_\d{6}_[0-9a-f]{4}_(.+)$/)
+  return match?.[1] ?? stored
+}
 
 interface Props {
   message: Message
@@ -57,6 +65,26 @@ export function MessageBubble({ message, streaming, activity, selfAuthor }: Prop
                   loading="lazy"
                   className="max-h-56 w-auto rounded-xl border object-cover"
                 />
+              </a>
+            ))}
+          </div>
+        )}
+
+        {(message.files ?? []).length > 0 && (
+          <div className={cn('flex flex-wrap gap-1.5', mine ? 'justify-end' : 'justify-start')}>
+            {(message.files ?? []).map((url) => (
+              <a
+                key={url}
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(
+                  'flex max-w-full items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[13px]',
+                  mine ? 'bg-primary text-primary-foreground' : 'bg-card text-card-foreground',
+                )}
+              >
+                <FileText className="size-3.5 shrink-0" />
+                <span className="truncate">{fileLabel(url)}</span>
               </a>
             ))}
           </div>

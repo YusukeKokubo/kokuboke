@@ -7,7 +7,7 @@ import { useSpace } from '@/lib/space'
 import { useDocumentTitle } from '@/lib/title'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Composer } from '@/components/Composer'
+import { Composer, type ComposerInput } from '@/components/Composer'
 import { useTopics } from '@/components/TopicSidebar'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 import { MessageBubble } from '@/components/MessageBubble'
@@ -23,13 +23,11 @@ import {
 } from '@/components/ui/dialog'
 type Status = 'idle' | 'sending'
 
-type DraftInput = { text: string; images: File[] }
-
-function takeDraft(state: unknown): DraftInput | null {
+function takeDraft(state: unknown): ComposerInput | null {
   if (!state || typeof state !== 'object' || !('draft' in state)) return null
-  const draft = (state as { draft?: DraftInput }).draft
+  const draft = (state as { draft?: ComposerInput }).draft
   if (!draft || typeof draft.text !== 'string' || !Array.isArray(draft.images)) return null
-  return draft
+  return { text: draft.text, images: draft.images, files: Array.isArray(draft.files) ? draft.files : [] }
 }
 
 export default function ChatPage() {
@@ -176,7 +174,7 @@ export default function ChatPage() {
   }
 
   const handleSend = useCallback(
-    async (input: DraftInput) => {
+    async (input: ComposerInput) => {
       setStatus('sending')
       busy.current = true
       setNotice(null)

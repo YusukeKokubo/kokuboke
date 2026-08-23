@@ -35,7 +35,8 @@
             ├── topic.json     id（uuid）・見出し・エンジン・タグ
             ├── AGENTS.md      → ../../CLAUDE.md
             ├── logs/          YYYYMMDD.md（閲覧用） / YYYYMMDD.jsonl（読み戻し用）
-            └── images/        YYYYMMDD_HHMMSS.jpg
+            ├── images/        YYYYMMDD_HHMMSS.jpg
+            └── files/         YYYYMMDD_HHMMSS_xxxx_名前.pdf（テキスト・PDF）
 ```
 
 会話の URL は uuid。フォルダは `YY-MM-DD` または `YY-MM-DD-見出し` で、
@@ -321,7 +322,7 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | PUT | `/api/users/:user/profile` | プロフィールを保存する |
 | GET | `/api/users/:user/claude` | ユーザーの `CLAUDE.md` を読む |
 | PUT | `/api/users/:user/claude` | ユーザーの `CLAUDE.md` を保存する |
-| GET | `/media/:user/:id/:file` | 保存済み画像 |
+| GET | `/media/:user/:id/:file` | 保存済み画像・添付ファイル |
 | GET | `/api/family/activity` | 共有スペースの直近の一行（個人の一覧に出す入口） |
 
 家族共有スペースは、上の表の `/api/users/:user` を `/api/family` に、
@@ -330,7 +331,7 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 個人は人ごとに一つずつだが、共有スペースは会話ごとなので、
 別の話なら家族が同時に話せる。
 
-送信は `multipart/form-data` で、本文が `text`、画像が `images`（4 枚まで）。
+送信は `multipart/form-data` で、本文が `text`、画像が `images`、テキストと PDF が `files`（合わせて 4 つまで）。
 家族共有スペースでは `author` も付ける。
 
 ## モデルの選び方

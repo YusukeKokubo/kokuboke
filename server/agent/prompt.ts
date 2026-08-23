@@ -9,7 +9,16 @@ function renderHistory(messages: Message[]): string {
   const lines = messages.map((m) => {
     const who = m.role === 'user' ? (m.author ?? '本人') : 'あなた'
     const time = localTime(new Date(m.at))
-    const attached = m.images.length > 0 ? `（画像 ${m.images.length} 枚）` : ''
+    const nImg = m.images.length
+    const nFile = m.files?.length ?? 0
+    const attached =
+      nImg + nFile === 0
+        ? ''
+        : nFile === 0
+          ? `（画像 ${nImg} 枚）`
+          : nImg === 0
+            ? `（ファイル ${nFile}）`
+            : `（画像 ${nImg} 枚・ファイル ${nFile}）`
     return `[${m.at.slice(5, 10)} ${time}] ${who}${attached}: ${m.text}`
   })
 
@@ -52,7 +61,7 @@ ${who}
 - 数式は LaTeX で書けます。文中に混ぜるときは $...$、行を分けて見せたいときは $$...$$
   で囲んでください。式が主役になる説明では、素の文字で書くより読みやすくなります。
 - ファイルの作成・編集・削除はしないでください。読み取りだけ行えます。
-- 添付画像がある場合は、示された絶対パスを Read ツールで開いて内容を踏まえて答えてください。
+- 添付（画像・PDF・テキスト）がある場合は、示された絶対パスを Read ツールで開いて内容を踏まえて答えてください。
 - 「承知しました」のような前置きや、返答の要約は書かないでください。本文だけを返します。`
 }
 
@@ -66,6 +75,7 @@ export function chatPrompt(input: {
   /** 共有スペースの発言者。個人のスペースでは付かない。 */
   author?: string
   imagePaths: string[]
+  filePaths?: string[]
 }): string {
   const parts: string[] = []
 
@@ -81,9 +91,13 @@ export function chatPrompt(input: {
 
   const body = input.text.trim() || '（本文なし）'
   const current: string[] = [input.author ? `${input.author}: ${body}` : body]
-  if (input.imagePaths.length > 0) {
-    current.push('', '添付画像（Read ツールで開いてください）:')
-    for (const p of input.imagePaths) current.push(`- ${p}`)
+  const attachments = [
+    ...input.imagePaths.map((p) => ({ kind: '画像', p })),
+    ...(input.filePaths ?? []).map((p) => ({ kind: 'ファイル', p })),
+  ]
+  if (attachments.length > 0) {
+    current.push('', '添付（Read ツールで開いてください）:')
+    for (const { kind, p } of attachments) current.push(`- ${p}（${kind}）`)
   }
   parts.push(`<current_message>\n${current.join('\n')}\n</current_message>`)
 

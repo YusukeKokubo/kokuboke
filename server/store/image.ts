@@ -91,8 +91,10 @@ export function mediaUrl(segment: string, id: string, stored: string): string {
  * 先頭の区切りは個人ならユーザー名、共有スペースなら `family`（Space.mediaSegment）。
  */
 export function withImageUrls(segment: string, id: string, message: Message): Message {
-  if (message.images.length === 0) return message
-  return { ...message, images: message.images.map((name) => mediaUrl(segment, id, name)) }
+  const images = message.images.length === 0 ? message.images : message.images.map((name) => mediaUrl(segment, id, name))
+  const files = (message.files ?? []).map((name) => mediaUrl(segment, id, name))
+  if (images === message.images && files.length === 0) return message
+  return { ...message, images, files }
 }
 
 /** 保存済み画像のファイル名から実ファイルの位置を割り出す。 */
