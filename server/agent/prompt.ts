@@ -134,15 +134,17 @@ export function tagNote(text: string): string | undefined {
   return line.slice(0, 40)
 }
 
+function formatKnownTag(tag: { name: string; note?: string; group?: string }): string {
+  const shelf = tag.group ? `（${tag.group}）` : ''
+  return tag.note ? `- ${tag.name}${shelf}: ${tag.note}` : `- ${tag.name}${shelf}`
+}
+
 export function tagPrompt(input: {
   history: Message[]
-  known: { name: string; note?: string }[]
+  known: { name: string; note?: string; group?: string }[]
   topicName?: string
 }): string {
-  const known =
-    input.known.length > 0
-      ? input.known.map((tag) => (tag.note ? `- ${tag.name}: ${tag.note}` : `- ${tag.name}`)).join('\n')
-      : '（まだ無い）'
+  const known = input.known.length > 0 ? input.known.map(formatKnownTag).join('\n') : '（まだ無い）'
   const aboutName = input.topicName
     ? `いまの会話名は「${input.topicName}」です。これをタグ名にしないでください。\n\n`
     : ''
@@ -165,10 +167,12 @@ ${aboutName}この会話に大分類のタグを付けてください。
 - 一度きりの質問や雑談には付けません。空の配列にします。
 - 1 つまで。どうしても二つ必要なときだけ 2 つ。3 つは付けません。
 - 記号や引用符は使いません。
-- 新しいタグには、内容に合う絵文字を一つ付けます。既にあるタグの絵文字は変えません。
+- 新しいタグには、内容に合う絵文字を一つと、一覧用の棚を付けます。
+  既にある棚で当たるならそれを使い、無ければ新しい棚名を付けてよいです。
+- 既にあるタグの絵文字は変えません。
 
 次の形の JSON だけを返してください。
-{"tags": [{"name": "美術館博物館巡り", "emoji": "🖼️"}]}`
+{"tags": [{"name": "美術館博物館巡り", "emoji": "🖼️", "group": "文化"}]}`
 }
 
 export function tagDraftSystemPrompt(input: { audience: Audience; tagName: string }): string {
@@ -220,4 +224,44 @@ export function tagDraftPrompt(input: {
   囲まないでください。`)
 
   return parts.join('\n\n')
+}
+
+export function organizeSystemPrompt(): string {
+  return `あなたはタグ一覧を大分類へ寄せる係です。
+
+- タグは会話の見出しではなく、また話すテーマの覚え書きです。大分類だけで足ります。
+- 棚は一覧の見出しです。本文は持ちません。
+- ファイルは書き換えません。提案の JSON を返すところまでが仕事です。
+- 前置き・説明・報告は書かないでください。返すのは指定された JSON 一つだけです。`
+}
+
+export function organizePrompt(input: {
+  tags: { name: string; group: string; note?: string; topics: string[] }[]
+}): string {
+  const lines =
+    input.tags.length > 0
+      ? input.tags
+          .map((tag) => {
+            const shelf = tag.group || '棚なし'
+            const chats = tag.topics.length > 0 ? tag.topics.join('、') : '会話なし'
+            const note = tag.note ? ` / ${tag.note}` : ''
+            return `- ${tag.name}（${shelf}）会話: ${chats}${note}`
+          })
+          .join('\n')
+      : '（まだ無い）'
+
+  return `<tags>
+${lines}
+</tags>
+
+この一覧を大分類へ寄せる提案をしてください。
+
+- 会話名まがいを大分類へ寄せます。「大英博物館展」なら「美術館博物館巡り」です。
+- 既にある大分類で足りるなら、そちらへ寄せます。新しい大分類は、これから何度も話しそうなテーマが無いときだけです。
+- 棚を付ける・寄せます。「生活」と「暮らし」が並んでいたら一つにします。
+- 使っていない一度きりのタグは消す候補にします。会話が付いているタグは、寄せずに消さないでください。
+- 直さなくてよいものは出しません。空の配列にしてよいです。
+
+次の形の JSON だけを返してください。
+{"actions":[{"type":"merge","from":"大英博物館展","to":"美術館博物館巡り"},{"type":"shelf","name":"美術館博物館巡り","group":"文化"},{"type":"remove","name":"動作確認用"}]}`
 }

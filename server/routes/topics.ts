@@ -107,7 +107,7 @@ topics.on('POST', topicPaths('/tags'), async (c) => {
   const { space, id } = await requireTopic(c)
   const release = await limiter.acquireWhenFree(space.busyKey(id))
   try {
-    return c.json(await applyAutoTag(space.user, id))
+    return c.json(await applyAutoTag(space.user, id, { retag: true }))
   } finally {
     release()
   }

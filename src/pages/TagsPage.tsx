@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
-import type { Tag, Topic } from '../../shared/types'
+import { Loader2, MoreHorizontal, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
+import type { Tag, TagOrganizeAction, Topic } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
 import { useDocumentTitle } from '@/lib/title'
@@ -41,10 +41,16 @@ function TagList() {
   useDocumentTitle(space.tagsTitle)
   const [tags, setTags] = useState<Tag[] | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [organizeOpen, setOrganizeOpen] = useState(false)
   const [deleting, setDeleting] = useState<Tag | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const groups = useMemo(
+    () => [...new Set((tags ?? []).map((tag) => tag.group).filter(Boolean))],
+    [tags],
+  )
+  const sections = useMemo(() => sectionTags(tags ?? []), [tags])
 
   const load = useCallback(() => {
     space.api
@@ -84,10 +90,22 @@ function TagList() {
               大分類だけ。本文は、話すたびに読み込まれるよ
             </p>
           </div>
-          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" />
-            作る
-          </Button>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={!tags?.length}
+              onClick={() => setOrganizeOpen(true)}
+            >
+              <Sparkles data-icon="inline-start" />
+              整理する
+            </Button>
+            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus data-icon="inline-start" />
+              作る
+            </Button>
+          </div>
         </div>
       </SpaceHeaderSlot>
 
@@ -99,60 +117,74 @@ function TagList() {
         <p className="text-muted-foreground py-8 text-center text-sm">まだタグがないよ。上から作れる。</p>
       )}
 
-      <ul className="flex flex-col gap-1.5">
-        {tags?.map((item) => (
-          <li key={item.name} className="flex min-w-0 items-stretch rounded-xl border">
-            <Link
-              to={space.tagHref(item.name)}
-              className="hover:bg-accent active:bg-accent flex min-w-0 flex-1 items-center gap-3 rounded-xl p-3 transition-colors"
-            >
-              <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full text-xl">
-                {item.emoji}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] font-medium">{item.name}</span>
-                <span className="text-muted-foreground block truncate text-xs">
-                  {item.text.trim() ? item.text.replace(/\s+/g, ' ').slice(0, 60) : 'まだ何も覚えていないよ'}
-                </span>
-              </span>
-            </Link>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={<Button type="button" variant="ghost" size="icon-sm" className="mr-2 self-center" />}
-              >
-                <MoreHorizontal />
-                <span className="sr-only">{item.name} の操作</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={() => {
-                      setDeleteError(null)
-                      setDeleting(item)
-                    }}
+      {sections.map((section) => (
+        <section key={section.group || 'none'} className="flex flex-col gap-1.5">
+          <h2 className="text-muted-foreground px-1 text-xs font-medium">
+            {section.group || '棚なし'}
+          </h2>
+          <ul className="flex flex-col gap-1.5">
+            {section.tags.map((item) => (
+              <li key={item.name} className="flex min-w-0 items-stretch rounded-xl border">
+                <Link
+                  to={space.tagHref(item.name)}
+                  className="hover:bg-accent active:bg-accent flex min-w-0 flex-1 items-center gap-3 rounded-xl p-3 transition-colors"
+                >
+                  <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full text-xl">
+                    {item.emoji}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-medium">{item.name}</span>
+                    <span className="text-muted-foreground block truncate text-xs">
+                      {item.text.trim() ? item.text.replace(/\s+/g, ' ').slice(0, 60) : 'まだ何も覚えていないよ'}
+                    </span>
+                  </span>
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={<Button type="button" variant="ghost" size="icon-sm" className="mr-2 self-center" />}
                   >
-                    <Trash2 />
-                    削除
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </li>
-        ))}
-      </ul>
+                    <MoreHorizontal />
+                    <span className="sr-only">{item.name} の操作</span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => {
+                          setDeleteError(null)
+                          setDeleting(item)
+                        }}
+                      >
+                        <Trash2 />
+                        削除
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
 
       <EmojiNameDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
         title="タグを作る"
-        description="会話に付けて、覚え書きを残せるよ。"
+        description="名前だけでよいよ。棚はあとから整理できる。"
         submitLabel="作る"
-        placeholder="例: 秋の旅行"
-        onSubmit={async ({ name, emoji }) => {
-          const created = await space.api.createTag({ name, emoji })
+        placeholder="例: 美術館博物館巡り"
+        groups={groups}
+        onSubmit={async ({ name, emoji, group }) => {
+          const created = await space.api.createTag({ name, emoji, group })
           navigate(space.tagHref(created.name))
         }}
+      />
+
+      <OrganizeDialog
+        open={organizeOpen}
+        onOpenChange={setOrganizeOpen}
+        onApplied={load}
       />
 
       <TagDeleteDialog
@@ -176,6 +208,7 @@ function TagDoc({ name }: { name: string }) {
   const navigate = useNavigate()
   const [tag, setTag] = useState<Tag | null>(null)
   const [topics, setTopics] = useState<Topic[] | null>(null)
+  const [groups, setGroups] = useState<string[]>([])
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -188,12 +221,13 @@ function TagDoc({ name }: { name: string }) {
     setTag(null)
     setTopics(null)
     setError(null)
-    Promise.all([space.api.getTag(name), space.api.listTopics()])
-      .then(([current, list]) => {
+    Promise.all([space.api.getTag(name), space.api.listTopics(), space.api.listTags()])
+      .then(([current, list, all]) => {
         if (cancelled) return
         space.confirm()
         setTag(current)
         setTopics(list.filter((topic) => topic.tags.includes(name)))
+        setGroups([...new Set(all.map((item) => item.group).filter(Boolean))])
         setError(null)
       })
       .catch((cause: Error) => {
@@ -229,6 +263,7 @@ function TagDoc({ name }: { name: string }) {
               {tag ? `${tag.emoji} ${tag.name}` : name}
             </h1>
             <p className="text-muted-foreground truncate text-xs">
+              {tag?.group ? `${tag.group} · ` : ''}
               {topics === null ? space.tagsTitle : `${space.tagsTitle} · 会話 ${topics.length} 件`}
             </p>
           </div>
@@ -319,9 +354,11 @@ function TagDoc({ name }: { name: string }) {
         description="付いている会話も、一緒に付け替えるよ。"
         submitLabel="変える"
         placeholder="例: 秋の旅行"
-        initial={tag ? { name: tag.name, emoji: tag.emoji } : undefined}
-        onSubmit={async ({ name: next, emoji }) => {
-          const renamed = await space.api.renameTag(name, { name: next, emoji })
+        initial={tag ? { name: tag.name, emoji: tag.emoji, group: tag.group } : undefined}
+        groups={groups}
+        onSubmit={async ({ name: next, emoji, group }) => {
+          const renamed = await space.api.renameTag(name, { name: next, emoji, group })
+          setTag(renamed)
           setRenameOpen(false)
           navigate(space.tagHref(renamed.name), { replace: true })
         }}
@@ -339,6 +376,175 @@ function TagDoc({ name }: { name: string }) {
         onConfirm={() => void remove()}
       />
     </>
+  )
+}
+
+function sectionTags(tags: Tag[]): { group: string; tags: Tag[] }[] {
+  const sections: { group: string; tags: Tag[] }[] = []
+  for (const tag of tags) {
+    const last = sections.at(-1)
+    if (last && last.group === tag.group) {
+      last.tags.push(tag)
+    } else {
+      sections.push({ group: tag.group, tags: [tag] })
+    }
+  }
+  return sections
+}
+
+function actionKey(action: TagOrganizeAction): string {
+  if (action.type === 'merge') return `merge:${action.from}:${action.to}`
+  if (action.type === 'shelf') return `shelf:${action.name}:${action.group}`
+  return `remove:${action.name}`
+}
+
+function actionLabel(action: TagOrganizeAction): string {
+  if (action.type === 'merge') return `「${action.from}」を「${action.to}」へ寄せる`
+  if (action.type === 'shelf') return `「${action.name}」を棚「${action.group}」へ`
+  return `「${action.name}」を消す`
+}
+
+function OrganizeDialog({
+  open,
+  onOpenChange,
+  onApplied,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onApplied: () => void
+}) {
+  const space = useSpace()
+  const [activity, setActivity] = useState<string | null>(null)
+  const [actions, setActions] = useState<TagOrganizeAction[] | null>(null)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [drafting, setDrafting] = useState(false)
+  const [applying, setApplying] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const abort = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    if (!open) {
+      abort.current?.abort()
+      setActivity(null)
+      setActions(null)
+      setPicked(new Set())
+      setDrafting(false)
+      setApplying(false)
+      setError(null)
+      return
+    }
+
+    const controller = new AbortController()
+    abort.current = controller
+    setDrafting(true)
+    setError(null)
+    setActions(null)
+    setActivity('整理案を考えています…')
+
+    void (async () => {
+      try {
+        for await (const event of space.api.organizeTags(controller.signal)) {
+          if (event.type === 'activity') setActivity(event.label)
+          if (event.type === 'error') setError(event.message)
+          if (event.type === 'done') {
+            setActions(event.actions)
+            setPicked(new Set(event.actions.map(actionKey)))
+            setActivity(null)
+          }
+        }
+      } catch (cause) {
+        if (!controller.signal.aborted) {
+          setError(cause instanceof Error ? cause.message : '整理案を作れませんでした')
+        }
+      } finally {
+        if (!controller.signal.aborted) setDrafting(false)
+      }
+    })()
+
+    return () => controller.abort()
+  }, [open, space])
+
+  async function apply() {
+    if (!actions || applying) return
+    const selected = actions.filter((action) => picked.has(actionKey(action)))
+    if (selected.length === 0) {
+      onOpenChange(false)
+      return
+    }
+    setApplying(true)
+    setError(null)
+    try {
+      await space.api.applyOrganize(selected)
+      onOpenChange(false)
+      onApplied()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '整理できませんでした')
+      setApplying(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => !applying && onOpenChange(next)}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>タグを整理する</DialogTitle>
+          <DialogDescription>
+            大分類と棚へ寄せる案です。残したい項目だけ選んで確定してね。
+          </DialogDescription>
+        </DialogHeader>
+
+        {activity && (
+          <p className="text-muted-foreground flex items-center gap-2 text-sm">
+            <Loader2 className="size-4 animate-spin" />
+            {activity}
+          </p>
+        )}
+
+        {actions?.length === 0 && (
+          <p className="text-muted-foreground text-sm">直すところはなさそうだよ。</p>
+        )}
+
+        {actions && actions.length > 0 && (
+          <ul className="flex max-h-72 flex-col gap-1.5 overflow-y-auto">
+            {actions.map((action) => {
+              const key = actionKey(action)
+              const on = picked.has(key)
+              return (
+                <li key={key}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPicked((current) => {
+                        const next = new Set(current)
+                        if (next.has(key)) next.delete(key)
+                        else next.add(key)
+                        return next
+                      })
+                    }}
+                    className={`w-full rounded-xl border px-3 py-2 text-left text-sm ${
+                      on ? 'bg-accent' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {actionLabel(action)}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        {error && <p className="text-destructive text-sm">{error}</p>}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={applying}>
+            キャンセル
+          </Button>
+          <Button type="button" onClick={() => void apply()} disabled={drafting || applying || actions === null}>
+            確定する
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

@@ -20,8 +20,10 @@ interface Props {
   submitLabel: string
   placeholder: string
   /** 改名のとき。無ければ空の名前と既定の絵文字から始める。 */
-  initial?: { name: string; emoji: string }
-  onSubmit: (input: { name: string; emoji: string }) => Promise<void>
+  initial?: { name: string; emoji: string; group?: string }
+  /** 既にある棚。datalist の候補。空なら棚なし。 */
+  groups?: string[]
+  onSubmit: (input: { name: string; emoji: string; group: string }) => Promise<void>
 }
 
 export function EmojiNameDialog({
@@ -32,10 +34,12 @@ export function EmojiNameDialog({
   submitLabel,
   placeholder,
   initial,
+  groups = [],
   onSubmit,
 }: Props) {
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState(DEFAULT_TAG_EMOJI)
+  const [group, setGroup] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,15 +47,16 @@ export function EmojiNameDialog({
     if (!open) return
     setName(initial?.name ?? '')
     setEmoji(initial?.emoji ?? DEFAULT_TAG_EMOJI)
+    setGroup(initial?.group ?? '')
     setError(null)
-  }, [open, initial?.name, initial?.emoji])
+  }, [open, initial?.name, initial?.emoji, initial?.group])
 
   async function submit() {
     if (!name.trim() || busy) return
     setBusy(true)
     setError(null)
     try {
-      await onSubmit({ name: name.trim(), emoji })
+      await onSubmit({ name: name.trim(), emoji, group: group.trim() })
       onOpenChange(false)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '保存できませんでした')
@@ -92,6 +97,19 @@ export function EmojiNameDialog({
             maxLength={40}
             autoFocus
           />
+
+          <Input
+            value={group}
+            onChange={(event) => setGroup(event.target.value)}
+            list="tag-groups"
+            placeholder="棚（任意）"
+            maxLength={40}
+          />
+          <datalist id="tag-groups">
+            {groups.map((item) => (
+              <option key={item} value={item} />
+            ))}
+          </datalist>
 
           {error && <p className="text-destructive text-sm">{error}</p>}
         </div>

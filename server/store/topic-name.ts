@@ -16,6 +16,13 @@ export function normalizeTopicName(value: string): string {
   return value.normalize('NFC').trim()
 }
 
+/** 棚の名前。ファイル名ではないが、表記ゆれと禁止文字はタグ名と同じにする。 */
+export function normalizeGroup(value: string): string {
+  const name = normalizeTopicName(value).slice(0, 40)
+  if (!name || !isTopicName(name)) return ''
+  return name
+}
+
 export function isTopicName(value: string): boolean {
   const name = normalizeTopicName(value)
   if (!name || name === '.' || name === '..') return false

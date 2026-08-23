@@ -1,15 +1,17 @@
 import { Hono } from 'hono'
-import { NO_NAME, type SummaryEvent } from '../../shared/types'
+import { NO_NAME, type OrganizeEvent, type SummaryEvent, type TagOrganizeAction } from '../../shared/types'
 import { resolveModel, unfence } from '../agent'
-import { tagDraftPrompt, tagDraftSystemPrompt } from '../agent/prompt'
+import { parseOrganize } from '../agent/name'
+import { organizePrompt, organizeSystemPrompt, tagDraftPrompt, tagDraftSystemPrompt, tagNote } from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { config } from '../config'
 import { BadRequestError } from '../errors'
 import { streamAgent } from '../lib/agent-stream'
 import { readJson, readText } from '../lib/body'
 import { readRecent } from '../store/log'
-import { tagsDir } from '../store/paths'
+import { asTopicName, tagsDir } from '../store/paths'
 import {
+  applyOrganize,
   assertTagName,
   createTag,
   deleteTag,
@@ -29,11 +31,76 @@ tags.on('GET', spacePaths('/tags'), async (c) => {
 
 tags.on('POST', spacePaths('/tags'), async (c) => {
   const { user } = resolveSpace(c)
-  const body = await readJson<{ name?: string; text?: string; emoji?: string }>(c.req.raw)
+  const body = await readJson<{ name?: string; text?: string; emoji?: string; group?: string }>(
+    c.req.raw,
+  )
   if (typeof body.name !== 'string') {
     throw new BadRequestError('タグ名を入力してください')
   }
-  return c.json(await createTag(user, { name: body.name, text: body.text, emoji: body.emoji }), 201)
+  return c.json(
+    await createTag(user, {
+      name: body.name,
+      text: body.text,
+      emoji: body.emoji,
+      group: body.group,
+    }),
+    201,
+  )
+})
+
+tags.on('POST', spacePaths('/tags/organize'), async (c) => {
+  const space = resolveSpace(c)
+  const { user } = space
+  const tags = await listTags(user)
+  if (tags.length === 0) {
+    throw new BadRequestError('まだタグがないよ')
+  }
+
+  const topics = await listTopics(user)
+  const choice = resolveModel(topics[0]?.engine, topics[0]?.model)
+  const key = asTopicName('organize')
+  if (!key) throw new BadRequestError('整理できませんでした')
+  const release = await limiter.acquire(space.busyKey(key))
+
+  return streamAgent<OrganizeEvent>(c, {
+    choice,
+    cwd: tagsDir(user),
+    prompt: organizePrompt({
+      tags: tags.map((tag) => ({
+        name: tag.name,
+        group: tag.group,
+        note: tagNote(tag.text),
+        topics: topics.filter((topic) => topic.tags.includes(tag.name)).map((topic) => topic.name || NO_NAME),
+      })),
+    }),
+    systemPrompt: organizeSystemPrompt(),
+    release,
+    tag: 'tag-organize',
+    fallback: '整理案を作れませんでした',
+    close: (text, send) =>
+      send({ type: 'done', actions: parseOrganize(unfence(text)), modelLabel: choice.label }),
+  })
+})
+
+tags.on('POST', spacePaths('/tags/organize/apply'), async (c) => {
+  const space = resolveSpace(c)
+  const body = await readJson<{ actions?: unknown }>(c.req.raw)
+  if (!Array.isArray(body.actions)) {
+    throw new BadRequestError('整理の指定が不正です')
+  }
+  const actions = body.actions.filter((item): item is TagOrganizeAction => {
+    if (!item || typeof item !== 'object') return false
+    const action = item as TagOrganizeAction
+    return action.type === 'merge' || action.type === 'shelf' || action.type === 'remove'
+  })
+  const key = asTopicName('organize')
+  if (!key) throw new BadRequestError('整理できませんでした')
+  const release = await limiter.acquire(space.busyKey(key))
+  try {
+    return c.json(await applyOrganize(space.user, actions))
+  } finally {
+    release()
+  }
 })
 
 tags.on('GET', tagPaths(), async (c) => {
@@ -50,11 +117,13 @@ tags.on('PUT', tagPaths(), async (c) => {
 tags.on('PATCH', tagPaths(), async (c) => {
   const { user } = resolveSpace(c)
   const tag = assertTagName(c.req.param('tag') ?? '')
-  const body = await readJson<{ name?: string; emoji?: string }>(c.req.raw)
-  if (body.name === undefined && body.emoji === undefined) {
+  const body = await readJson<{ name?: string; emoji?: string; group?: string }>(c.req.raw)
+  if (body.name === undefined && body.emoji === undefined && body.group === undefined) {
     throw new BadRequestError('タグ名を入力してください')
   }
-  return c.json(await renameTag(user, tag, { name: body.name, emoji: body.emoji }))
+  return c.json(
+    await renameTag(user, tag, { name: body.name, emoji: body.emoji, group: body.group }),
+  )
 })
 
 tags.on('DELETE', tagPaths(), async (c) => {

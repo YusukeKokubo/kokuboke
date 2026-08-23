@@ -3,7 +3,7 @@ import { BadRequestError, NotFoundError } from '../errors'
 import { config } from '../config'
 import { FORBIDDEN_ALL, isTopicName, normalizeTopicName } from './topic-name'
 
-export { isTopicName, normalizeTopicName } from './topic-name'
+export { isTopicName, normalizeGroup, normalizeTopicName } from './topic-name'
 
 declare const userBrand: unique symbol
 declare const topicBrand: unique symbol

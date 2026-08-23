@@ -4,7 +4,7 @@ import { config } from '../config'
 import { BadRequestError } from '../errors'
 import { countUserMessages, readRecent } from '../store/log'
 import { topicDir, type TopicName, type UserName } from '../store/paths'
-import { ensureTag, listTags } from '../store/tag'
+import { ensureTag, listTags, renameTag } from '../store/tag'
 import { markNameTried, markTagTried, readTopic, renameTopic, writeTags } from '../store/topic'
 import { collectAgent } from './collect'
 import { resolveModel } from './model'
@@ -44,8 +44,17 @@ export async function applyAutoName(user: UserName, id: TopicName): Promise<Topi
   return renameTopic(user, id, { ...proposed, autoAt })
 }
 
-/** 会話を読んでタグを付ける。命名と同じく、切断では止めない。 */
-export async function applyAutoTag(user: UserName, id: TopicName): Promise<Topic> {
+/**
+ * 会話を読んでタグを付ける。命名と同じく、切断では止めない。
+ * `retag` は人が付け直したとき。既存タグの棚も更新してよい。
+ * 日常の自動 1 回では、人が直した棚は戻さない。
+ */
+export async function applyAutoTag(
+  user: UserName,
+  id: TopicName,
+  input: { retag?: boolean } = {},
+): Promise<Topic> {
+  const retag = input.retag === true
   const current = await readTopic(user, id)
   const history = await readRecent(user, id, Math.max(config.contextDays, 14))
   if (history.length === 0) {
@@ -55,6 +64,7 @@ export async function applyAutoTag(user: UserName, id: TopicName): Promise<Topic
   const known = (await listTags(user)).map((tag) => ({
     name: tag.name,
     note: tagNote(tag.text),
+    group: tag.group || undefined,
   }))
   const choice = resolveModel(current.engine, current.model)
   let text = ''
@@ -80,8 +90,12 @@ export async function applyAutoTag(user: UserName, id: TopicName): Promise<Topic
 
   const names: string[] = []
   for (const raw of proposed) {
-    const tag = await ensureTag(user, raw.name, raw.emoji)
-    if (tag) names.push(tag)
+    const tag = await ensureTag(user, raw.name, raw.emoji, raw.group)
+    if (!tag) continue
+    if (retag && raw.group) {
+      await renameTag(user, tag, { group: raw.group })
+    }
+    names.push(tag)
   }
   return writeTags(user, id, [...new Set(names)])
 }

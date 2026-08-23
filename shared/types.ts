@@ -46,7 +46,15 @@ export interface Tag {
   emoji: string
   /** tags/{name}.md の中身。無ければ空文字。 */
   text: string
+  /** 一覧の棚。空なら棚なし。会話には付かない。 */
+  group: string
 }
+
+/** タグ一覧の整理。LLM は提案まで、どれを書くかは人が決める。 */
+export type TagOrganizeAction =
+  | { type: 'merge'; from: string; to: string }
+  | { type: 'shelf'; name: string; group: string }
+  | { type: 'remove'; name: string }
 
 /**
  * CLI を走らせているあいだの知らせ。会話とタグの下書きで同じ形なので、
@@ -60,6 +68,10 @@ export type AgentProgressEvent =
    */
   | { type: 'activity'; label: string }
   | { type: 'error'; message: string }
+
+export type OrganizeEvent =
+  | AgentProgressEvent
+  | { type: 'done'; actions: TagOrganizeAction[]; modelLabel: string }
 
 /** SSE で流すイベント。 */
 export type ChatEvent =

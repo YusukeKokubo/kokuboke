@@ -18,6 +18,7 @@ const {
   asTopicName,
   familyUser,
   isTopicName,
+  normalizeGroup,
   normalizeTopicName,
   toTopicName,
 } = await import('./paths')
@@ -85,6 +86,14 @@ describe('normalizeTopicName', () => {
 
   it('前後の空白を落とす', () => {
     assert.equal(normalizeTopicName('  算数  '), '算数')
+  })
+})
+
+describe('normalizeGroup', () => {
+  it('空と禁止文字は捨てる', () => {
+    assert.equal(normalizeGroup('  文化  '), '文化')
+    assert.equal(normalizeGroup(''), '')
+    assert.equal(normalizeGroup('文化*'), '')
   })
 })
 

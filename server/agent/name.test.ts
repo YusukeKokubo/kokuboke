@@ -8,7 +8,7 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kokuboke-test-'))
 process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
 
-const { parseName, parseTags } = await import('./name')
+const { parseName, parseOrganize, parseTags } = await import('./name')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
@@ -107,6 +107,12 @@ describe('parseTags', () => {
     assert.deepEqual(parseTags('タグは無い'), [])
   })
 
+  it('棚も取る', () => {
+    assert.deepEqual(parseTags('{"tags":[{"name":"美術館博物館巡り","emoji":"🖼","group":"文化"}]}'), [
+      { name: '美術館博物館巡り', emoji: '🖼', group: '文化' },
+    ])
+  })
+
   it('3 つ以上は捨てて 2 つまで', () => {
     assert.equal(
       parseTags(
@@ -114,5 +120,27 @@ describe('parseTags', () => {
       ).length,
       2,
     )
+  })
+})
+
+describe('parseOrganize', () => {
+  it('寄せと棚と削除を取る', () => {
+    const raw = JSON.stringify({
+      actions: [
+        { type: 'merge', from: '大英博物館展', to: '美術館博物館巡り' },
+        { type: 'shelf', name: '美術館博物館巡り', group: '文化' },
+        { type: 'remove', name: '動作確認用' },
+      ],
+    })
+    assert.deepEqual(parseOrganize(raw), [
+      { type: 'merge', from: '大英博物館展', to: '美術館博物館巡り' },
+      { type: 'shelf', name: '美術館博物館巡り', group: '文化' },
+      { type: 'remove', name: '動作確認用' },
+    ])
+  })
+
+  it('形が崩れていたら空', () => {
+    assert.deepEqual(parseOrganize('整理した'), [])
+    assert.deepEqual(parseOrganize('{"actions":[{"type":"shelf","name":"旅行"}]}'), [])
   })
 })

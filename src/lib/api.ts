@@ -5,9 +5,11 @@ import type {
   EngineInfo,
   FamilyActivityEntry,
   Message,
+  OrganizeEvent,
   Profile,
   SummaryEvent,
   Tag,
+  TagOrganizeAction,
   Topic,
   UpdateResult,
   UpdateStatus,
@@ -128,7 +130,7 @@ export function spaceApi(base: string, author?: string) {
 
     listTags: () => json.get<Tag[]>(`${base}/tags`),
 
-    createTag: (input: { name: string; text?: string; emoji?: string }) =>
+    createTag: (input: { name: string; text?: string; emoji?: string; group?: string }) =>
       json.send<Tag>('POST', `${base}/tags`, input),
 
     getTag: (tag: string) => json.get<Tag>(tagAt(tag)),
@@ -136,8 +138,16 @@ export function spaceApi(base: string, author?: string) {
     saveTag: (tag: string, text: string) =>
       json.send<Tag>('PUT', tagAt(tag), { text }).then((doc) => doc.text),
 
-    renameTag: (tag: string, input: { name?: string; emoji?: string }) =>
+    renameTag: (tag: string, input: { name?: string; emoji?: string; group?: string }) =>
       json.send<Tag>('PATCH', tagAt(tag), input),
+
+    organizeTags: async function* (signal?: AbortSignal): AsyncGenerator<OrganizeEvent> {
+      const res = await fetch(`${base}/tags/organize`, { method: 'POST', signal })
+      yield* readSSE<OrganizeEvent>(res)
+    },
+
+    applyOrganize: (actions: TagOrganizeAction[]) =>
+      json.send<Tag[]>('POST', `${base}/tags/organize/apply`, { actions }),
 
     deleteTag: (tag: string) => json.send<void>('DELETE', tagAt(tag)),
 

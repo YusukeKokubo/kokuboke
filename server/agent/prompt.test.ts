@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { chatPrompt, tagDraftPrompt, tagNote, tagPrompt, tagSystemPrompt } from './prompt'
+import { chatPrompt, organizePrompt, tagDraftPrompt, tagNote, tagPrompt, tagSystemPrompt } from './prompt'
 
 describe('chatPrompt', () => {
   it('付いているタグの本文を載せる', () => {
@@ -43,17 +43,33 @@ describe('tagPrompt', () => {
   it('大分類だけを使い、会話名はタグにしない', () => {
     const text = tagPrompt({
       history: [],
-      known: [{ name: '旅行', note: '四国へ行く' }, { name: '学習' }],
+      known: [{ name: '旅行', note: '四国へ行く', group: '旅' }, { name: '学習' }],
       topicName: '大英博物館展予習',
     })
     assert.match(text, /<known_tags>/)
-    assert.match(text, /- 旅行: 四国へ行く/)
+    assert.match(text, /- 旅行（旅）: 四国へ行く/)
     assert.match(text, /- 学習/)
     assert.match(text, /大英博物館展予習/)
     assert.match(text, /これをタグ名にしない/)
     assert.match(text, /美術館博物館巡り/)
     assert.match(text, /大分類/)
     assert.match(tagSystemPrompt(), /大分類だけで足ります/)
+    assert.match(text, /"group": "文化"/)
+  })
+})
+
+describe('organizePrompt', () => {
+  it('タグと会話名を載せる', () => {
+    const text = organizePrompt({
+      tags: [
+        { name: '大英博物館展', group: '', topics: ['大英博物館展予習'] },
+        { name: 'スキンケア', group: '暮らし', note: '化粧水', topics: [] },
+      ],
+    })
+    assert.match(text, /大英博物館展（棚なし）/)
+    assert.match(text, /スキンケア（暮らし）/)
+    assert.match(text, /化粧水/)
+    assert.match(text, /type":"merge"/)
   })
 })
 
