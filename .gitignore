@@ -3,6 +3,7 @@ dist
 dev-dist
 data
 .env
+android/app/google-services.json
 *.tar
 *.log
 .DS_Store

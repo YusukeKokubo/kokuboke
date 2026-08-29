@@ -36,13 +36,27 @@ export function streamAgent<E>(
      * 命名のように、画面が閉じても止めない仕事向け。
      */
     followUp?: () => void | Promise<void>
+    /**
+     * 相手が切れても CLI を止めない。会話はアプリを閉じたあとも書き上げ、
+     * 終わったら push を飛ばす。下書きのような「画面が居るあいだだけ」の仕事では立てない。
+     */
+    surviveDisconnect?: boolean
   },
 ) {
   return streamSSE(c, async (stream) => {
     const send: Send<E> = sse<E | AgentProgressEvent>(stream)
+    const survive = run.surviveDisconnect === true
+
+    const emit: Send<E> = async (event) => {
+      try {
+        await send(event)
+      } catch (error) {
+        if (!survive) throw error
+      }
+    }
 
     try {
-      await run.open?.(send)
+      await run.open?.(emit)
 
       const text = await collectAgent(
         run.choice,
@@ -50,26 +64,26 @@ export function streamAgent<E>(
           cwd: run.cwd,
           prompt: run.prompt,
           systemPrompt: run.systemPrompt,
-          signal: c.req.raw.signal,
+          signal: survive ? undefined : c.req.raw.signal,
         },
         {
           onDelta: async (delta) => {
-            await send({ type: 'delta', text: delta })
+            await emit({ type: 'delta', text: delta })
           },
           onActivity: async (label) => {
-            await send({ type: 'activity', label })
+            await emit({ type: 'activity', label })
           },
         },
       )
 
-      await run.close(text, send)
+      await run.close(text, emit)
     } catch (error) {
       console.error(`[${run.tag}]`, error)
       // 相手がもう居ないこともある。知らせられなくても枠は返す。
-      await send({
+      await emit({
         type: 'error',
         message: error instanceof Error ? error.message : run.fallback,
-      }).catch(() => {})
+      })
     } finally {
       run.release()
     }

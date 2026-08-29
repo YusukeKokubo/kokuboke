@@ -1,3 +1,4 @@
+/// <reference types="@capacitor/push-notifications" />
 import type { CapacitorConfig } from '@capacitor/cli'
 
 /**
@@ -28,6 +29,10 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: 'DARK',
       backgroundColor: '#0b0b0c',
+    },
+    PushNotifications: {
+      // 前面にいるときは出さない。閉じているときだけ OS が FCM の通知を出す。
+      presentationOptions: [],
     },
   },
 }

@@ -255,4 +255,11 @@ export const api = {
       cache: 'no-store',
       signal: AbortSignal.timeout(5000),
     }),
+
+  /** Android 殻が FCM トークンをその人に付ける。ブラウザからは呼ばない。 */
+  registerDevice: (user: string, token: string) =>
+    json.send<void>('POST', `/api/users/${path(user)}/devices`, { token }),
+
+  unregisterDevice: (user: string, token: string) =>
+    json.send<void>('DELETE', `/api/users/${path(user)}/devices`, { token }),
 }

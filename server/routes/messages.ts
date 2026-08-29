@@ -9,9 +9,10 @@ import { streamAgent } from '../lib/agent-stream'
 import { appendMessage, readAll, readRecent } from '../store/log'
 import { isDocument, saveFile } from '../store/file'
 import { saveImage, withImageUrls } from '../store/image'
-import { topicDir } from '../store/paths'
+import { assertUser, topicDir } from '../store/paths'
 import { readTagTexts } from '../store/tag'
 import { readTopic, shouldAutoName, shouldAutoTag, topicExists } from '../store/topic'
+import { notifyReply } from '../push/notify'
 import { requireTopic, topicPaths } from './space'
 
 export const messages = new Hono()
@@ -100,6 +101,7 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
     release,
     tag: 'chat',
     fallback: '返答を作れませんでした',
+    surviveDisconnect: true,
     open: (send) =>
       send({ type: 'accepted', message: withImageUrls(space.mediaSegment, slug, userMessage) }),
     close: async (answer, send) => {
@@ -125,6 +127,16 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
         shouldName,
         shouldTag,
       }).catch(() => {})
+
+      const recipient = author ? assertUser(author) : space.kind === 'personal' ? user : undefined
+      if (recipient) {
+        const topic = await readTopic(user, id).catch(() => null)
+        void notifyReply({
+          recipient,
+          topicName: topic?.name ?? '',
+          path: space.kind === 'family' ? `/family/${slug}` : `/user/${user}/${slug}`,
+        }).catch((error) => console.error('[push]', error))
+      }
     },
     followUp: async () => {
       if (!autoAfter) return

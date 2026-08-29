@@ -8,6 +8,7 @@ import { config, assertConfig } from './config'
 import { AppError } from './errors'
 import { limiter } from './agent/queue'
 import { admin } from './routes/admin'
+import { devices } from './routes/devices'
 import { docs } from './routes/docs'
 import { media } from './routes/media'
 import { messages } from './routes/messages'
@@ -34,6 +35,7 @@ app.get('/api/health', (c) =>
 )
 
 app.route('/', admin)
+app.route('/', devices)
 app.route('/', topics)
 app.route('/', messages)
 app.route('/', tags)

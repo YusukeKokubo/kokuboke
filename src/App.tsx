@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { api } from '@/lib/api'
+import { onPushOpen } from '@/lib/push'
 import { rememberUser, rememberedUser } from '@/lib/remember'
 import { useDocumentTitle } from '@/lib/title'
 import { FamilySpace, PersonalSpace } from '@/lib/space'
@@ -20,38 +21,47 @@ function safeNext(next: string | null): string | null {
   return null
 }
 
+function PushOpen() {
+  const navigate = useNavigate()
+  useEffect(() => onPushOpen((path) => navigate(path)), [navigate])
+  return null
+}
+
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/user" replace />} />
-      <Route path="/user" element={<UserPicker />} />
-      {/* 一覧・会話・タグ・文書は、どちらのスペースでも同じものを使う。 */}
-      <Route path="/user/:user" element={<PersonalSpace />}>
-        <Route element={<SpaceShell />}>
-          <Route index element={<TopicListPage />} />
-          <Route path="tags" element={<TagsPage />} />
-          <Route path="tags/:tag" element={<TagsPage />} />
-          <Route path="profile.md" element={<ProfilePage />} />
-          <Route path="CLAUDE.md" element={<ClaudePage />} />
-          <Route path="organize.md" element={<OrganizePage />} />
-          <Route path=":id" element={<ChatPage />} />
+    <>
+      <PushOpen />
+      <Routes>
+        <Route path="/" element={<Navigate to="/user" replace />} />
+        <Route path="/user" element={<UserPicker />} />
+        {/* 一覧・会話・タグ・文書は、どちらのスペースでも同じものを使う。 */}
+        <Route path="/user/:user" element={<PersonalSpace />}>
+          <Route element={<SpaceShell />}>
+            <Route index element={<TopicListPage />} />
+            <Route path="tags" element={<TagsPage />} />
+            <Route path="tags/:tag" element={<TagsPage />} />
+            <Route path="profile.md" element={<ProfilePage />} />
+            <Route path="CLAUDE.md" element={<ClaudePage />} />
+            <Route path="organize.md" element={<OrganizePage />} />
+            <Route path=":id" element={<ChatPage />} />
+          </Route>
         </Route>
-      </Route>
-      <Route path="/family" element={<FamilySpace />}>
-        <Route element={<SpaceShell />}>
-          <Route index element={<TopicListPage />} />
-          <Route path="tags" element={<TagsPage />} />
-          <Route path="tags/:tag" element={<TagsPage />} />
-          <Route path="profile.md" element={<ProfilePage />} />
-          <Route path="CLAUDE.md" element={<ClaudePage />} />
-          <Route path="organize.md" element={<OrganizePage />} />
-          <Route path=":id" element={<ChatPage />} />
+        <Route path="/family" element={<FamilySpace />}>
+          <Route element={<SpaceShell />}>
+            <Route index element={<TopicListPage />} />
+            <Route path="tags" element={<TagsPage />} />
+            <Route path="tags/:tag" element={<TagsPage />} />
+            <Route path="profile.md" element={<ProfilePage />} />
+            <Route path="CLAUDE.md" element={<ClaudePage />} />
+            <Route path="organize.md" element={<OrganizePage />} />
+            <Route path=":id" element={<ChatPage />} />
+          </Route>
         </Route>
-      </Route>
-      {/* 家族の誰の画面でもない。鍵は URL の ?key= で渡す。 */}
-      <Route path="/admin" element={<AdminPage />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        {/* 家族の誰の画面でもない。鍵は URL の ?key= で渡す。 */}
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   )
 }
 

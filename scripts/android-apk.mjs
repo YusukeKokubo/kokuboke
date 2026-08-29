@@ -59,6 +59,13 @@ if (check.status !== 0) {
   process.exit(1)
 }
 
+if (!fs.existsSync(path.join(root, 'android/app/google-services.json'))) {
+  console.warn(
+    'android/app/google-services.json がありません。push 通知は届きません。\n' +
+      'Firebase で Android アプリ（app.kokuboke）を作り、JSON を置いてから APK を出してください。',
+  )
+}
+
 run('npm', ['run', 'android:sync'], {
   env: {
     JAVA_HOME: javaHome,

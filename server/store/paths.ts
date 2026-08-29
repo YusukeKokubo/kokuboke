@@ -97,6 +97,11 @@ export function revisionsFile(user: UserName): string {
   return path.join(userDir(user), 'revisions.jsonl')
 }
 
+/** その人の Android 端末の FCM トークン。共有スペースではなく人に紐づく。 */
+export function devicesFile(user: UserName): string {
+  return path.join(userDir(user), 'devices.json')
+}
+
 /** 採用した分類の方針。tags/ には置かない（タグとして拾われる）。 */
 export function organizeFile(user: UserName): string {
   return path.join(userDir(user), 'organize.md')

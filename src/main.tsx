@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
+import { preparePush } from '@/lib/push'
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App'
@@ -19,6 +20,7 @@ async function prepareNativeShell() {
 
 if (Capacitor.isNativePlatform()) {
   void prepareNativeShell()
+  void preparePush()
 } else {
   registerSW({ immediate: true })
 }

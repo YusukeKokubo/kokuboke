@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom'
 import { spaceApi, type SpaceApi } from '@/lib/api'
+import { usePush } from '@/lib/push'
 import { rememberUser, rememberedUser } from '@/lib/remember'
 
 /**
@@ -173,6 +174,7 @@ export function familySpace(author: string): Space {
 export function PersonalSpace() {
   const { user = '' } = useParams()
   const space = useMemo(() => personalSpace(user), [user])
+  usePush(user)
 
   return (
     <SpaceContext.Provider value={space}>
@@ -190,6 +192,7 @@ export function FamilySpace() {
   const author = rememberedUser()
 
   const space = useMemo(() => (author ? familySpace(author) : null), [author])
+  usePush(author ?? '')
 
   if (!space) {
     return <Navigate to={`/user?next=${encodeURIComponent(location.pathname)}`} replace />

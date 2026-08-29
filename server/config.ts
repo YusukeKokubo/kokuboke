@@ -96,6 +96,13 @@ export const config = {
   watchtowerUrl: process.env.WATCHTOWER_URL ?? '',
   watchtowerToken: process.env.WATCHTOWER_TOKEN ?? '',
 
+  /**
+   * Firebase のサービスアカウント JSON。中身そのものか、ファイルの場所。
+   * どちらも空なら push は飛ばさない（トークンの受け取りだけは動く）。
+   */
+  fcmServiceAccount: process.env.FCM_SERVICE_ACCOUNT ?? '',
+  fcmServiceAccountPath: process.env.FCM_SERVICE_ACCOUNT_PATH ?? '',
+
   isProduction: process.env.NODE_ENV === 'production',
 } as const
 

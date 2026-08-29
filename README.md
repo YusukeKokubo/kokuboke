@@ -31,6 +31,7 @@
     ├── profile.md             人物像の覚え書き（手書き）
     ├── organize.md            分類の方針（人が採用したときだけ書く）
     ├── revisions.jsonl        人が直した見出し・タグ・整理の対
+    ├── devices.json           Android 端末の FCM トークン（その人の返答完了を飛ばす先）
     ├── tags.json              タグ名 → 絵文字と棚
     ├── tags/
     │   └── 秋の旅行.md         タグの本文。ファイル名がタグ名
@@ -290,6 +291,23 @@ mise exec -- npm run android:apk
 Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制限し、kokuboke は
 制限なしにする。
 
+#### 返答が終わったときの push
+
+アプリを閉じたあとも CLI は書き上げる。終わったら、発言した本人の Android へ
+知らせる。本文は載せない（「返答が届いたよ」だけ）。前面にいるときは出さない。
+共有スペースも、飛ばす先は発言した人。ブラウザや PWA には飛ばない。
+
+Firebase のプロジェクトを家庭用に一つ作り、次を揃える。
+
+1. Firebase で Android アプリを足す。パッケージ名は `app.kokuboke`。
+2. `google-services.json` を `android/app/` に置く（リポジトリには入れない）。
+3. サービスアカウントを作り、Cloud Messaging を使えるようにする。
+   JSON を `.env` の `FCM_SERVICE_ACCOUNT` に書くか、`FCM_SERVICE_ACCOUNT_PATH`
+   でファイルを指す。コンテナから読むなら `/data` の下に置く。
+4. APK を作り直して入れ直す。サーバーは `.env` を足せば、イメージの差し替えは要らない。
+
+初回起動で通知の許可を聞く。許可した端末のトークンは `data/{名前}/devices.json` に残る。
+
 環境変数の既定（Homebrew 前提）:
 
 - `JAVA_HOME` … 未設定なら `openjdk@21` か `java_home -v 21`
@@ -317,6 +335,8 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 | DELETE | `/api/users/:user/topics/:id` | 会話の削除 |
 | GET | `/api/users/:user/topics/:id/messages` | 保存されている会話すべて |
 | POST | `/api/users/:user/topics/:id/messages` | 送信。SSE で返答を流す |
+| POST | `/api/users/:user/devices` | Android の FCM トークンを付ける |
+| DELETE | `/api/users/:user/devices` | トークンを外す |
 | GET | `/api/users/:user/tags` | タグ一覧 |
 | POST | `/api/users/:user/tags` | タグの新規 |
 | POST | `/api/users/:user/tags/organize` | 一覧の整理案。SSE で流す（保存はしない） |
@@ -341,6 +361,7 @@ Chrome の Digital Wellbeing / ファミリーリンクでは Chrome だけ制�
 違いは送信に `author`（`USERS` にある名前）が必須なことと、順番待ちの粒度。
 個人は人ごとに一つずつだが、共有スペースは会話ごとなので、
 別の話なら家族が同時に話せる。
+`/devices` だけは人に紐づくので、共有スペースの経路は持たない。
 
 送信は `multipart/form-data` で、本文が `text`、画像が `images`、テキストと PDF が `files`（合わせて 4 つまで）。
 家族共有スペースでは `author` も付ける。
