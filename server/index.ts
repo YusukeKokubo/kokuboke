@@ -7,6 +7,7 @@ import { logger } from 'hono/logger'
 import { config, assertConfig } from './config'
 import { AppError } from './errors'
 import { limiter } from './agent/queue'
+import { loadServiceAccount } from './push/fcm'
 import { admin } from './routes/admin'
 import { devices } from './routes/devices'
 import { docs } from './routes/docs'
@@ -31,6 +32,8 @@ app.get('/api/health', (c) =>
     users: config.users,
     queue: limiter.stats,
     commit: config.appCommit || null,
+    /** サービスアカウントが読めたか。Watchtower だけでは .env の追加は届かない。 */
+    push: Boolean(loadServiceAccount()),
   }),
 )
 

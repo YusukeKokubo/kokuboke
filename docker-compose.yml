@@ -63,6 +63,9 @@ services:
       # （URL しか鍵の無いアプリに NAS の root 相当を持たせたくない）。
       # コンテナ間の名前解決なので .env で書き換えられては困る。ここに置く。
       WATCHTOWER_URL: http://watchtower:8080
+      # 未設定なら空。Watchtower はイメージだけ差し替えるので、ここを足したあとは
+      # deploy.sh でコンテナを作り直す。
+      FCM_SERVICE_ACCOUNT_PATH: ${FCM_SERVICE_ACCOUNT_PATH:-}
 
     # NAS の実機（N100 / 4 コア）向けの既定値。手元で試すときは .env で下げる。
     mem_limit: ${MEM_LIMIT:-2500m}

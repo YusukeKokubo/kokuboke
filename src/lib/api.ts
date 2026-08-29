@@ -270,7 +270,7 @@ export const api = {
    * 止まって、いつまでも「入れ替え中」のままになる。
    */
   health: () =>
-    json.get<{ ok: boolean; users: string[]; commit: string | null }>('/api/health', {
+    json.get<{ ok: boolean; users: string[]; commit: string | null; push?: boolean }>('/api/health', {
       cache: 'no-store',
       signal: AbortSignal.timeout(5000),
     }),
