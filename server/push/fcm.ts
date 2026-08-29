@@ -21,7 +21,6 @@ interface TokenCache {
 
 const SCOPE = 'https://www.googleapis.com/auth/firebase.messaging'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
-const CHANNEL = 'kokuboke'
 
 let cachedAccount: ServiceAccount | null | undefined
 let cachedToken: TokenCache | null = null
@@ -146,9 +145,6 @@ export async function sendFcm(
           },
           android: {
             priority: 'HIGH',
-            notification: {
-              channel_id: CHANNEL,
-            },
           },
         },
       }),
