@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Pencil, RefreshCw, X } from 'lucide-react'
 import type { Message, Tag, Topic } from '../../shared/types'
+import { isDisconnectError } from '@/lib/api'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
 import { useDocumentTitle } from '@/lib/title'
@@ -182,6 +183,8 @@ export default function ChatPage() {
       stick.current = true
 
       let accepted = false
+      let silent = false
+      let fromAgent = false
 
       try {
         for await (const event of space.api.sendMessage(id, input)) {
@@ -210,19 +213,29 @@ export default function ChatPage() {
               if (event.shouldTag) void putTags()
               break
             case 'error':
+              fromAgent = true
               setDraft(null)
               throw new Error(event.message)
           }
         }
       } catch (cause) {
         setDraft(null)
-        setNotice(cause instanceof Error ? space.busyNotice(cause.message) : '送信できませんでした')
-        if (!accepted) throw cause
+        // ホームに出して WebView が切った切断は、失敗として出さない。
+        // 受け取り済みなら書き上げは続く。まだなら戻ったときに取り直す。
+        // CLI が本文で返した失敗は、文言が似ていても出す。
+        silent =
+          !fromAgent &&
+          isDisconnectError(cause) &&
+          (accepted || document.visibilityState === 'hidden')
+        if (!silent) {
+          setNotice(cause instanceof Error ? space.busyNotice(cause.message) : '送信できませんでした')
+        }
+        if (!accepted && !silent) throw cause
       } finally {
         setStatus('idle')
         busy.current = false
         setActivity(null)
-        if (accepted) void reload()
+        if (accepted || silent) void reload()
       }
     },
     [space, id, putName, putTags, reload],

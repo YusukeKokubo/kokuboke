@@ -32,6 +32,25 @@ async function errorMessage(res: Response): Promise<string> {
   return `通信に失敗しました (${res.status})`
 }
 
+/**
+ * ホームに出した・回線が一瞬切れた、といった fetch の切断。
+ * サーバーが本文で返す失敗（順番待ちなど）はここに入らない。
+ */
+export function isDisconnectError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true
+  if (!(error instanceof Error)) return false
+  if (error.name === 'AbortError') return true
+  const message = error.message.toLowerCase()
+  return (
+    message === 'network error' ||
+    message.includes('failed to fetch') ||
+    message.includes('load failed') ||
+    message.includes('networkerror') ||
+    message.startsWith('net::') ||
+    message.includes('aborted')
+  )
+}
+
 /** 名前に日本語や空白が入るので、経路に埋める前に必ず通す。 */
 function path(segment: string): string {
   return encodeURIComponent(segment)
