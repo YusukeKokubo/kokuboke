@@ -1,0 +1,2 @@
+runpod: requires_authentication
+kokuboke-dump: ready
