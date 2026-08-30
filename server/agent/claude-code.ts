@@ -4,7 +4,7 @@ import { runProcess } from './process'
 import type { AgentEvent, Engine, RunRequest } from './types'
 
 /** 明示的に禁止しておくツール。許可リストだけに頼らず二重に塞ぐ。 */
-const ALWAYS_DENIED = ['Bash', 'Task', 'WebFetch', 'WebSearch', 'NotebookEdit', 'KillShell', 'BashOutput']
+const ALWAYS_DENIED = ['Bash', 'Task', 'NotebookEdit', 'KillShell', 'BashOutput']
 
 function args(request: RunRequest): string[] {
   // 会話も要約の整理も読み取りだけで足りる。要約は AI に書かせず、
@@ -23,8 +23,12 @@ function args(request: RunRequest): string[] {
     request.model,
     '--append-system-prompt',
     request.systemPrompt,
+    // 天気や営業時間みたいな鮮度が要る質問に答えられるよう、読み取り系の
+    // WebSearch / WebFetch も許可する。--permission-mode dontAsk のままで
+    // 確認プロンプトなしに通ることは実機で確認済み（cursor 側のような
+    // 追加の許可設定は不要）。書き込み・実行系は ALWAYS_DENIED で塞いだまま。
     '--allowed-tools',
-    'Read',
+    'Read,WebSearch,WebFetch',
     '--disallowed-tools',
     ALWAYS_DENIED.join(','),
   ]
