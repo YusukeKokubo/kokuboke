@@ -11,6 +11,8 @@ const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
 
 process.env.DATA_DIR = dataDir
 process.env.USERS = 'taro'
+// .env の FCM_SERVICE_ACCOUNT_PATH はインラインより優先されるので、先に空で潰す。
+process.env.FCM_SERVICE_ACCOUNT_PATH = ''
 process.env.FCM_SERVICE_ACCOUNT = JSON.stringify({
   project_id: 'demo-proj',
   client_email: 'fcm@demo.iam.gserviceaccount.com',
