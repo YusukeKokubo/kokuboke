@@ -17,6 +17,11 @@ export interface RunRequest {
   systemPrompt: string
   model: string
   signal?: AbortSignal
+  /**
+   * cursor-agent の子へ足す環境変数。MCP の remember は mcp.json の
+   * `${KOKUBOKE_REMEMBER_USER}` 展開でこれを読む。個人チャット以外では載せない。
+   */
+  extraEnv?: Record<string, string>
 }
 
 export interface Engine {

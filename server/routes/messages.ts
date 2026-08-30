@@ -79,6 +79,7 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
     systemPrompt = chatSystemPrompt({ audience: space.audience, topicName: meta.name })
     prompt = chatPrompt({
       profile: await space.profile(),
+      memory: await space.memory(),
       tags: await readTagTexts(user, meta.tags),
       history: history.filter((m) => m.id !== userMessage.id),
       text: userMessage.text,
@@ -98,6 +99,7 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
     cwd: topicDir(user, id),
     prompt,
     systemPrompt,
+    extraEnv: space.kind === 'personal' ? { KOKUBOKE_REMEMBER_USER: user } : undefined,
     release,
     tag: 'chat',
     fallback: '返答を作れませんでした',

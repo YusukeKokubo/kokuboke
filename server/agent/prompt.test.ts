@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   chatPrompt,
+  chatSystemPrompt,
   classifyBlock,
   organizeDraftPrompt,
   organizePrompt,
@@ -79,6 +80,43 @@ describe('chatPrompt', () => {
     })
     assert.equal(text.includes('<revisions>'), false)
     assert.equal(text.includes('<organize_policy>'), false)
+  })
+
+  it('覚え書きは profile と別枠', () => {
+    const text = chatPrompt({
+      profile: '朝は弱い',
+      memory: '卵アレルギー',
+      tags: [],
+      history: [],
+      text: '朝食は？',
+      imagePaths: [],
+    })
+    assert.match(text, /<profile>\n朝は弱い\n<\/profile>/)
+    assert.match(text, /<memory>/)
+    assert.match(text, /あなたが前の会話で覚えたもの。間違いは人が直す/)
+    assert.match(text, /卵アレルギー/)
+    assert.equal(text.indexOf('<profile>') < text.indexOf('<memory>'), true)
+  })
+
+  it('空の覚え書きは枠ごと出さない', () => {
+    const text = chatPrompt({
+      profile: '朝は弱い',
+      memory: '  ',
+      tags: [],
+      history: [],
+      text: 'おはよう',
+      imagePaths: [],
+    })
+    assert.equal(text.includes('<memory>'), false)
+  })
+})
+
+describe('chatSystemPrompt', () => {
+  it('個人だけ remember の一文を足す', () => {
+    const personal = chatSystemPrompt({ audience: { kind: 'personal', user: 'taro' }, topicName: '夕食' })
+    const family = chatSystemPrompt({ audience: { kind: 'family' }, topicName: '夕食' })
+    assert.match(personal, /remember で覚える/)
+    assert.equal(family.includes('remember'), false)
   })
 })
 

@@ -18,8 +18,10 @@ const {
   writeClaude,
   writeOrganize,
   writeProfile,
+  readMemory,
+  appendMemory,
 } = await import('./user')
-const { assertUser, familyUser, organizeFile, tagsDir, userDir } = await import('./paths')
+const { assertUser, familyUser, organizeFile, tagsDir, userDir, memoryFile } = await import('./paths')
 const { createTopic, resolveTopic } = await import('./topic')
 
 after(() => fs.rmSync(dataDir, { recursive: true, force: true }))
@@ -104,6 +106,41 @@ describe('organize.md', () => {
     const link = path.join(userDir(USER), 'topics', found.folder, 'AGENTS.md')
     assert.ok((await fsp.lstat(link)).isSymbolicLink())
     assert.equal(await fsp.readlink(link), path.join('..', '..', 'CLAUDE.md'))
+  })
+})
+
+describe('覚え書き.md', () => {
+  it('無いファイルは空文字', async () => {
+    assert.equal(await readMemory(USER), '')
+  })
+
+  it('日時を添えて追記する', async () => {
+    const result = await appendMemory(USER, '  卵アレルギー  ')
+    assert.equal(result.ok, true)
+    const text = await readMemory(USER)
+    assert.match(text, /## \d{4}-\d{2}-\d{2} \d{2}:\d{2}/)
+    assert.match(text, /卵アレルギー/)
+    assert.equal(await fsp.readFile(memoryFile(USER), 'utf8'), text)
+  })
+
+  it('空は断ってファイルを作らない', async () => {
+    const result = await appendMemory(USER, '  \n')
+    assert.equal(result.ok, false)
+    if (result.ok) throw new Error('ok')
+    assert.match(result.reason, /空/)
+    assert.equal(await readMemory(USER), '')
+  })
+
+  it('上限を超える追記は書かずに断る', async () => {
+    const first = await appendMemory(USER, '残す')
+    assert.equal(first.ok, true)
+    const huge = 'あ'.repeat(20_000)
+    const result = await appendMemory(USER, huge)
+    assert.equal(result.ok, false)
+    if (result.ok) throw new Error('ok')
+    assert.match(result.reason, /上限/)
+    assert.match(await readMemory(USER), /残す/)
+    assert.equal((await readMemory(USER)).includes(huge), false)
   })
 })
 

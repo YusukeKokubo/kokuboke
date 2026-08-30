@@ -9,11 +9,13 @@ import {
   userOrganizeMd,
   userProfileMd,
 } from '../templates'
+import { localDate, localTime } from '../../shared/date'
 import { readMarkdown, writeMarkdown } from './markdown'
 import {
   assertUser,
   familyUser,
   isTopicName,
+  memoryFile,
   organizeFile,
   tagsDir,
   topicsDir,
@@ -146,4 +148,31 @@ export async function readOrganize(user: UserName): Promise<string> {
 
 export async function writeOrganize(user: UserName, text: string): Promise<void> {
   await writeMarkdown(organizeFile(user), text)
+}
+
+export async function readMemory(user: UserName): Promise<string> {
+  return readMarkdown(memoryFile(user))
+}
+
+export type AppendMemoryResult = { ok: true } | { ok: false; reason: string }
+
+/**
+ * 日時を添えて追記する。空は断る。追記後に上限を超えるなら書かずに断る。
+ * 雛形は置かない。無ければこの呼び出しで作る。
+ */
+export async function appendMemory(user: UserName, text: string): Promise<AppendMemoryResult> {
+  const body = text.trim()
+  if (!body) return { ok: false, reason: '覚える内容が空です' }
+
+  const file = memoryFile(user)
+  const existing = await readMemory(user)
+  const now = new Date()
+  const block = `## ${localDate(now)} ${localTime(now)}\n\n${body}\n`
+  const next = existing ? `${existing.replace(/\n+$/, '')}\n\n${block}` : block
+  if (Buffer.byteLength(next, 'utf8') > config.memoryMaxBytes) {
+    return { ok: false, reason: '覚え書きが上限に達しています。人が整理するまで追加できません' }
+  }
+
+  await fs.writeFile(file, next, 'utf8')
+  return { ok: true }
 }

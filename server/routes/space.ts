@@ -10,7 +10,7 @@ import {
   type UserName,
 } from '../store/paths'
 import { resolveTopic } from '../store/topic'
-import { readProfile } from '../store/user'
+import { readMemory, readProfile } from '../store/user'
 
 /**
  * 個人のスペースと家族共有スペースの違いをまとめた値。
@@ -35,6 +35,8 @@ export interface Space {
   authorOf(body: Record<string, unknown>): string | undefined
   /** profile.md の中身。無ければ空文字。 */
   profile(): Promise<string>
+  /** 覚え書き.md。家族スペースでは空。 */
+  memory(): Promise<string>
 }
 
 /** `/media/family/...` と `/api/family/...` で使う区切り。config が USERS に禁じている。 */
@@ -49,6 +51,7 @@ function personalSpace(user: UserName): Space {
     busyKey: () => user,
     authorOf: () => undefined,
     profile: () => readProfile(user),
+    memory: () => readMemory(user),
   }
 }
 
@@ -68,6 +71,7 @@ function familySpace(): Space {
       return assertAuthor(raw)
     },
     profile: () => readProfile(user),
+    memory: async () => '',
   }
 }
 

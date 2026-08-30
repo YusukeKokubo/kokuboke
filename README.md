@@ -29,6 +29,7 @@
 └── taro/
     ├── CLAUDE.md              人物の設定（手書き。どの会話でも効く）
     ├── profile.md             人物像の覚え書き（手書き）
+    ├── 覚え書き.md             AI が会話で覚えた事実（日時付き追記）
     ├── organize.md            分類の方針（人が採用したときだけ書く）
     ├── revisions.jsonl        人が直した見出し・タグ・整理の対
     ├── devices.json           Android 端末の FCM トークン（その人の返答完了を飛ばす先）

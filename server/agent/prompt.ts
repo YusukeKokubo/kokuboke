@@ -63,12 +63,18 @@ ${who}
   で囲んでください。式が主役になる説明では、素の文字で書くより読みやすくなります。
 - ファイルの作成・編集・削除はしないでください。読み取りだけ行えます。
 - 添付（画像・PDF・テキスト）がある場合は、示された絶対パスを Read ツールで開いて内容を踏まえて答えてください。
-- 「承知しました」のような前置きや、返答の要約は書かないでください。本文だけを返します。`
+- 「承知しました」のような前置きや、返答の要約は書かないでください。本文だけを返します。${
+    input.audience.kind === 'personal'
+      ? '\n- 家族の事実や好みを知ったら remember で覚える。'
+      : ''
+  }`
 }
 
 export function chatPrompt(input: {
   /** スペース直下の profile.md。無ければ空文字。 */
   profile: string
+  /** AI が前の会話で覚えたもの。無ければ空文字。 */
+  memory?: string
   /** 付いているタグの覚え書き。無ければ空。 */
   tags: { name: string; text: string }[]
   history: Message[]
@@ -82,6 +88,11 @@ export function chatPrompt(input: {
 
   if (input.profile.trim()) {
     parts.push(`<profile>\n${input.profile.trim()}\n</profile>`)
+  }
+  if (input.memory?.trim()) {
+    parts.push(
+      `<memory>\nあなたが前の会話で覚えたもの。間違いは人が直す。\n\n${input.memory.trim()}\n</memory>`,
+    )
   }
   for (const tag of input.tags) {
     if (!tag.text.trim()) continue

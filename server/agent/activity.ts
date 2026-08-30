@@ -5,19 +5,21 @@
  * どちらの CLI も道具は増えるので、対応表に無いものが来ることを前提にする。
  * 表に足すときは、実際に叩いて出てきた名前を写す（推測で書かない）。
  */
-export type ActivityKind = 'read' | 'search' | 'web' | 'fetch' | 'other'
+export type ActivityKind = 'read' | 'search' | 'web' | 'fetch' | 'remember' | 'other'
 
 const LABELS: Record<ActivityKind, string> = {
   read: 'ファイルを見ています',
   search: '書いたものを探しています',
   web: 'ウェブで調べています',
   fetch: 'ページを読んでいます',
+  remember: '覚えています',
   other: '調べています',
 }
 
 /**
  * cursor-agent の tool_call のキー。2026.08.11-e8db854 で実際に出たのは
- * read / glob / grep / webSearch / webFetch の五つ。
+ * read / glob / grep / webSearch / webFetch の五つ。mcp は 2026.08.30 に
+ * mcpToolCall として来た。
  */
 const CURSOR: Record<string, ActivityKind> = {
   readToolCall: 'read',
@@ -25,6 +27,7 @@ const CURSOR: Record<string, ActivityKind> = {
   grepToolCall: 'search',
   webSearchToolCall: 'web',
   webFetchToolCall: 'fetch',
+  mcpToolCall: 'other',
 }
 
 /** Claude Code の tool_use の name。会話で許しているのは Read だけ。 */
@@ -44,6 +47,10 @@ const CLAUDE: Record<string, ActivityKind> = {
 export function cursorActivity(toolCall: Record<string, unknown>): string | null {
   const key = Object.keys(toolCall).find((name) => name.endsWith('ToolCall'))
   if (!key) return null
+  if (key === 'mcpToolCall') {
+    const inner = toolCall.mcpToolCall as { args?: { toolName?: string } } | undefined
+    if (inner?.args?.toolName === 'remember') return LABELS.remember
+  }
   return LABELS[CURSOR[key] ?? 'other']
 }
 

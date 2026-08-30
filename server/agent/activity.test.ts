@@ -20,6 +20,19 @@ describe('cursorActivity', () => {
     assert.equal(cursorActivity({ somethingNewToolCall: {} }), '調べています')
   })
 
+  it('remember は覚えています、他の MCP は丸める', () => {
+    assert.equal(
+      cursorActivity({
+        mcpToolCall: { args: { toolName: 'remember', serverIdentifier: 'kokuboke-remember' } },
+      }),
+      '覚えています',
+    )
+    assert.equal(
+      cursorActivity({ mcpToolCall: { args: { toolName: 'dump' } } }),
+      '調べています',
+    )
+  })
+
   it('道具の名前が見つからなければ何も出さない', () => {
     assert.equal(cursorActivity({ toolCallId: 'x' }), null)
     assert.equal(cursorActivity({}), null)

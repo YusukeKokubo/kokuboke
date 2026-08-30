@@ -22,6 +22,7 @@ export function streamAgent<E>(
     cwd: string
     prompt: string
     systemPrompt: string
+    extraEnv?: Record<string, string>
     /** limiter.acquire の戻り。 */
     release: () => void
     /** ログに出す札と、理由が分からないときに画面へ出す文言。 */
@@ -64,6 +65,7 @@ export function streamAgent<E>(
           cwd: run.cwd,
           prompt: run.prompt,
           systemPrompt: run.systemPrompt,
+          extraEnv: run.extraEnv,
           signal: survive ? undefined : c.req.raw.signal,
         },
         {

@@ -1,6 +1,6 @@
 import { config } from '../config'
 import { cursorActivity } from './activity'
-import { ensureWebSearchApproved } from './cursor-config'
+import { ensureRememberMcp, ensureWebSearchApproved } from './cursor-config'
 import { runProcess } from './process'
 import type { AgentEvent, Engine, RunRequest } from './types'
 
@@ -25,6 +25,8 @@ function args(request: RunRequest): string[] {
     // 書き込みもシェルも最初から無いので、増えるのはウェブの読み取りだけ。
     // ついでに --sandbox が無効になるが、そこに頼っていた守りは元から無い。
     '--force',
+    // ask のまま MCP の道具だけ通す。remember はこちらが実装した入口。
+    '--approve-mcps',
     '--model',
     request.model,
   ]
@@ -79,6 +81,7 @@ export const cursorAgent: Engine = {
     // ログインし直したあとは設定が既定に戻っていることがあるので、
     // 起動のたびに確かめる。立っていれば読むだけで済む。
     await ensureWebSearchApproved()
+    await ensureRememberMcp()
 
     /** 閉じた区切りをつないだもの。 */
     let segments = ''
@@ -111,6 +114,7 @@ export const cursorAgent: Engine = {
       cwd: request.cwd,
       stdin: buildPrompt(request),
       signal: request.signal,
+      extraEnv: request.extraEnv,
 
       onLine(line, emit) {
         if (line.type === 'assistant') {

@@ -60,6 +60,9 @@ export const config = {
   /** 受け付けるアップロードの最大バイト数。 */
   uploadMaxBytes: num(process.env.UPLOAD_MAX_BYTES, 20 * 1024 * 1024),
 
+  /** 覚え書き.md の上限。超えたら追記を断る。溜まる速さが読めないので小さく始める。 */
+  memoryMaxBytes: 8 * 1024,
+
   /** トピックに指定が無いときに使うエンジン。 */
   defaultEngine: isEngineId(process.env.DEFAULT_ENGINE) ? process.env.DEFAULT_ENGINE : 'cursor',
 

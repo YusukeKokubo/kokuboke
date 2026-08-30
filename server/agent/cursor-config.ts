@@ -1,6 +1,8 @@
+import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 /**
  * cursor-agent はヘッドレス（--print）でもウェブ検索・ページ取得のたびに
@@ -11,11 +13,14 @@ import path from 'node:path'
  * cli-config.json の autoAcceptWebSearch を見るので、そこだけ立てておく。
  * このファイルは設定用のボリュームの中にあり、イメージには焼けない。
  */
-function configFile(): string {
+function configDir(): string {
   const explicit = process.env.CURSOR_CONFIG_DIR?.trim()
   const xdg = process.env.XDG_CONFIG_HOME?.trim()
-  const dir = explicit || (xdg ? path.join(xdg, 'cursor') : path.join(os.homedir(), '.cursor'))
-  return path.join(dir, 'cli-config.json')
+  return explicit || (xdg ? path.join(xdg, 'cursor') : path.join(os.homedir(), '.cursor'))
+}
+
+function configFile(): string {
+  return path.join(configDir(), 'cli-config.json')
 }
 
 async function apply(): Promise<void> {
@@ -52,4 +57,85 @@ export function ensureWebSearchApproved(): Promise<void> {
   )
 
   return inFlight
+}
+
+const REMEMBER_SERVER = 'kokuboke-remember'
+
+/**
+ * cursor-agent が読む global mcp.json は `~/.cursor/mcp.json`（homedir 固定）。
+ * テストで CURSOR_CONFIG_DIR を指しているときは、手元の IDE 用ファイルを触らない。
+ */
+function mcpConfigFile(): string {
+  const explicit = process.env.CURSOR_CONFIG_DIR?.trim()
+  if (explicit) return path.join(explicit, 'mcp.json')
+  return path.join(os.homedir(), '.cursor', 'mcp.json')
+}
+
+function rememberLaunch(): { command: string; args: string[] } {
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const bundled = path.join(here, 'mcp.js')
+  if (fs.existsSync(bundled)) {
+    return { command: process.execPath, args: [bundled] }
+  }
+  const source = path.resolve(here, '../mcp/index.ts')
+  const tsx = path.resolve(here, '../../node_modules/tsx/dist/cli.mjs')
+  return { command: process.execPath, args: [tsx, source] }
+}
+
+function rememberServer(): Record<string, unknown> {
+  const { command, args } = rememberLaunch()
+  return {
+    command,
+    args,
+    env: {
+      DATA_DIR: '${DATA_DIR}',
+      USERS: '${USERS}',
+      TZ: '${TZ}',
+      FAMILY_DIR: '${FAMILY_DIR}',
+      KOKUBOKE_REMEMBER_USER: '${KOKUBOKE_REMEMBER_USER}',
+    },
+  }
+}
+
+async function applyMcp(): Promise<void> {
+  const file = mcpConfigFile()
+  let parsed: { mcpServers?: Record<string, unknown> }
+  try {
+    parsed = JSON.parse(await fsp.readFile(file, 'utf8')) as { mcpServers?: Record<string, unknown> }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    parsed = { mcpServers: {} }
+  }
+
+  const servers = { ...(parsed.mcpServers ?? {}) }
+  const next = rememberServer()
+  if (JSON.stringify(servers[REMEMBER_SERVER]) === JSON.stringify(next)) return
+
+  servers[REMEMBER_SERVER] = next
+  parsed.mcpServers = servers
+  await fsp.mkdir(path.dirname(file), { recursive: true })
+  const tmp = `${file}.${process.pid}.tmp`
+  await fsp.writeFile(tmp, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8')
+  await fsp.rename(tmp, file)
+}
+
+let mcpSettled = false
+let mcpInFlight: Promise<void> | null = null
+
+/** remember を global mcp.json に足す。既にある他のサーバーは消さない。 */
+export function ensureRememberMcp(): Promise<void> {
+  if (mcpSettled) return Promise.resolve()
+
+  mcpInFlight ??= applyMcp().then(
+    () => {
+      mcpSettled = true
+      mcpInFlight = null
+    },
+    (error: unknown) => {
+      console.warn('[cursor] remember の mcp.json を書けませんでした:', String(error))
+      mcpInFlight = null
+    },
+  )
+
+  return mcpInFlight
 }

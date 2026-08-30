@@ -50,8 +50,8 @@ class EventQueue<T> {
  * 環境変数は原則そのまま渡す。ただし、開発中に Claude Code の中から
  * 起動したときに紛れ込む入れ子用の変数だけは落としておく。
  */
-function childEnv(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env, LANG: process.env.LANG ?? 'C.UTF-8' }
+function childEnv(extra?: Record<string, string>): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, LANG: process.env.LANG ?? 'C.UTF-8', ...extra }
   for (const key of Object.keys(env)) {
     if (key === 'CLAUDECODE' || key.startsWith('CLAUDE_CODE_') || key === 'CLAUDE_PID') {
       delete env[key]
@@ -77,6 +77,7 @@ export interface ProcessSpec {
   finished(): boolean
   /** CLI 側がエラーを報告していれば、その文言。 */
   reportedError(): string | null
+  extraEnv?: Record<string, string>
 }
 
 /** JSON Lines を吐く CLI を起動して、本文の差分と最終結果を流す。 */
@@ -86,7 +87,7 @@ export async function* runProcess(spec: ProcessSpec): AsyncGenerator<AgentEvent>
   const child = spawn(spec.bin, spec.args, {
     cwd: spec.cwd,
     stdio: ['pipe', 'pipe', 'pipe'],
-    env: childEnv(),
+    env: childEnv(spec.extraEnv),
   })
 
   const timer = setTimeout(() => {

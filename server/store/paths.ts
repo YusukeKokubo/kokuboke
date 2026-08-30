@@ -107,6 +107,11 @@ export function organizeFile(user: UserName): string {
   return path.join(userDir(user), 'organize.md')
 }
 
+/** AI が会話で覚えた事実。人が書いた profile.md とは別ファイル。 */
+export function memoryFile(user: UserName): string {
+  return path.join(userDir(user), '覚え書き.md')
+}
+
 /** 検証済みの id から会話ディレクトリを組み立てる。 */
 export function topicDir(user: UserName, id: TopicName): string {
   return path.join(topicsDir(user), id)
