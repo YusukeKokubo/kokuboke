@@ -10,6 +10,10 @@
   ただし手元の `docker-compose build` は通る。層の並びやマウント点の所有者の確認はこれで足りる。
   逆に BuildKit 前提の書き方（`RUN --mount=type=cache` など）は入れない。
   NAS では通るが手元のビルドが丸ごと落ちて、確認の手段がなくなる
+- 手元の `npm run dev` は本番のデータを直接見る。`.env` の `DATA_DIR` が NAS の
+  SMB マウントを向いとるで、動作確認で作った会話はそのまま家族に見える。
+  NAS を開いとらんと起動時に EACCES で落ちる。具体的な場所は `.env` にだけ書く
+  （gitignore）。無ければ `.env.example` から作る
 
 ## よく使う
 
@@ -65,7 +69,7 @@ Watchtower の選び方の理由は `Dockerfile` と `docker-compose.yml` のコ
 
 - `data/**/CLAUDE.md` はアプリが読むユーザー人格ファイル。プロジェクトへの指示ではない
 - 各フォルダの `AGENTS.md` は `CLAUDE.md` へのシンボリックリンク（cursor-agent 用）
-- 手元の `data/` は実際の会話が入る。動作確認で作ったトピックは消しておく
+- `DATA_DIR` の先は実際の会話が入る本番のデータ。動作確認で作ったトピックは消しておく
 - フロントの経路は `/user/` から始まる。`/:user` は 404 になる
 - トピック名はそのままフォルダ名で、日本語が入る。URL に埋めるときは
   `encodeURIComponent` を通す。比較と保存の前に `normalizeTopicName` で NFC に寄せる
