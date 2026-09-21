@@ -96,9 +96,9 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
   `CLAUDE.md` / `CLAUDE.local.md` が無いときだけ（ホームの `~/.claude/CLAUDE.md` は数えない）。
   直接読んだ分は `/context` に出ないので、確認は起動時の `AGENTS.md loaded` の行か、
   ヘッドレスで指示の中身を聞く。cursor-agent は昔から親まで遡って読む
-- 手元の `npm run dev` は NAS の `data/` を見るが、その親に compose 用の clone の `CLAUDE.md` が
-  あるので、手元から起こした Claude Code は人格の `AGENTS.md` を読まない（コンテナでは読む）。
-  仕組みの確認は README の「開発時の注意」に沿って設定を変えるか、コンテナから叩く
+- 手元の `npm run dev` は NAS の `data/` を見るが、その親に compose 用の clone があるので、
+  手元から起こした Claude Code はそこのプロジェクト用 `AGENTS.md` も一緒に読む（コンテナでは
+  読まない）。clone の方が古くて `CLAUDE.md` のままだと、それだけが読まれて人格が効かない
 - cursor の `assistant` イベントは、道具を挟むと本文がいくつかの区切りに分かれ、
   区切りの終わりに、そこまでの差分を丸ごと繰り返した言い直しが一つ届く。
   `timestamp_ms` が無いのはいちばん最後の区切りだけで、途中の区切りの言い直しは

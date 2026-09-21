@@ -13,7 +13,6 @@ docs
 scripts
 .github
 README.md
-CLAUDE.md
 AGENTS.md
 .claude
 .claude.local.md

@@ -408,10 +408,10 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 コンテナでは `HOME=/home/app` になるのでこの混入は起きない。
 
 手元の `DATA_DIR` が NAS の SMB マウントで、その上の階層にこのリポジトリの clone
-（compose を置いている `kokuboke/`）があると、そこの `CLAUDE.md` に当たって `/data` 側の
-`AGENTS.md` は読まれない。コンテナでは `/data` に直接マウントされるので起きない。
-手元でも人格を効かせたいなら、`~/.claude/settings.json` の `pluginConfigs` で
-`agents-md@builtin` の `instructionFiles` を `claude-md-and-agents-md` にする。
+（compose を置いている `kokuboke/`）があると、そこのプロジェクト用 `AGENTS.md` も一緒に
+読まれる。人格と開発の指示が混ざるが、人格は効く。clone に `CLAUDE.md` があった頃は
+そちらだけが読まれて人格が効かなかったので、clone を古いままにしないこと。
+コンテナでは `/data` に直接マウントされるので、どちらも起きない。
 
 Claude Code が `AGENTS.md` を読むのは、Anthropic からフィーチャーフラグを取れるセッションだけ。
 更新直後の最初の一回も読まない。人格が効いていないと感じたら、コンテナで
