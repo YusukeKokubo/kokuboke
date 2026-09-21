@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Tags, Trash2, UserRound } from 'lucide-react'
+import { ChevronDown, ChevronsDown, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Tags, Trash2, UserRound } from 'lucide-react'
 import type { Topic } from '../../shared/types'
 import { topicLabel } from '@/lib/format'
 import { familySpace, personalSpace, useSpace, type Space } from '@/lib/space'
@@ -93,6 +93,9 @@ export function TopicsProvider({ children }: { children: ReactNode }) {
     </TopicsContext.Provider>
   )
 }
+
+// サイドバーに最初から描く会話の数。押すたびにこの数ずつ増える
+const TOPICS_PAGE = 20
 
 function atPath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`)
@@ -217,6 +220,15 @@ function SpaceSection({
   const { id } = useParams()
   const { isMobile, setOpenMobile } = useSidebar()
   const here = atPath(pathname, space.home)
+  const [shown, setShown] = useState(TOPICS_PAGE)
+  // 開いている会話が折り畳まれた側にあれば、そこまで見えるように広げる
+  const visible = useMemo(() => {
+    if (!topics) return []
+    const at = here && id ? topics.findIndex((topic) => topic.slug === id) : -1
+    const need = at >= 0 ? Math.ceil((at + 1) / TOPICS_PAGE) * TOPICS_PAGE : 0
+    return topics.slice(0, Math.max(shown, need))
+  }, [topics, shown, here, id])
+  const hidden = (topics?.length ?? 0) - visible.length
 
   return (
     <SidebarGroup>
@@ -289,7 +301,7 @@ function SpaceSection({
               <p className="text-muted-foreground px-2 py-3 text-xs">まだ会話がないよ。</p>
             )}
             <SidebarMenu>
-              {topics?.map((topic) => (
+              {visible.map((topic) => (
                 <SidebarMenuItem key={`${space.docKey()}:${topic.slug}`}>
                   <SidebarMenuButton
                     isActive={here && id === topic.slug}
@@ -320,6 +332,17 @@ function SpaceSection({
                   </DropdownMenu>
                 </SidebarMenuItem>
               ))}
+              {hidden > 0 && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    className="text-muted-foreground"
+                    onClick={() => setShown(visible.length + TOPICS_PAGE)}
+                  >
+                    <ChevronsDown />
+                    もっと見る（あと {hidden} 件）
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </CollapsibleContent>
         </Collapsible>
