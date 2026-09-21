@@ -19,7 +19,7 @@ import {
 import { shortDate } from '../../shared/date'
 import { countUserMessages, readLastEntry } from './log'
 import { appendRevision } from './revision'
-import { ensureChatAgentsLink, ensureUser } from './user'
+import { ensureUser } from './user'
 
 export interface TopicMeta {
   /** フォルダ名。`YY-MM-DD` または `YY-MM-DD-見出し`。 */
@@ -253,7 +253,6 @@ export async function createTopic(
   }
 
   await writeMeta(user, folder, meta)
-  await ensureChatAgentsLink(topicDir(user, folder))
 
   return toTopic(meta, null)
 }

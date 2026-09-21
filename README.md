@@ -19,7 +19,7 @@
 ```
 /data
 ├── _family/                   家族共有スペース（予約名。FAMILY_DIR で変えられる）
-│   ├── CLAUDE.md              家族みんなの秘書役の設定（手書き）
+│   ├── AGENTS.md              家族みんなの秘書役の設定（手書き）
 │   ├── profile.md             家族の覚え書き（手書き）
 │   ├── organize.md            個人と同じ
 │   ├── revisions.jsonl        個人と同じ
@@ -27,7 +27,7 @@
 │   ├── tags/                  個人と同じ
 │   └── topics/
 └── taro/
-    ├── CLAUDE.md              人物の設定（手書き。どの会話でも効く）
+    ├── AGENTS.md              人物の設定（手書き。どの会話でも効く）
     ├── profile.md             人物像の覚え書き（手書き）
     ├── 覚え書き.md             AI が会話で覚えた事実（日時付き追記）
     ├── organize.md            分類の方針（人が採用したときだけ書く）
@@ -39,7 +39,6 @@
     └── topics/
         └── 26-08-15-夕食の相談/
             ├── topic.json     id（uuid）・見出し・エンジン・タグ
-            ├── AGENTS.md      → ../../CLAUDE.md
             ├── logs/          YYYYMMDD.md（閲覧用） / YYYYMMDD.jsonl（読み戻し用）
             ├── images/        YYYYMMDD_HHMMSS.jpg
             └── files/         YYYYMMDD_HHMMSS_xxxx_名前.pdf（テキスト・PDF）
@@ -52,7 +51,7 @@ NAS で見たときに日付順になる。見出しを付け直すとフォル�
 会話に付いているタグの本文は、話すたびにプロンプトへ入る。タグが無ければ覚え書きは無い。
 タグは大分類だけを使う。一覧の見出しは `tags.json` の棚（`group`）で、会話には付かない。
 人は雑な名前でよく、3 回目と「付け直す」と一覧の「整理する」が大分類と棚へ寄せる。
-確定は人。人／家族直下の `CLAUDE.md` と `profile.md` は人格と人の事実のまま残す。
+確定は人。人／家族直下の `AGENTS.md` と `profile.md` は人格と人の事実のまま残す。
 分類の学びは `revisions.jsonl`（フロー）と `organize.md`（ストック）へ。会話ごとの
 `CLAUDE.md` と `summary.md` は置かない。
 
@@ -82,11 +81,13 @@ NAS で見たときに日付順になる。見出しを付け直すとフォル�
 
 命名にもタグ付けにも、その会話のエンジン・モデルを使う。
 
-Claude Code は `CLAUDE.md` を、cursor-agent は `AGENTS.md` を、どちらも作業ディレクトリから
-親を遡って読む。人／家族直下に `AGENTS.md` → `CLAUDE.md` を、会話フォルダには
-`AGENTS.md` → `../../CLAUDE.md` を張ってある。人格の定義は直下の `CLAUDE.md` 1 か所に
-置いたまま、どちらのエンジンでも同じ振る舞いになる。Claude Code は `AGENTS.md` を
-読まないので二重に読み込まれることはない。
+人格の定義は人／家族直下の `AGENTS.md` 1 枚。Claude Code（2.1.277 以降）も cursor-agent も、
+作業ディレクトリから親を遡って `AGENTS.md` を読むので、会話フォルダには何も置かない。
+Claude Code は作業ディレクトリかその上に `CLAUDE.md` が一つでもあると `AGENTS.md` を
+読まないため、`/data` の下に `CLAUDE.md` を置かないこと。以前の形（`CLAUDE.md` が実体で
+`AGENTS.md` はそれへのリンク、会話フォルダにも `AGENTS.md` → `../../CLAUDE.md`）が残っていれば、
+起動時に中身を `AGENTS.md` へ移してリンクと `CLAUDE.md` を消す。手で書かれた別内容の
+`AGENTS.md` があれば残し、`CLAUDE.md` は `CLAUDE.md.bak` に退ける。
 
 タグ名の文字規則は、以前のトピック名と同じ。パスの区切りになる文字と、
 SMB で扱えない文字（`: * ? " < > |`）だけを弾く。
@@ -349,8 +350,8 @@ Firebase のプロジェクトを家庭用に一つ作り、次を揃える。
 | POST | `/api/users/:user/tags/:tag/draft` | タグ本文の下書き。SSE で流す（保存はしない） |
 | GET | `/api/users/:user/profile` | プロフィール（`profile.md`）を読む |
 | PUT | `/api/users/:user/profile` | プロフィールを保存する |
-| GET | `/api/users/:user/claude` | ユーザーの `CLAUDE.md` を読む |
-| PUT | `/api/users/:user/claude` | ユーザーの `CLAUDE.md` を保存する |
+| GET | `/api/users/:user/agents` | ユーザーの `AGENTS.md`（人格）を読む |
+| PUT | `/api/users/:user/agents` | ユーザーの `AGENTS.md` を保存する |
 | GET | `/api/users/:user/organize` | 整理の方針（`organize.md`）を読む |
 | PUT | `/api/users/:user/organize` | 整理の方針を保存する |
 | POST | `/api/users/:user/organize/draft` | 方針の下書き。SSE で流す（保存はしない） |
@@ -376,7 +377,7 @@ Firebase のプロジェクトを家庭用に一つ作り、次を揃える。
 | --- | --- | --- |
 | 選べるモデル | Opus 5 / Sonnet 5 / Haiku 4.5 | GPT-5.x、Grok、Composer、Kimi、Claude 各種 |
 | 既定のモデル | Opus 5 | おまかせ（auto） |
-| 人格の定義 | `CLAUDE.md` を親まで遡って読む | `AGENTS.md` を親まで遡って読む |
+| 人格の定義 | `AGENTS.md` を親まで遡って読む（2.1.277 以降） | `AGENTS.md` を親まで遡って読む |
 | 役割の指示 | `--append-system-prompt` | 本文の先頭に積む |
 | 権限 | ツール単位の許可リストで `Read` だけ | `--mode ask`（読み取り専用) |
 
@@ -401,9 +402,20 @@ cursor-agent はイメージにも入れてあるが、`cursor-agent login` を�
 
 ## 開発時の注意
 
-Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/CLAUDE.md` も読み込む。
+Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/CLAUDE.md` も読み込む
+（ホームの CLAUDE.md は `AGENTS.md` を読む条件の妨げにはならず、両方読まれる）。
 `/data` 側の設定だけを効かせたい場合は、その内容が混ざっていないか確認すること。
 コンテナでは `HOME=/home/app` になるのでこの混入は起きない。
+
+手元の `DATA_DIR` が NAS の SMB マウントで、その上の階層にこのリポジトリの clone
+（compose を置いている `kokuboke/`）があると、そこの `CLAUDE.md` に当たって `/data` 側の
+`AGENTS.md` は読まれない。コンテナでは `/data` に直接マウントされるので起きない。
+手元でも人格を効かせたいなら、`~/.claude/settings.json` の `pluginConfigs` で
+`agents-md@builtin` の `instructionFiles` を `claude-md-and-agents-md` にする。
+
+Claude Code が `AGENTS.md` を読むのは、Anthropic からフィーチャーフラグを取れるセッションだけ。
+更新直後の最初の一回も読まない。人格が効いていないと感じたら、コンテナで
+`claude --version` が 2.1.277 以上か、`/data` の下に `CLAUDE.md` が残っていないかを見る。
 
 ## 実装の進み具合
 
@@ -418,11 +430,11 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 - `/user/:user/tags` — その人のタグ一覧。
 - `/user/:user/tags/:tag.md` — タグ本文。ファイルは `tags/{tag}.md`。
 - `/user/:user/profile.md` — プロフィール。ファイルは `profile.md`。
-- `/user/:user/CLAUDE.md` — その人の `CLAUDE.md`。
+- `/user/:user/AGENTS.md` — その人の `AGENTS.md`（人格）。
 - `/user/:user/organize.md` — 整理の方針。ファイルは `organize.md`。
 - `/user/:user/:id` — チャット。日付の区切り、画像付きの吹き出し、
   返答が届くにつれて伸びていく表示、見出しの下のタグ。
-- `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/profile.md` / `/family/CLAUDE.md` / `/family/organize.md` / `/family/:id` — 家族共有スペースの同じ画面。
+- `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/profile.md` / `/family/AGENTS.md` / `/family/organize.md` / `/family/:id` — 家族共有スペースの同じ画面。
 - `/admin` — イメージの差し替え。
 
 返答を作っているあいだは、ファイルを開いたりウェブを見に行ったりしていることを
@@ -432,7 +444,7 @@ Mac で `npm run dev` すると、Claude Code が開発者自身の `~/.claude/C
 タグの本文は `/user/:user/tags/:tag.md` と `/family/tags/:tag.md` から開く。
 そのまま手で直せるし、AI に整理させることもできる（使うモデルは、そのタグが
 付いているいちばん新しい会話のもの）。
-プロフィールと `CLAUDE.md` も専用画面から直す。
+プロフィールと `AGENTS.md` も専用画面から直す。
 AI が返すのは案で、保存を押すまでファイルは変わらない。
 気に入らなければ「元に戻す」で開いたときの内容に戻る。
 

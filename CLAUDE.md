@@ -67,8 +67,8 @@ Watchtower の選び方の理由は `Dockerfile` と `docker-compose.yml` のコ
 
 ## 間違えやすいところ
 
-- `data/**/CLAUDE.md` はアプリが読むユーザー人格ファイル。プロジェクトへの指示ではない
-- 各フォルダの `AGENTS.md` は `CLAUDE.md` へのシンボリックリンク（cursor-agent 用）
+- `data/**/AGENTS.md` はアプリが読むユーザー人格ファイル。プロジェクトへの指示ではない。
+  `data/` の下に `CLAUDE.md` を置くと Claude Code が `AGENTS.md` を読まなくなる（起動時に移して消す）
 - `DATA_DIR` の先は実際の会話が入る本番のデータ。動作確認で作ったトピックは消しておく
 - フロントの経路は `/user/` から始まる。`/:user` は 404 になる
 - トピック名はそのままフォルダ名で、日本語が入る。URL に埋めるときは
@@ -92,7 +92,13 @@ Watchtower の選び方の理由は `Dockerfile` と `docker-compose.yml` のコ
 CLI のフラグと出力形式は推測で書かず、実際に叩いて確かめてから実装する。
 このプロジェクトで実際に踏んだ落とし穴:
 
-- Claude Code は `AGENTS.md` を読まない。cursor-agent は親まで遡って読む
+- Claude Code が `AGENTS.md` を直接読むのは 2.1.277 以降で、作業ディレクトリとその上に
+  `CLAUDE.md` / `CLAUDE.local.md` が無いときだけ（ホームの `~/.claude/CLAUDE.md` は数えない）。
+  直接読んだ分は `/context` に出ないので、確認は起動時の `AGENTS.md loaded` の行か、
+  ヘッドレスで指示の中身を聞く。cursor-agent は昔から親まで遡って読む
+- 手元の `npm run dev` は NAS の `data/` を見るが、その親に compose 用の clone の `CLAUDE.md` が
+  あるので、手元から起こした Claude Code は人格の `AGENTS.md` を読まない（コンテナでは読む）。
+  仕組みの確認は README の「開発時の注意」に沿って設定を変えるか、コンテナから叩く
 - cursor の `assistant` イベントは、道具を挟むと本文がいくつかの区切りに分かれ、
   区切りの終わりに、そこまでの差分を丸ごと繰り返した言い直しが一つ届く。
   `timestamp_ms` が無いのはいちばん最後の区切りだけで、途中の区切りの言い直しは

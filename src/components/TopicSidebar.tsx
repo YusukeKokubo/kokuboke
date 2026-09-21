@@ -267,12 +267,12 @@ function SpaceSection({
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
-              isActive={pathname === space.claude}
-              render={<Link to={space.claude} />}
+              isActive={pathname === space.agents}
+              render={<Link to={space.agents} />}
               onClick={() => setOpenMobile(false)}
             >
               <FileText />
-              CLAUDE.md
+              AGENTS.md
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

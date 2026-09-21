@@ -37,7 +37,8 @@ RUN apt-get update \
 # 版を固定するのは、CI が毎回まっさらな環境でビルドするため。最新を取りに行かせると
 # 押すたびに CLI の版が上がり、そのたびにサブスクリプションのログインが切れる。
 # 上げたいときはここを書き換えて、コンテナに入り直してログインし直す。
-ARG CLAUDE_VERSION=2.1.226
+# 人格ファイルは AGENTS.md なので、直接読める 2.1.277 より前には戻せない。
+ARG CLAUDE_VERSION=2.1.278
 RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_VERSION}" \
   && npm cache clean --force
 

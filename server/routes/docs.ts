@@ -11,10 +11,10 @@ import { readRevisions } from '../store/revision'
 import { listTags } from '../store/tag'
 import { listTopics } from '../store/topic'
 import {
-  readClaude as readUserClaude,
+  readAgents as readUserAgents,
   readOrganize,
   readProfile,
-  writeClaude as writeUserClaude,
+  writeAgents as writeUserAgents,
   writeOrganize,
   writeProfile,
 } from '../store/user'
@@ -32,10 +32,10 @@ markdownDoc(
 
 markdownDoc(
   docs,
-  spacePaths('/claude'),
-  'claude',
-  (c) => readUserClaude(resolveSpace(c).user),
-  (c, text) => writeUserClaude(resolveSpace(c).user, text),
+  spacePaths('/agents'),
+  'agents',
+  (c) => readUserAgents(resolveSpace(c).user),
+  (c, text) => writeUserAgents(resolveSpace(c).user, text),
 )
 
 markdownDoc(

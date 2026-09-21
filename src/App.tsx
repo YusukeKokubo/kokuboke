@@ -10,7 +10,7 @@ import { SpaceShell } from '@/components/SpaceHeader'
 import TopicListPage from './pages/TopicListPage'
 import ChatPage from './pages/ChatPage'
 import TagsPage from './pages/TagsPage'
-import { ClaudePage, OrganizePage, ProfilePage } from './pages/SpaceDocPage'
+import { AgentsPage, OrganizePage, ProfilePage } from './pages/SpaceDocPage'
 import AdminPage from './pages/AdminPage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,7 +41,7 @@ export default function App() {
             <Route path="tags" element={<TagsPage />} />
             <Route path="tags/:tag" element={<TagsPage />} />
             <Route path="profile.md" element={<ProfilePage />} />
-            <Route path="CLAUDE.md" element={<ClaudePage />} />
+            <Route path="AGENTS.md" element={<AgentsPage />} />
             <Route path="organize.md" element={<OrganizePage />} />
             <Route path=":id" element={<ChatPage />} />
           </Route>
@@ -52,7 +52,7 @@ export default function App() {
             <Route path="tags" element={<TagsPage />} />
             <Route path="tags/:tag" element={<TagsPage />} />
             <Route path="profile.md" element={<ProfilePage />} />
-            <Route path="CLAUDE.md" element={<ClaudePage />} />
+            <Route path="AGENTS.md" element={<AgentsPage />} />
             <Route path="organize.md" element={<OrganizePage />} />
             <Route path=":id" element={<ChatPage />} />
           </Route>

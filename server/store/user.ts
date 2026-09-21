@@ -2,10 +2,10 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { config } from '../config'
 import {
-  familyClaudeMd,
+  familyAgentsMd,
   familyOrganizeMd,
   familyProfileMd,
-  userClaudeMd,
+  userAgentsMd,
   userOrganizeMd,
   userProfileMd,
 } from '../templates'
@@ -32,36 +32,69 @@ async function writeIfMissing(file: string, content: string): Promise<void> {
 }
 
 /**
- * CLAUDE.md への AGENTS.md リンクを張る。
+ * 人格ファイルは AGENTS.md 一枚。Claude Code（2.1.277 以降）も cursor-agent も、
+ * 作業ディレクトリから親を遡って AGENTS.md を読む。
  *
- * Claude Code は CLAUDE.md を、cursor-agent は AGENTS.md を、どちらも親を
- * 遡って読む。同じ実体を指しておけば、人格の定義を 1 か所に保ったまま
- * 両方のエンジンで同じ振る舞いになる。Claude Code は AGENTS.md を読まないので
- * 二重に読み込まれることはない。
+ * 以前は CLAUDE.md を実体にして AGENTS.md → CLAUDE.md のリンクを張っていた
+ * （Claude Code が AGENTS.md を読まなかったため）。その形が残っていれば、
+ * 中身を AGENTS.md へ移して CLAUDE.md とリンクを消す。Claude Code は
+ * CLAUDE.md が一つでもあると AGENTS.md を読まないので、残しておけない。
+ *
+ * リンクかどうかは見ない。SMB 越し（手元の開発サーバー）ではリンクが普通の
+ * ファイルに見えるので、lstat で判断すると NAS 上のリンクを宙ぶらりんにする。
+ * 代わりに AGENTS.md の中身を読んでから名前を消し、実ファイルとして書き直す。
+ * リンクでも実ファイルでも結果は同じになる。
+ * 手で書かれた別内容の AGENTS.md は尊重し、CLAUDE.md は .bak に退ける。
  */
-export async function ensureAgentsLink(dir: string, target = 'CLAUDE.md'): Promise<void> {
-  const link = path.join(dir, 'AGENTS.md')
-  try {
-    // 手で置かれた実ファイルがあれば尊重する。
-    await fs.lstat(link)
-    return
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-  }
+export async function migratePersonaFile(dir: string): Promise<void> {
+  const claude = path.join(dir, 'CLAUDE.md')
+  const agents = path.join(dir, 'AGENTS.md')
 
+  const claudeText = await readIfExists(claude)
+  if (claudeText === null) return
+  const agentsText = await readIfExists(agents)
+
+  if (agentsText !== null) await fs.unlink(agents)
+  await fs.writeFile(agents, agentsText ?? claudeText, 'utf8')
+
+  if (agentsText !== null && agentsText !== claudeText) {
+    await fs.rename(claude, path.join(dir, 'CLAUDE.md.bak'))
+    console.warn(`[store] AGENTS.md と CLAUDE.md の中身が違うので、CLAUDE.md を CLAUDE.md.bak に退けました: ${dir}`)
+    return
+  }
+  await fs.unlink(claude)
+  console.info(`[store] CLAUDE.md を AGENTS.md に移しました: ${dir}`)
+}
+
+async function readIfExists(file: string): Promise<string | null> {
   try {
-    await fs.symlink(target, link)
+    return await fs.readFile(file, 'utf8')
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
-    if (code === 'EEXIST') return
-    // リンクを張れない環境でも会話は続けられる。cursor 側で人格が効かなくなるだけ。
-    console.warn(`[store] AGENTS.md のリンクを作れませんでした: ${dir}`, error)
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw error
   }
 }
 
-/** 会話フォルダから人（家族）直下の CLAUDE.md を指す。 */
-export async function ensureChatAgentsLink(dir: string): Promise<void> {
-  await ensureAgentsLink(dir, path.join('..', '..', 'CLAUDE.md'))
+/**
+ * 会話フォルダに張っていた AGENTS.md → ../../CLAUDE.md のリンクを外す。
+ * SMB 越しではリンクが実ファイルに見えるので、リンクか、人直下の AGENTS.md と
+ * 中身が同じなら消す。会話だけの指示として別に書かれたものは残す。
+ */
+export async function removeChatAgentsLink(dir: string, persona: string): Promise<void> {
+  const link = path.join(dir, 'AGENTS.md')
+  let stat
+  try {
+    stat = await fs.lstat(link)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw error
+  }
+  if (stat.isSymbolicLink()) {
+    await fs.unlink(link)
+    return
+  }
+  const text = await readIfExists(link)
+  if (text !== null && text === persona) await fs.unlink(link)
 }
 
 /** ユーザーのフォルダと雛形を用意する。既にあるファイルは触らない。家族スペースは先頭で分岐する。 */
@@ -74,10 +107,10 @@ export async function ensureUser(user: UserName): Promise<void> {
   const dir = userDir(user)
   await fs.mkdir(topicsDir(user), { recursive: true })
   await fs.mkdir(tagsDir(user), { recursive: true })
-  await writeIfMissing(path.join(dir, 'CLAUDE.md'), userClaudeMd(user))
+  await migratePersonaFile(dir)
+  await writeIfMissing(path.join(dir, 'AGENTS.md'), userAgentsMd(user))
   await writeIfMissing(path.join(dir, 'profile.md'), userProfileMd(user))
   await writeIfMissing(organizeFile(user), userOrganizeMd(user))
-  await ensureAgentsLink(dir)
 }
 
 /** 家族共有スペースのフォルダと雛形を用意する。 */
@@ -86,23 +119,23 @@ export async function ensureFamily(): Promise<void> {
   const dir = userDir(user)
   await fs.mkdir(topicsDir(user), { recursive: true })
   await fs.mkdir(tagsDir(user), { recursive: true })
-  await writeIfMissing(path.join(dir, 'CLAUDE.md'), familyClaudeMd())
+  await migratePersonaFile(dir)
+  await writeIfMissing(path.join(dir, 'AGENTS.md'), familyAgentsMd())
   await writeIfMissing(path.join(dir, 'profile.md'), familyProfileMd())
   await writeIfMissing(organizeFile(user), familyOrganizeMd())
-  await ensureAgentsLink(dir)
 }
 
-async function ensureTopicAgentsLinks(user: UserName): Promise<void> {
+async function removeTopicAgentsLinks(user: UserName): Promise<void> {
   let names: string[]
   try {
     names = await fs.readdir(topicsDir(user))
   } catch {
     return
   }
+  const persona = await readAgents(user)
   for (const name of names) {
     if (!isTopicName(name)) continue
-    const dir = path.join(topicsDir(user), name)
-    await ensureChatAgentsLink(dir)
+    await removeChatAgentsLink(path.join(topicsDir(user), name), persona)
   }
 }
 
@@ -112,18 +145,18 @@ export async function ensureAllUsers(): Promise<void> {
   for (const name of config.users) {
     const user = assertUser(name)
     await ensureUser(user)
-    await migrateThenLink(user)
+    await migrateThenUnlink(user)
   }
 
   await ensureFamily()
-  await migrateThenLink(familyUser())
+  await migrateThenUnlink(familyUser())
 }
 
-async function migrateThenLink(user: UserName): Promise<void> {
+async function migrateThenUnlink(user: UserName): Promise<void> {
   // topic.ts がこのファイルを読むので、移行は動的に取り込む。
   const { migrateNestedTopics } = await import('./migrate')
   await migrateNestedTopics(user)
-  await ensureTopicAgentsLinks(user)
+  await removeTopicAgentsLinks(user)
 }
 
 export async function readProfile(user: UserName): Promise<string> {
@@ -134,12 +167,12 @@ export async function writeProfile(user: UserName, text: string): Promise<void> 
   await writeMarkdown(path.join(userDir(user), 'profile.md'), text)
 }
 
-export async function readClaude(user: UserName): Promise<string> {
-  return readMarkdown(path.join(userDir(user), 'CLAUDE.md'))
+export async function readAgents(user: UserName): Promise<string> {
+  return readMarkdown(path.join(userDir(user), 'AGENTS.md'))
 }
 
-export async function writeClaude(user: UserName, text: string): Promise<void> {
-  await writeMarkdown(path.join(userDir(user), 'CLAUDE.md'), text)
+export async function writeAgents(user: UserName, text: string): Promise<void> {
+  await writeMarkdown(path.join(userDir(user), 'AGENTS.md'), text)
 }
 
 export async function readOrganize(user: UserName): Promise<string> {

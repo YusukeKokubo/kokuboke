@@ -18,8 +18,8 @@ export interface Space {
   tagHref(tag: string): string
   /** プロフィール（`profile.md`）への経路。 */
   profile: string
-  /** CLAUDE.md への経路。 */
-  claude: string
+  /** AGENTS.md（人格）への経路。 */
+  agents: string
   /** organize.md への経路。 */
   organize: string
   title: string
@@ -28,8 +28,8 @@ export interface Space {
   tagsTitle: string
   /** プロフィールの見出し。家族か個人か、タイトルだけで分かるようにする。 */
   profileTitle: string
-  /** CLAUDE.md の見出し。家族か個人か、タイトルだけで分かるようにする。 */
-  claudeTitle: string
+  /** AGENTS.md の見出し。家族か個人か、タイトルだけで分かるようにする。 */
+  agentsTitle: string
   /** 整理の方針の見出し。家族か個人か、タイトルだけで分かるようにする。 */
   organizeTitle: string
   /** まだ何も無いときの誘い文。 */
@@ -90,9 +90,9 @@ export function profileHref(home: string): string {
   return `${home}/profile.md`
 }
 
-/** CLAUDE.md への経路。会話 id より先に置くので、`:id` に食われない。 */
-export function claudeHref(home: string): string {
-  return `${home}/CLAUDE.md`
+/** AGENTS.md への経路。会話 id より先に置くので、`:id` に食われない。 */
+export function agentsHref(home: string): string {
+  return `${home}/AGENTS.md`
 }
 
 /** organize.md への経路。会話 id より先に置くので、`:id` に食われない。 */
@@ -109,13 +109,13 @@ export function personalSpace(user: string): Space {
     tags: tagsHref(home),
     tagHref: (tag) => tagHref(home, tag),
     profile: profileHref(home),
-    claude: claudeHref(home),
+    agents: agentsHref(home),
     organize: organizeHref(home),
     title: user,
     subtitle: '会話',
     tagsTitle: `${user}のタグ`,
     profileTitle: `${user}のプロフィール`,
-    claudeTitle: `${user}のCLAUDE.md`,
+    agentsTitle: `${user}のAGENTS.md`,
     organizeTitle: `${user}の整理の方針`,
     owner: user,
     greeting: `${user}さん、何か話そうか`,
@@ -142,13 +142,13 @@ export function familySpace(author: string): Space {
     tags: tagsHref('/family'),
     tagHref: (tag) => tagHref('/family', tag),
     profile: profileHref('/family'),
-    claude: claudeHref('/family'),
+    agents: agentsHref('/family'),
     organize: organizeHref('/family'),
     title: '共有スペース',
     subtitle: '家族のメモ・買い物',
     tagsTitle: '家族のタグ',
     profileTitle: '家族のプロフィール',
-    claudeTitle: '家族のCLAUDE.md',
+    agentsTitle: '家族のAGENTS.md',
     organizeTitle: '家族の整理の方針',
     greeting: '何を残す？',
     emptyHint: (

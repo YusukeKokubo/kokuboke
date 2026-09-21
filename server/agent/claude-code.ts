@@ -38,7 +38,7 @@ function args(request: RunRequest): string[] {
   return list
 }
 
-/** CLAUDE.md は作業ディレクトリから親まで遡って CLI 側が自分で読む。 */
+/** 人格の AGENTS.md は作業ディレクトリから親まで遡って CLI 側が自分で読む（2.1.277 以降）。 */
 export const claudeCode: Engine = {
   id: 'claude',
 

@@ -12,14 +12,16 @@ process.env.USERS = 'taro'
 const {
   ensureFamily,
   ensureUser,
-  readClaude,
+  readAgents,
   readOrganize,
   readProfile,
-  writeClaude,
+  writeAgents,
   writeOrganize,
   writeProfile,
   readMemory,
   appendMemory,
+  migratePersonaFile,
+  removeChatAgentsLink,
 } = await import('./user')
 const { assertUser, familyUser, organizeFile, tagsDir, userDir, memoryFile } = await import('./paths')
 const { createTopic, resolveTopic } = await import('./topic')
@@ -53,28 +55,98 @@ describe('profile.md', () => {
   })
 })
 
-describe('CLAUDE.md', () => {
+describe('AGENTS.md', () => {
   it('無いファイルは空文字', async () => {
-    await fsp.unlink(path.join(userDir(USER), 'CLAUDE.md'))
-    assert.equal(await readClaude(USER), '')
+    await fsp.unlink(path.join(userDir(USER), 'AGENTS.md'))
+    assert.equal(await readAgents(USER), '')
   })
 
-  it('書いたものが userDir の CLAUDE.md に残る', async () => {
-    await writeClaude(USER, '短く話して')
-    const file = path.join(userDir(USER), 'CLAUDE.md')
+  it('書いたものが userDir の AGENTS.md に残る', async () => {
+    await writeAgents(USER, '短く話して')
+    const file = path.join(userDir(USER), 'AGENTS.md')
     assert.equal(await fsp.readFile(file, 'utf8'), '短く話して\n')
-    assert.equal(await readClaude(USER), '短く話して\n')
+    assert.equal(await readAgents(USER), '短く話して\n')
   })
 
-  it('AGENTS.md のリンクは触らない', async () => {
-    await writeClaude(USER, '差し替え')
-    const link = path.join(userDir(USER), 'AGENTS.md')
-    assert.ok((await fsp.lstat(link)).isSymbolicLink())
-    assert.equal(await fsp.readlink(link), 'CLAUDE.md')
+  it('雛形は実ファイルで、CLAUDE.md は置かない', async () => {
+    const dir = userDir(USER)
+    assert.ok((await fsp.lstat(path.join(dir, 'AGENTS.md'))).isFile())
+    await assert.rejects(fsp.lstat(path.join(dir, 'CLAUDE.md')), { code: 'ENOENT' })
   })
 
   it('tags/ を用意する', async () => {
     assert.ok((await fsp.stat(tagsDir(USER))).isDirectory())
+  })
+})
+
+describe('CLAUDE.md からの移行', () => {
+  const dir = userDir(USER)
+
+  // 以前の形。CLAUDE.md が実体で AGENTS.md はそれへのリンク。
+  async function placeOldLayout(text: string): Promise<void> {
+    await fsp.rm(path.join(dir, 'AGENTS.md'), { force: true })
+    await fsp.writeFile(path.join(dir, 'CLAUDE.md'), text)
+    await fsp.symlink('CLAUDE.md', path.join(dir, 'AGENTS.md'))
+  }
+
+  it('CLAUDE.md の中身を AGENTS.md に移し、CLAUDE.md とリンクを消す', async () => {
+    await placeOldLayout('# taro\n\n短く話す\n')
+    await migratePersonaFile(dir)
+    assert.ok((await fsp.lstat(path.join(dir, 'AGENTS.md'))).isFile())
+    assert.equal(await readAgents(USER), '# taro\n\n短く話す\n')
+    await assert.rejects(fsp.lstat(path.join(dir, 'CLAUDE.md')), { code: 'ENOENT' })
+  })
+
+  it('ensureUser を通しても同じで、雛形で上書きしない', async () => {
+    await placeOldLayout('育てた人格\n')
+    await ensureUser(USER)
+    assert.equal(await readAgents(USER), '育てた人格\n')
+    await assert.rejects(fsp.lstat(path.join(dir, 'CLAUDE.md')), { code: 'ENOENT' })
+  })
+
+  it('手で置いた実ファイルの AGENTS.md は残し、CLAUDE.md は .bak に退ける', async () => {
+    await fsp.writeFile(path.join(dir, 'AGENTS.md'), '手書き\n')
+    await fsp.writeFile(path.join(dir, 'CLAUDE.md'), '古い方\n')
+    await migratePersonaFile(dir)
+    assert.equal(await readAgents(USER), '手書き\n')
+    assert.equal(await fsp.readFile(path.join(dir, 'CLAUDE.md.bak'), 'utf8'), '古い方\n')
+    await assert.rejects(fsp.lstat(path.join(dir, 'CLAUDE.md')), { code: 'ENOENT' })
+  })
+
+  it('SMB 越しに見えるように両方が同じ中身の実ファイルなら、CLAUDE.md だけ消す', async () => {
+    await fsp.writeFile(path.join(dir, 'AGENTS.md'), '同じ\n')
+    await fsp.writeFile(path.join(dir, 'CLAUDE.md'), '同じ\n')
+    await migratePersonaFile(dir)
+    assert.ok((await fsp.lstat(path.join(dir, 'AGENTS.md'))).isFile())
+    assert.equal(await readAgents(USER), '同じ\n')
+    await assert.rejects(fsp.lstat(path.join(dir, 'CLAUDE.md')), { code: 'ENOENT' })
+    await assert.rejects(fsp.lstat(path.join(dir, 'CLAUDE.md.bak')), { code: 'ENOENT' })
+  })
+
+  it('CLAUDE.md が無ければ何もしない', async () => {
+    await writeAgents(USER, 'そのまま')
+    await migratePersonaFile(dir)
+    assert.equal(await readAgents(USER), 'そのまま\n')
+  })
+
+  it('会話フォルダのリンクは外し、実ファイルは残す', async () => {
+    const topic = await createTopic(USER, {})
+    const found = await resolveTopic(USER, topic.slug)
+    assert.ok(found)
+    const chat = path.join(dir, 'topics', found.folder)
+    const persona = await readAgents(USER)
+    await fsp.symlink(path.join('..', '..', 'CLAUDE.md'), path.join(chat, 'AGENTS.md'))
+    await removeChatAgentsLink(chat, persona)
+    await assert.rejects(fsp.lstat(path.join(chat, 'AGENTS.md')), { code: 'ENOENT' })
+
+    // SMB 越しではリンクが人直下と同じ中身の実ファイルに見える。それも消す。
+    await fsp.writeFile(path.join(chat, 'AGENTS.md'), persona)
+    await removeChatAgentsLink(chat, persona)
+    await assert.rejects(fsp.lstat(path.join(chat, 'AGENTS.md')), { code: 'ENOENT' })
+
+    await fsp.writeFile(path.join(chat, 'AGENTS.md'), 'この会話だけの指示\n')
+    await removeChatAgentsLink(chat, persona)
+    assert.equal(await fsp.readFile(path.join(chat, 'AGENTS.md'), 'utf8'), 'この会話だけの指示\n')
   })
 })
 
@@ -92,20 +164,12 @@ describe('organize.md', () => {
     assert.equal(await readOrganize(USER), '展覧会は美術館博物館巡り\n')
   })
 
-  it('AGENTS.md のリンクは触らない', async () => {
-    await writeOrganize(USER, '差し替え')
-    const link = path.join(userDir(USER), 'AGENTS.md')
-    assert.ok((await fsp.lstat(link)).isSymbolicLink())
-    assert.equal(await fsp.readlink(link), 'CLAUDE.md')
-  })
-
-  it('会話の AGENTS.md は人直下の CLAUDE.md を指す', async () => {
+  it('会話フォルダには AGENTS.md を置かない', async () => {
     const topic = await createTopic(USER, {})
     const found = await resolveTopic(USER, topic.slug)
     assert.ok(found)
-    const link = path.join(userDir(USER), 'topics', found.folder, 'AGENTS.md')
-    assert.ok((await fsp.lstat(link)).isSymbolicLink())
-    assert.equal(await fsp.readlink(link), path.join('..', '..', 'CLAUDE.md'))
+    const file = path.join(userDir(USER), 'topics', found.folder, 'AGENTS.md')
+    await assert.rejects(fsp.lstat(file), { code: 'ENOENT' })
   })
 })
 
@@ -158,8 +222,8 @@ describe('家族共有スペース', () => {
     assert.match(text, /会話のたびに読み込まれる/)
   })
 
-  it('CLAUDE.md の雛形を置く', async () => {
-    const text = await readClaude(FAMILY)
+  it('AGENTS.md の雛形を置く', async () => {
+    const text = await readAgents(FAMILY)
     assert.match(text, /家族の共有スペース/)
     assert.match(text, /秘書役/)
   })
@@ -169,9 +233,8 @@ describe('家族共有スペース', () => {
     assert.match(text, /家族の整理の方針/)
   })
 
-  it('AGENTS.md のリンクを張る', async () => {
-    const link = path.join(userDir(FAMILY), 'AGENTS.md')
-    assert.ok((await fsp.lstat(link)).isSymbolicLink())
-    assert.equal(await fsp.readlink(link), 'CLAUDE.md')
+  it('AGENTS.md は実ファイルで、CLAUDE.md は置かない', async () => {
+    assert.ok((await fsp.lstat(path.join(userDir(FAMILY), 'AGENTS.md'))).isFile())
+    await assert.rejects(fsp.lstat(path.join(userDir(FAMILY), 'CLAUDE.md')), { code: 'ENOENT' })
   })
 })

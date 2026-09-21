@@ -53,8 +53,7 @@ describe('createTopic', () => {
     assert.match(folder, /^\d{2}-\d{2}-\d{2}-買い物$/)
     const dir = topicDir(USER, folder)
     assert.ok((await fsp.stat(dir)).isDirectory())
-    const link = await fsp.readlink(path.join(dir, 'AGENTS.md'))
-    assert.equal(link, path.join('..', '..', 'CLAUDE.md'))
+    await assert.rejects(fsp.lstat(path.join(dir, 'AGENTS.md')), { code: 'ENOENT' })
   })
 
   it('名前なしでも作れる', async () => {

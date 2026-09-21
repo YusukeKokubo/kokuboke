@@ -1,5 +1,5 @@
 /** 家族共有スペース直下に置く、秘書役の土台。手で書き換える前提。 */
-export function familyClaudeMd(): string {
+export function familyAgentsMd(): string {
   return `# 家族の共有スペース
 
 このファイルは家族みんなが使う共有スペースの AI の土台になる。
@@ -24,7 +24,7 @@ export function familyClaudeMd(): string {
 }
 
 /** ユーザーフォルダ直下に置く、人物そのものの設定。手で書き換える前提。 */
-export function userClaudeMd(user: string): string {
+export function userAgentsMd(user: string): string {
   return `# ${user} について
 
 このファイルは ${user} 用の AI の土台になる。ここに書いたことは

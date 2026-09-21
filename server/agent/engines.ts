@@ -15,7 +15,7 @@ export const ENGINES: EngineInfo[] = [
   {
     id: 'claude',
     label: 'Claude Code',
-    note: 'CLAUDE.md をそのまま読む。',
+    note: 'AGENTS.md をそのまま読む。',
     models: [
       { id: 'claude-opus-5', label: 'Opus 5' },
       { id: 'claude-sonnet-5', label: 'Sonnet 5' },

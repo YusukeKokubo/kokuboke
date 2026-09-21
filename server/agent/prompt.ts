@@ -97,7 +97,7 @@ export function chatPrompt(input: {
   for (const tag of input.tags) {
     if (!tag.text.trim()) continue
     parts.push(
-      `<tag name="${tag.name}">\nこのタグの話をするときの指示。CLAUDE.md と同じように守る。\n\n${tag.text.trim()}\n</tag>`,
+      `<tag name="${tag.name}">\nこのタグの話をするときの指示。AGENTS.md と同じように守る。\n\n${tag.text.trim()}\n</tag>`,
     )
   }
 
@@ -227,7 +227,7 @@ export function tagDraftSystemPrompt(input: { audience: Audience; tagName: strin
   return `あなたは、チャットの AI に渡す指示書を書く係です。
 
 - 対象は${whose}「${input.tagName}」タグです。このタグが付いた会話では、
-  タグの本文が CLAUDE.md と同じように毎回 AI に渡されます。${mixed}
+  タグの本文が AGENTS.md と同じように毎回 AI に渡されます。${mixed}
 - ファイルは書き換えません。新しい本文の全文を返すところまでが仕事です。
   保存するかどうかは人が決めます。
 - 前置き・説明・報告・作業の宣言は書かないでください。返答の 1 文字目から
@@ -237,8 +237,8 @@ export function tagDraftSystemPrompt(input: { audience: Audience; tagName: strin
 export function tagDraftPrompt(input: {
   tagName: string
   current: string
-  /** スペース全体に効く CLAUDE.md。ここにあることは書かない。 */
-  claude: string
+  /** スペース全体に効く AGENTS.md。ここにあることは書かない。 */
+  agents: string
   /** profile.md。同じく繰り返さない。 */
   profile: string
   /** 新しい順。長すぎるときは古い方から落とす。 */
@@ -246,8 +246,8 @@ export function tagDraftPrompt(input: {
 }): string {
   const parts: string[] = []
 
-  if (input.claude.trim()) {
-    parts.push(`<claude_md>\n${input.claude.trim()}\n</claude_md>`)
+  if (input.agents.trim()) {
+    parts.push(`<agents_md>\n${input.agents.trim()}\n</agents_md>`)
   }
   if (input.profile.trim()) {
     parts.push(`<profile>\n${input.profile.trim()}\n</profile>`)
@@ -280,7 +280,7 @@ export function tagDraftPrompt(input: {
   - 関心の向き（どの地域・分野・切り口をよく追っているか）
   - 前提として知っておいてほしい背景や、本人の立ち位置
 - 個々の話題の要約や、ニュースの内容そのものは書きません。事実は覚え書き.md の側に残るので、ここには書きません。
-- <claude_md> と <profile> に既に書いてあることは繰り返しません。このタグに固有のことだけです。
+- <agents_md> と <profile> に既に書いてあることは繰り返しません。このタグに固有のことだけです。
 - <current> にすでに書かれている内容は消さずに、変わったところだけ直し、新しく分かったことを足します。
   人が手で書いた指示はそのまま残します。
 - 会話のたびに読み込まれるので、箇条書きで簡潔に。根拠の薄い推測は書きません。

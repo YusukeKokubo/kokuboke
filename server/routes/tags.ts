@@ -21,7 +21,7 @@ import {
   writeTag,
 } from '../store/tag'
 import { listTopics, resolveTopic } from '../store/topic'
-import { readClaude, readOrganize } from '../store/user'
+import { readAgents, readOrganize } from '../store/user'
 import { resolveSpace, spacePaths, tagPaths } from './space'
 
 function asOrganizeActions(raw: unknown): TagOrganizeAction[] {
@@ -194,7 +194,7 @@ tags.on('POST', tagPaths('/draft'), async (c) => {
     prompt: tagDraftPrompt({
       tagName: name,
       current: current.text,
-      claude: await readClaude(user),
+      agents: await readAgents(user),
       profile: await space.profile(),
       chats,
     }),

@@ -103,9 +103,9 @@ export interface Profile {
   profile: string
 }
 
-/** ユーザー直下の CLAUDE.md。無ければ空文字。 */
-export interface Claude {
-  claude: string
+/** ユーザー直下の AGENTS.md（人格）。無ければ空文字。 */
+export interface Agents {
+  agents: string
 }
 
 /** スペース直下の organize.md。無ければ空文字。 */

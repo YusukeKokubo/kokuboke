@@ -18,7 +18,6 @@ import {
   writeMeta,
   type TopicMeta,
 } from './topic'
-import { ensureChatAgentsLink } from './user'
 
 async function hasTopicJson(dir: string): Promise<boolean> {
   try {
@@ -107,7 +106,6 @@ export async function migrateNestedTopics(user: UserName): Promise<void> {
       await fs.rm(path.join(dest, 'CLAUDE.md'), { force: true })
       await fs.rm(path.join(dest, 'summary.md'), { force: true })
       await fs.rm(path.join(dest, 'AGENTS.md'), { force: true })
-      await ensureChatAgentsLink(dest)
     }
 
     await fs.rm(dir, { recursive: true, force: true })

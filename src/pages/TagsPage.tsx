@@ -306,12 +306,12 @@ function TagDoc({ name }: { name: string }) {
         {exists && (
           <>
             <p className="text-muted-foreground text-xs">
-              このタグの話をするときの指示。CLAUDE.md と同じように毎回 AI に渡る。
+              このタグの話をするときの指示。AGENTS.md と同じように毎回 AI に渡る。
             </p>
             <DocPane
               spec={{
                 label: name,
-                description: 'このタグの話をするときの指示。CLAUDE.md と同じように毎回 AI に渡る。',
+                description: 'このタグの話をするときの指示。AGENTS.md と同じように毎回 AI に渡る。',
                 placeholder: 'まだ指示がないよ。手で書くか、AI に会話から起こさせる。',
                 load: () => space.api.getTag(name).then((current) => current.text),
                 save: (text) => space.api.saveTag(name, text),

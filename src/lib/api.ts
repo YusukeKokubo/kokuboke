@@ -1,7 +1,7 @@
 import type {
   ActivityEntry,
   ChatEvent,
-  Claude,
+  Agents,
   EngineInfo,
   FamilyActivityEntry,
   Message,
@@ -171,10 +171,10 @@ export function spaceApi(base: string, author?: string) {
 
     deleteTag: (tag: string) => json.send<void>('DELETE', tagAt(tag)),
 
-    getClaude: () => json.get<Claude>(`${base}/claude`).then(only('claude')),
+    getAgents: () => json.get<Agents>(`${base}/agents`).then(only('agents')),
 
-    saveClaude: (claude: string) =>
-      json.send<Claude>('PUT', `${base}/claude`, { claude }).then(only('claude')),
+    saveAgents: (agents: string) =>
+      json.send<Agents>('PUT', `${base}/agents`, { agents }).then(only('agents')),
 
     getProfile: () => json.get<Profile>(`${base}/profile`).then(only('profile')),
 

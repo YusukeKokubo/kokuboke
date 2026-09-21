@@ -5,7 +5,7 @@ import { DocPane, type DocSpec } from '@/components/DocsDialog'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 
 /**
- * スペース直下の文書。プロフィールと CLAUDE.md と整理の方針。個人と家族で同じ画面。
+ * スペース直下の文書。プロフィールと AGENTS.md と整理の方針。個人と家族で同じ画面。
  */
 function SpaceDocPage({ title, spec }: { title: string; spec: DocSpec }) {
   const space = useSpace()
@@ -55,21 +55,21 @@ export function ProfilePage() {
   )
 }
 
-export function ClaudePage() {
+export function AgentsPage() {
   const space = useSpace()
   const owner = space.owner
 
   return (
     <SpaceDocPage
-      title={space.claudeTitle}
+      title={space.agentsTitle}
       spec={{
-        label: space.claudeTitle,
+        label: space.agentsTitle,
         description: owner
           ? 'あなたについての設定。どの会話でも効くよ。'
           : '家族みんなの秘書役の土台。どの会話にも効くよ。',
         placeholder: 'まだ書いていないよ。',
-        load: () => space.api.getClaude(),
-        save: (text) => space.api.saveClaude(text),
+        load: () => space.api.getAgents(),
+        save: (text) => space.api.saveAgents(text),
       }}
     />
   )
