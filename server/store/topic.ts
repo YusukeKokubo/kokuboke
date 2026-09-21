@@ -175,14 +175,10 @@ async function listFolders(user: UserName): Promise<TopicName[]> {
     return []
   }
 
-  const folders: TopicName[] = []
-  for (const name of names) {
-    const id = asTopicName(name)
-    if (!id) continue
-    if (!(await topicExists(user, id))) continue
-    folders.push(id)
-  }
-  return folders
+  // 実在確認はフォルダごとに 1 往復。NAS を SMB 越しに見ると直列では秒単位になるので並べて待つ。
+  const ids = names.map(asTopicName).filter((id): id is TopicName => id !== null)
+  const exists = await Promise.all(ids.map((id) => topicExists(user, id)))
+  return ids.filter((_, i) => exists[i])
 }
 
 /** URL の uuid、またはフォルダ名から、実体のフォルダを探す。 */
@@ -216,10 +212,13 @@ function byRecency(a: Topic, b: Topic): number {
 
 export async function listTopics(user: UserName): Promise<Topic[]> {
   await ensureUser(user)
-  const topics: Topic[] = []
-  for (const folder of await listFolders(user)) {
-    topics.push(await readTopic(user, folder))
-  }
+  // listFolders が実在を確かめているので readTopic（locate で stat と meta を読み直す）は通さず、
+  // meta と末尾のメッセージを直に、フォルダをまたいで並列に読む。
+  const topics = await Promise.all(
+    (await listFolders(user)).map(async (folder) =>
+      toTopic(...(await Promise.all([readMeta(user, folder), readLastEntry(user, folder)]))),
+    ),
+  )
   return topics.sort(byRecency)
 }
 
