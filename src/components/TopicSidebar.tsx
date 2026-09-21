@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronsDown, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Tags, Trash2, UserRound } from 'lucide-react'
+import { ChevronDown, ChevronsDown, FileText, MessageSquarePlus, MoreHorizontal, Tags, Trash2, UserRound } from 'lucide-react'
 import type { Topic } from '../../shared/types'
 import { topicLabel } from '@/lib/format'
 import { familySpace, personalSpace, useSpace, type Space } from '@/lib/space'
@@ -253,16 +253,6 @@ function SpaceSection({
             >
               <Tags />
               タグ
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              isActive={pathname === space.organize}
-              render={<Link to={space.organize} />}
-              onClick={() => setOpenMobile(false)}
-            >
-              <ListTree />
-              整理の方針
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

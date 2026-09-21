@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Loader2, MoreHorizontal, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { ListTree, Loader2, MoreHorizontal, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { organizeActionKey, type Tag, type TagOrganizeAction, type Topic } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
@@ -91,6 +91,16 @@ function TagList() {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              render={<Link to={space.organize} />}
+              aria-label={space.organizeTitle}
+              title={space.organizeTitle}
+            >
+              <ListTree />
+            </Button>
             <Button
               type="button"
               size="sm"
@@ -295,11 +305,14 @@ function TagDoc({ name }: { name: string }) {
 
         {exists && (
           <>
+            <p className="text-muted-foreground text-xs">
+              このタグの話をするときの指示。CLAUDE.md と同じように毎回 AI に渡る。
+            </p>
             <DocPane
               spec={{
                 label: name,
-                description: '',
-                placeholder: 'まだ何も覚えていないよ。',
+                description: 'このタグの話をするときの指示。CLAUDE.md と同じように毎回 AI に渡る。',
+                placeholder: 'まだ指示がないよ。手で書くか、AI に会話から起こさせる。',
                 load: () => space.api.getTag(name).then((current) => current.text),
                 save: (text) => space.api.saveTag(name, text),
                 draft: (signal) => space.api.draftTag(name, signal),

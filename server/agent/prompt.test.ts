@@ -230,6 +230,8 @@ describe('tagDraftPrompt', () => {
     const text = tagDraftPrompt({
       tagName: '買い物',
       current: '既存の覚え書き',
+      claude: '結論から書く',
+      profile: '',
       chats: [
         {
           name: 'コストコ',
@@ -249,6 +251,8 @@ describe('tagDraftPrompt', () => {
     assert.match(text, /既存の覚え書き/)
     assert.match(text, /<name>コストコ<\/name>/)
     assert.match(text, /牛乳も足して/)
+    assert.match(text, /<claude_md>\n結論から書く/)
+    assert.match(text, /指示書/)
     assert.equal(text.includes('記憶'), false)
   })
 })

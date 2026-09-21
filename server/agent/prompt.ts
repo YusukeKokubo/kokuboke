@@ -96,7 +96,9 @@ export function chatPrompt(input: {
   }
   for (const tag of input.tags) {
     if (!tag.text.trim()) continue
-    parts.push(`<tag name="${tag.name}">\n${tag.text.trim()}\n</tag>`)
+    parts.push(
+      `<tag name="${tag.name}">\nこのタグの話をするときの指示。CLAUDE.md と同じように守る。\n\n${tag.text.trim()}\n</tag>`,
+    )
   }
 
   parts.push(`<conversation>\n${renderHistory(input.history)}\n</conversation>`)
@@ -222,21 +224,34 @@ export function tagDraftSystemPrompt(input: { audience: Audience; tagName: strin
     input.audience.kind === 'family' ? '家族共有スペースの' : `「${input.audience.user}」さんの`
   const mixed = input.audience.kind === 'family' ? '\n- 会話には複数の家族メンバーの発言が混ざります。' : ''
 
-  return `あなたは会話の記録を整理する係です。
+  return `あなたは、チャットの AI に渡す指示書を書く係です。
 
-- 対象は${whose}「${input.tagName}」タグです。${mixed}
+- 対象は${whose}「${input.tagName}」タグです。このタグが付いた会話では、
+  タグの本文が CLAUDE.md と同じように毎回 AI に渡されます。${mixed}
 - ファイルは書き換えません。新しい本文の全文を返すところまでが仕事です。
   保存するかどうかは人が決めます。
-- 前置き・説明・報告は書かないでください。返すのは本文だけです。`
+- 前置き・説明・報告・作業の宣言は書かないでください。返答の 1 文字目から
+  保存する本文です。見出しか箇条書きで始めてください。`
 }
 
 export function tagDraftPrompt(input: {
   tagName: string
   current: string
+  /** スペース全体に効く CLAUDE.md。ここにあることは書かない。 */
+  claude: string
+  /** profile.md。同じく繰り返さない。 */
+  profile: string
+  /** 新しい順。長すぎるときは古い方から落とす。 */
   chats: { name: string; history: Message[] }[]
 }): string {
   const parts: string[] = []
 
+  if (input.claude.trim()) {
+    parts.push(`<claude_md>\n${input.claude.trim()}\n</claude_md>`)
+  }
+  if (input.profile.trim()) {
+    parts.push(`<profile>\n${input.profile.trim()}\n</profile>`)
+  }
   if (input.current.trim()) {
     parts.push(`<current>\n${input.current.trim()}\n</current>`)
   }
@@ -257,11 +272,18 @@ export function tagDraftPrompt(input: {
     parts.push(`<chats>\n${blocks.join('\n\n')}\n</chats>`)
   }
 
-  parts.push(`上の会話を踏まえて、「${input.tagName}」タグの覚え書きを書き直してください。
+  parts.push(`上の会話を読んで、「${input.tagName}」の話をするときに AI が守る指示書を書き直してください。
 
-- すでに書かれている内容は消さずに、変わったところだけ直し、新しく分かったことを足します。
-- 個々のやりとりを列挙するのではなく、続けて話すために必要な事実と経緯を残します。
-- 会話のたびに読み込まれるので、簡潔に保ってください。
+- 書くのは、次にこの分野の話をするときに効くことだけです。
+  - 本人が繰り返し求めている深さ・形式・出典の扱い
+  - 会話の中で本人が直した点や、嫌がった点
+  - 関心の向き（どの地域・分野・切り口をよく追っているか）
+  - 前提として知っておいてほしい背景や、本人の立ち位置
+- 個々の話題の要約や、ニュースの内容そのものは書きません。事実は覚え書き.md の側に残るので、ここには書きません。
+- <claude_md> と <profile> に既に書いてあることは繰り返しません。このタグに固有のことだけです。
+- <current> にすでに書かれている内容は消さずに、変わったところだけ直し、新しく分かったことを足します。
+  人が手で書いた指示はそのまま残します。
+- 会話のたびに読み込まれるので、箇条書きで簡潔に。根拠の薄い推測は書きません。
 - そのままファイルに保存できる形で、本文だけを返します。全体をコードブロックで
   囲まないでください。`)
 

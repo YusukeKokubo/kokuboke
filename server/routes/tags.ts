@@ -4,11 +4,10 @@ import { resolveModel, unfence } from '../agent'
 import { parseOrganize } from '../agent/name'
 import { organizePrompt, organizeSystemPrompt, tagDraftPrompt, tagDraftSystemPrompt, tagNote } from '../agent/prompt'
 import { limiter } from '../agent/queue'
-import { config } from '../config'
 import { BadRequestError } from '../errors'
 import { streamAgent } from '../lib/agent-stream'
 import { readJson, readText } from '../lib/body'
-import { readRecent } from '../store/log'
+import { readAll } from '../store/log'
 import { asTopicName, tagsDir } from '../store/paths'
 import { appendRevision, readRevisions, splitOrganizeActions } from '../store/revision'
 import {
@@ -22,7 +21,7 @@ import {
   writeTag,
 } from '../store/tag'
 import { listTopics, resolveTopic } from '../store/topic'
-import { readOrganize } from '../store/user'
+import { readClaude, readOrganize } from '../store/user'
 import { resolveSpace, spacePaths, tagPaths } from './space'
 
 function asOrganizeActions(raw: unknown): TagOrganizeAction[] {
@@ -171,34 +170,38 @@ tags.on('POST', tagPaths('/draft'), async (c) => {
   const { user } = space
   const name = assertTagName(c.req.param('tag') ?? '')
   const current = await readTag(user, name)
-  const days = Math.max(config.contextDays, 14)
 
+  // 日数では切らない。国際情勢のように一件ごとに話題が変わるタグでも、
+  // 本人の求め方は古い会話にも出ている。新しい順に渡し、長すぎる分はプロンプト側が古い方から落とす。
+  const tagged = (await listTopics(user)).filter((topic) => topic.tags.includes(name))
   const chats = []
-  for (const topic of await listTopics(user)) {
-    if (!topic.tags.includes(name)) continue
+  for (const topic of tagged) {
     const found = await resolveTopic(user, topic.slug)
     if (!found) continue
-    chats.push({
-      name: topic.name || NO_NAME,
-      history: await readRecent(user, found.folder, days),
-    })
+    chats.push({ name: topic.name || NO_NAME, history: await readAll(user, found.folder) })
   }
   if (chats.every((chat) => chat.history.length === 0)) {
     throw new BadRequestError('このタグの会話がまだないよ')
   }
 
-  const newest = (await listTopics(user)).find((topic) => topic.tags.includes(name))
+  const newest = tagged[0]
   const choice = resolveModel(newest?.engine, newest?.model)
   const release = await limiter.acquire(space.busyKey(name))
 
   return streamAgent<SummaryEvent>(c, {
     choice,
     cwd: tagsDir(user),
-    prompt: tagDraftPrompt({ tagName: name, current: current.text, chats }),
+    prompt: tagDraftPrompt({
+      tagName: name,
+      current: current.text,
+      claude: await readClaude(user),
+      profile: await space.profile(),
+      chats,
+    }),
     systemPrompt: tagDraftSystemPrompt({ audience: space.audience, tagName: name }),
     release,
     tag: 'tag-draft',
-    fallback: '覚え書きを整理できませんでした',
+    fallback: '指示書を整理できませんでした',
     close: (text, send) => send({ type: 'done', text: unfence(text), modelLabel: choice.label }),
   })
 })
