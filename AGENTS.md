@@ -127,5 +127,8 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
   シェルは道具ごと無いままで、増えるのはウェブの読み取りだけ
 - Watchtower のログの 403 は、たいてい非公開ではなくイメージがまだ無いだけ。
   引けるかどうかは `ghcr.io/token` で匿名トークンを取ってマニフェストを叩けば分かる
+- NAS の clone は compose を上げるためだけにある。動いているのは Watchtower が引いた
+  ghcr のイメージで、clone の Dockerfile はビルドに使われない（pull し忘れて古いまま
+  でも中身は新しい）。中の版は `sudo docker exec kokuboke ...` で確かめる
 - NAS の管理画面が `docker-compose.yaml` を横に作ることがある。`.yml` と両方あると
   Compose がファイルを決められずに止まる
