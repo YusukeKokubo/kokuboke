@@ -10,10 +10,13 @@
   ただし手元の `docker-compose build` は通る。層の並びやマウント点の所有者の確認はこれで足りる。
   逆に BuildKit 前提の書き方（`RUN --mount=type=cache` など）は入れない。
   NAS では通るが手元のビルドが丸ごと落ちて、確認の手段がなくなる
-- 手元の `npm run dev` は本番のデータを直接見る。`.env` の `DATA_DIR` が NAS の
-  SMB マウントを向いとるで、動作確認で作った会話はそのまま家族に見える。
-  NAS を開いとらんと起動時に EACCES で落ちる。具体的な場所は `.env` にだけ書く
-  （gitignore）。無ければ `.env.example` から作る
+- 手元の `npm run dev` は本番のデータの写しを見る。`mise exec -- npm run data:pull` で
+  NAS（`.env` の `DATA_PULL_FROM`、SMB マウント）から `DATA_DIR` へ片方向に写す。
+  写す前の NAS は開いとく必要があるが、dev そのものは NAS 無しで上がる。
+  手元で作った会話は本番に出ず、次に写すと消える。SMB の先を直接 `DATA_DIR` に
+  すると CLI が一文字目まで数十秒待たされる。写し先は目印 `.kokuboke-pull` があるか
+  空のフォルダでないと写さない（取り違えて本番を消さんため）。
+  具体的な場所は `.env` にだけ書く（gitignore）。無ければ `.env.example` から作る
 
 ## よく使う
 
@@ -69,7 +72,7 @@ Watchtower の選び方の理由は `Dockerfile` と `docker-compose.yml` のコ
 
 - `data/**/AGENTS.md` はアプリが読むユーザー人格ファイル。プロジェクトへの指示ではない。
   `data/` の下に `CLAUDE.md` を置くと Claude Code が `AGENTS.md` を読まなくなる（起動時に移して消す）
-- `DATA_DIR` の先は実際の会話が入る本番のデータ。動作確認で作ったトピックは消しておく
+- `DATA_DIR` の先は本番の写しで、家族の実際の会話が入っとる。コミットやログに中身を出さない
 - フロントの経路は `/user/` から始まる。`/:user` は 404 になる
 - トピック名はそのままフォルダ名で、日本語が入る。URL に埋めるときは
   `encodeURIComponent` を通す。比較と保存の前に `normalizeTopicName` で NFC に寄せる
@@ -96,9 +99,9 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
   `CLAUDE.md` / `CLAUDE.local.md` が無いときだけ（ホームの `~/.claude/CLAUDE.md` は数えない）。
   直接読んだ分は `/context` に出ないので、確認は起動時の `AGENTS.md loaded` の行か、
   ヘッドレスで指示の中身を聞く。cursor-agent は昔から親まで遡って読む
-- 手元の `npm run dev` は NAS の `data/` を見るが、その親に compose 用の clone があるので、
-  手元から起こした Claude Code はそこのプロジェクト用 `AGENTS.md` も一緒に読む（コンテナでは
-  読まない）。clone の方が古くて `CLAUDE.md` のままだと、それだけが読まれて人格が効かない
+- `DATA_DIR` の上の階層にリポジトリや compose 用の clone があると、手元から起こした
+  Claude Code はそこのプロジェクト用 `AGENTS.md` も一緒に読む（コンテナでは読まない）。
+  写しはリポジトリの外に置く。clone が古くて `CLAUDE.md` のままだと、それだけが読まれて人格が効かない
 - cursor の `assistant` イベントは、道具を挟むと本文がいくつかの区切りに分かれ、
   区切りの終わりに、そこまでの差分を丸ごと繰り返した言い直しが一つ届く。
   `timestamp_ms` が無いのはいちばん最後の区切りだけで、途中の区切りの言い直しは
