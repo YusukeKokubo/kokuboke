@@ -76,6 +76,14 @@ export const config = {
   /** cursor-agent 側の既定モデル。 */
   cursorModel: process.env.CURSOR_MODEL ?? 'auto',
 
+  /**
+   * 自動の命名とタグ付けに使う軽いモデル。見出しとタグを選ぶだけなので重いモデルは要らず、
+   * 走っているあいだはトピックの枠を握るため、長引くと次の発言が弾かれる。
+   * エンジンはトピックのものに合わせ、モデルだけこちらに差し替える。
+   */
+  claudeLightModel: process.env.CLAUDE_LIGHT_MODEL ?? 'claude-haiku-4-5',
+  cursorLightModel: process.env.CURSOR_LIGHT_MODEL ?? 'composer-2.5',
+
   /** 未指定なら CLI の既定に任せる。 */
   claudeEffort: oneOf(process.env.CLAUDE_EFFORT, CLAUDE_EFFORTS),
 
@@ -140,4 +148,6 @@ export function assertConfig(): void {
   }
   assertModel('CLAUDE_MODEL', config.claudeModel, 'claude')
   assertModel('CURSOR_MODEL', config.cursorModel, 'cursor')
+  assertModel('CLAUDE_LIGHT_MODEL', config.claudeLightModel, 'claude')
+  assertModel('CURSOR_LIGHT_MODEL', config.cursorLightModel, 'cursor')
 }

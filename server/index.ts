@@ -85,4 +85,5 @@ serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {
   console.log(`  data dir : ${config.dataDir}`)
   console.log(`  users    : ${config.users.join(', ')}`)
   console.log(`  model    : ${config.defaultEngine} / ${config.claudeModel} · ${config.cursorModel}`)
+  console.log(`  light    : ${config.claudeLightModel} · ${config.cursorLightModel}`)
 })

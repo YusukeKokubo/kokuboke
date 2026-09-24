@@ -9,7 +9,7 @@ import { ensureTag, listTags, renameTag } from '../store/tag'
 import { markNameTried, markTagTried, readTopic, renameTopic, writeTags } from '../store/topic'
 import { readOrganize } from '../store/user'
 import { collectAgent } from './collect'
-import { resolveModel } from './model'
+import { lightModel } from './model'
 import { parseName, parseTags } from './name'
 import { namePrompt, nameSystemPrompt, tagNote, tagPrompt, tagSystemPrompt } from './prompt'
 
@@ -28,7 +28,7 @@ export async function applyAutoName(user: UserName, id: TopicName): Promise<Topi
     throw new BadRequestError('まだ記録がありません')
   }
 
-  const choice = resolveModel(current.engine, current.model)
+  const choice = lightModel(current.engine)
   let text = ''
   try {
     text = await collectAgent(choice, {
@@ -76,7 +76,7 @@ export async function applyAutoTag(
     note: tagNote(tag.text),
     group: tag.group || undefined,
   }))
-  const choice = resolveModel(current.engine, current.model)
+  const choice = lightModel(current.engine)
   let text = ''
   try {
     text = await collectAgent(choice, {

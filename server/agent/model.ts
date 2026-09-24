@@ -40,6 +40,19 @@ export function resolveModel(engine?: string | null, model?: string | null): Mod
   }
 }
 
+/**
+ * 命名やタグ付けのような裏方の仕事向け。エンジンはトピックのものを守り
+ * （ログインしているのがどちらかだけ、ということもある）、モデルだけ軽いものにする。
+ */
+export function lightModel(engine?: string | null): ModelChoice {
+  const id: EngineId = isEngineId(engine) ? engine : config.defaultEngine
+  const models: Record<EngineId, string> = {
+    claude: config.claudeLightModel,
+    cursor: config.cursorLightModel,
+  }
+  return resolveModel(id, models[id])
+}
+
 export function runAgent(
   choice: ModelChoice,
   request: Omit<RunRequest, 'model'>,

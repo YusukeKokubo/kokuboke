@@ -31,6 +31,9 @@ function args(request: RunRequest): string[] {
     'Read,WebSearch,WebFetch',
     '--disallowed-tools',
     ALWAYS_DENIED.join(','),
+    // claude.ai でログインしていると、アカウントのコネクタ（Gmail や Slack など）を
+    // 起動のたびに読みに行き、一文字目が 1〜2 秒遅れる。この用途では一つも使わない。
+    '--strict-mcp-config',
   ]
 
   if (config.claudeEffort) list.push('--effort', config.claudeEffort)
@@ -49,6 +52,7 @@ export const claudeCode: Engine = {
 
     return runProcess({
       bin: config.claudeBin,
+      label: `claude/${request.model}`,
       args: args(request),
       cwd: request.cwd,
       stdin: request.prompt,

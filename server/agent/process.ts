@@ -64,6 +64,8 @@ function childEnv(extra?: Record<string, string>): NodeJS.ProcessEnv {
 
 export interface ProcessSpec {
   bin: string
+  /** 時間の記録に添える札。エンジンとモデル。 */
+  label: string
   args: string[]
   cwd: string
   /** プロンプトは履歴を含んで長くなるので、引数ではなく標準入力から渡す。 */
@@ -83,6 +85,13 @@ export interface ProcessSpec {
 /** JSON Lines を吐く CLI を起動して、本文の差分と最終結果を流す。 */
 export async function* runProcess(spec: ProcessSpec): AsyncGenerator<AgentEvent> {
   const queue = new EventQueue<AgentEvent>()
+
+  // 待ち時間がどこで嵩んでいるかを本番で見るための記録。起動から
+  // 最初の行（CLI の支度）、一文字目、終わりまでを 1 行にして出す。
+  const startedAt = Date.now()
+  let firstLineAt: number | null = null
+  let firstDeltaAt: number | null = null
+  const since = (at: number | null) => (at === null ? '-' : `${at - startedAt}ms`)
 
   const child = spawn(spec.bin, spec.args, {
     cwd: spec.cwd,
@@ -114,7 +123,11 @@ export async function* runProcess(spec: ProcessSpec): AsyncGenerator<AgentEvent>
     } catch {
       return // 想定外の行は捨てる
     }
-    spec.onLine(parsed, (event) => queue.push(event))
+    firstLineAt ??= Date.now()
+    spec.onLine(parsed, (event) => {
+      if (event.type === 'delta') firstDeltaAt ??= Date.now()
+      queue.push(event)
+    })
   })
 
   child.on('error', (error) => {
@@ -124,6 +137,10 @@ export async function* runProcess(spec: ProcessSpec): AsyncGenerator<AgentEvent>
   child.on('close', (code, signal) => {
     clearTimeout(timer)
     spec.signal?.removeEventListener('abort', onAbort)
+    console.log(
+      `[agent] ${spec.label} init=${since(firstLineAt)} first=${since(firstDeltaAt)}` +
+        ` total=${since(Date.now())} ${signal ?? `code=${code}`}`,
+    )
 
     if (signal) {
       queue.finish(
