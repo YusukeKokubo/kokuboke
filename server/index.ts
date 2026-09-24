@@ -26,7 +26,12 @@ await ensureAllUsers()
 
 const app = new Hono()
 
-app.use('*', logger())
+// 管理画面の鍵は URL の ?key= で渡ってくる。そのまま出すと、ログのファイルから
+// 診断の画面や AI のプロンプトにまで流れるので、値だけ伏せる。
+app.use(
+  '*',
+  logger((line, ...rest) => console.log(line.replace(/([?&]key=)[^&\s]*/g, '$1***'), ...rest)),
+)
 
 // commit を混ぜてあるのは、更新を頼んだ画面がここを叩き直して、
 // 別のコミットで戻ってきたことを確かめるため。
