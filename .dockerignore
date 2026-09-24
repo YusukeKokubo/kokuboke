@@ -7,12 +7,10 @@ data
 *.log
 .DS_Store
 
-# 文書とデプロイ用の道具はイメージの中身に関わらない。
-# ここに残すと、README を直しただけでビルド層のキャッシュが外れる。
-docs
+# デプロイ用の道具はイメージの中身に関わらない。
+# 文書（docs・README.md・AGENTS.md）は診断の AI が読むので入れる。
+# そのぶん文書を直しただけでもビルド層のキャッシュは外れる。
 scripts
 .github
-README.md
-AGENTS.md
 .claude
 .claude.local.md

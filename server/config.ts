@@ -30,11 +30,26 @@ function oneOf<T extends string>(value: string | undefined, allowed: readonly T[
 
 const CLAUDE_EFFORTS = EFFORTS
 
+const dataDir = path.resolve(process.env.DATA_DIR ?? './data')
+const isProduction = process.env.NODE_ENV === 'production'
+
 export const config = {
   port: num(process.env.PORT, 3000),
 
   /** ユーザーごとのフォルダを置く場所。NAS 上のボリュームをここにマウントする。 */
-  dataDir: path.resolve(process.env.DATA_DIR ?? './data'),
+  dataDir,
+
+  /**
+   * サーバーのログと CLI の時間の記録を書く場所。コンテナの入れ替えで消えないよう
+   * data の中に置く（ユーザー名とぶつからないよう点で始める）。
+   */
+  logDir: path.resolve(process.env.LOG_DIR ?? path.join(dataDir, '.logs')),
+
+  /**
+   * 診断の AI に読ませるソース。イメージでは Dockerfile が /app/source に写す。
+   * 手元ではリポジトリそのもの。
+   */
+  sourceDir: path.resolve(process.env.SOURCE_DIR ?? (isProduction ? '/app/source' : '.')),
 
   /** URL パスとして受け付けるユーザー名。ここに無い名前は 404 にする。 */
   users: list(process.env.USERS),
@@ -114,7 +129,7 @@ export const config = {
   fcmServiceAccount: process.env.FCM_SERVICE_ACCOUNT ?? '',
   fcmServiceAccountPath: process.env.FCM_SERVICE_ACCOUNT_PATH ?? '',
 
-  isProduction: process.env.NODE_ENV === 'production',
+  isProduction,
 } as const
 
 export function assertConfig(): void {

@@ -100,6 +100,15 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY --from=build /app/dist ./dist
 
+# 診断の AI が読むソースと経緯の文書。動いているものと同じコミットを読ませたいので、
+# GitHub から引かせずにここへ写す。読めれば足りるので root 持ちのまま。
+# 文書だけの変更では CI がイメージを作らないので、docs はその分だけ遅れることがある。
+COPY --from=build /app/server ./source/server
+COPY --from=build /app/src ./source/src
+COPY --from=build /app/shared ./source/shared
+COPY --from=build /app/docs ./source/docs
+COPY --from=build /app/AGENTS.md /app/README.md /app/Dockerfile /app/docker-compose.yml /app/package.json ./source/
+
 # どのコミットから作ったイメージかを焼き込む。管理画面がこれと GitHub 側の main を
 # 見比べて、更新があるかを出す。毎回変わるのでいちばん下に置く。
 ARG GIT_SHA=""

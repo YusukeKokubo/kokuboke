@@ -20,6 +20,11 @@ export interface RunRequest {
   effort?: string
   signal?: AbortSignal
   /**
+   * 読み取りの道具を足す（Grep や Glob）。Claude Code だけが見る。
+   * 会話では使わない。ソースを探して読む診断のためのもの。
+   */
+  extraTools?: string[]
+  /**
    * cursor-agent の子へ足す環境変数。MCP の remember は mcp.json の
    * `${KOKUBOKE_REMEMBER_USER}` 展開でこれを読む。個人チャット以外では載せない。
    */

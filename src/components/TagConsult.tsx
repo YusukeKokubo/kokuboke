@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Check, Loader2, RotateCcw, SendHorizontal } from 'lucide-react'
 import type { SummaryEvent } from '../../shared/types'
 import { applyDiff, lineDiff, splitConsult, type ConsultTurn } from '../../shared/tag-consult'
+import { ReplyBubble, UserBubble } from '@/components/Bubble'
 import { Markdown } from '@/components/Markdown'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -236,24 +237,6 @@ export function TagConsult({
           {busy ? <Loader2 className="size-4 animate-spin" /> : <SendHorizontal className="size-4" />}
         </Button>
       </form>
-    </div>
-  )
-}
-
-function UserBubble({ text }: { text: string }) {
-  return (
-    <div className="flex justify-end">
-      <div className="bg-primary text-primary-foreground max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-[15px] leading-relaxed break-words whitespace-pre-wrap">
-        {text}
-      </div>
-    </div>
-  )
-}
-
-function ReplyBubble({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="bg-card text-card-foreground max-w-[85%] min-w-0 rounded-2xl rounded-bl-md border px-3.5 py-2.5 text-[15px] leading-relaxed break-words">
-      {children}
     </div>
   )
 }

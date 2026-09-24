@@ -28,7 +28,7 @@ function args(request: RunRequest): string[] {
     // 確認プロンプトなしに通ることは実機で確認済み（cursor 側のような
     // 追加の許可設定は不要）。書き込み・実行系は ALWAYS_DENIED で塞いだまま。
     '--allowed-tools',
-    'Read,WebSearch,WebFetch',
+    ['Read', 'WebSearch', 'WebFetch', ...(request.extraTools ?? [])].join(','),
     '--disallowed-tools',
     ALWAYS_DENIED.join(','),
     // claude.ai でログインしていると、アカウントのコネクタ（Gmail や Slack など）を
@@ -52,7 +52,7 @@ export const claudeCode: Engine = {
 
     return runProcess({
       bin: config.claudeBin,
-      label: `claude/${request.model}/${request.effort ?? 'default'}`,
+      meta: { engine: 'claude', model: request.model, effort: request.effort ?? null },
       args: args(request),
       cwd: request.cwd,
       stdin: request.prompt,

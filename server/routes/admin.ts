@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { Hono, type MiddlewareHandler } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import type { ActivityEntry, EngineLogin, UpdateResult, UpdateStatus } from '../../shared/types'
 import { isEngineId } from '../agent/engines'
@@ -13,7 +13,7 @@ export const admin = new Hono()
  * いないアプリなので、管理の口があること自体を見せない。鍵を決めていない機械
  * （手元や、.env に ADMIN_TOKEN が無い場合）では口ごと閉じる。
  */
-admin.use('/api/admin/*', async (c, next) => {
+export const adminGuard: MiddlewareHandler = async (c, next) => {
   if (!config.adminToken) throw new HTTPException(404, { message: 'ページが見つかりません' })
 
   const given = c.req.header('x-admin-token') ?? c.req.query('key') ?? ''
@@ -21,7 +21,9 @@ admin.use('/api/admin/*', async (c, next) => {
     throw new HTTPException(404, { message: 'ページが見つかりません' })
   }
   return next()
-})
+}
+
+admin.use('/api/admin/*', adminGuard)
 
 interface Compare {
   ahead_by?: number

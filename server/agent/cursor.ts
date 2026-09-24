@@ -110,7 +110,7 @@ export const cursorAgent: Engine = {
 
     yield* runProcess({
       bin: config.cursorBin,
-      label: `cursor/${request.model}`,
+      meta: { engine: 'cursor', model: request.model },
       args: args(request),
       cwd: request.cwd,
       stdin: buildPrompt(request),

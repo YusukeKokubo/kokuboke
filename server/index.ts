@@ -7,9 +7,11 @@ import { logger } from 'hono/logger'
 import { config, assertConfig } from './config'
 import { AppError } from './errors'
 import { limiter } from './agent/queue'
+import { captureLogs } from './diagnostic/log'
 import { loadServiceAccount } from './push/fcm'
 import { admin } from './routes/admin'
 import { devices } from './routes/devices'
+import { diagnostic } from './routes/diagnostic'
 import { docs } from './routes/docs'
 import { media } from './routes/media'
 import { messages } from './routes/messages'
@@ -17,6 +19,8 @@ import { tags } from './routes/tags'
 import { topics } from './routes/topics'
 import { ensureAllUsers } from './store/user'
 
+// 起動の知らせや設定の誤りも診断の画面で見えるよう、何より先に受け始める。
+captureLogs(config.logDir)
 assertConfig()
 await ensureAllUsers()
 
@@ -38,6 +42,7 @@ app.get('/api/health', (c) =>
 )
 
 app.route('/', admin)
+app.route('/', diagnostic)
 app.route('/', devices)
 app.route('/', topics)
 app.route('/', messages)

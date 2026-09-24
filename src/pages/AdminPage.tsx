@@ -12,30 +12,12 @@ import {
 } from 'lucide-react'
 import type { ActivityEntry, EngineId, EngineLogin, UpdateStatus } from '../../shared/types'
 import { api } from '@/lib/api'
+import { rememberedKey } from '@/lib/admin-key'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { personalHome, topicHref } from '@/lib/space'
 import { useDocumentTitle } from '@/lib/title'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-
-const KEY = 'kokuboke:admin'
-
-/**
- * 鍵は URL の `?key=` で渡す。一度開けたら端末に残すので、PWA として
- * ホーム画面から開き直しても効く。鍵が合わなければサーバーは 404 を返し、
- * この画面があること自体が見えない。
- */
-function rememberedKey(fromUrl: string | null): string {
-  try {
-    if (fromUrl) {
-      localStorage.setItem(KEY, fromUrl)
-      return fromUrl
-    }
-    return localStorage.getItem(KEY) ?? ''
-  } catch {
-    return fromUrl ?? ''
-  }
-}
 
 type Phase = 'idle' | 'requested' | 'waiting' | 'done' | 'failed'
 
@@ -127,7 +109,13 @@ export default function AdminPage() {
       <header className="flex items-center justify-between border-b px-4 py-3 pt-[calc(0.75rem+var(--safe-top))]">
         <div>
           <h1 className="text-base font-semibold">kokuboke</h1>
-          <p className="text-muted-foreground text-xs">管理</p>
+          <p className="text-muted-foreground text-xs">
+            管理
+            <span className="mx-1.5 opacity-40">·</span>
+            <Link to="/diagnostic" className="underline underline-offset-4">
+              診断
+            </Link>
+          </p>
         </div>
         <Button size="sm" variant="ghost" onClick={load} disabled={busy}>
           <RefreshCw className="size-4" />

@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process'
 import readline from 'node:readline'
 import { config } from '../config'
-import type { AgentEvent } from './types'
+import { agentRuns } from '../diagnostic/log'
+import type { AgentEvent, EngineId } from './types'
 
 /** コールバックで届くイベントを async iterator に橋渡しするだけの入れ物。 */
 class EventQueue<T> {
@@ -64,8 +65,11 @@ export function childEnv(extra?: Record<string, string>): NodeJS.ProcessEnv {
 
 export interface ProcessSpec {
   bin: string
-  /** 時間の記録に添える札。エンジンとモデル。 */
-  label: string
+  /**
+   * 時間の記録に添える札。深さの null は「選べるが渡していない（CLI の既定）」、
+   * 省くのは深さの無いエンジン。
+   */
+  meta: { engine: EngineId; model: string; effort?: string | null }
   args: string[]
   cwd: string
   /** プロンプトは履歴を含んで長くなるので、引数ではなく標準入力から渡す。 */
@@ -91,6 +95,8 @@ export async function* runProcess(spec: ProcessSpec): AsyncGenerator<AgentEvent>
   const startedAt = Date.now()
   let firstLineAt: number | null = null
   let firstDeltaAt: number | null = null
+  let tools = 0
+  const elapsed = (at: number | null) => (at === null ? null : at - startedAt)
   const since = (at: number | null) => (at === null ? '-' : `${at - startedAt}ms`)
 
   const child = spawn(spec.bin, spec.args, {
@@ -126,6 +132,7 @@ export async function* runProcess(spec: ProcessSpec): AsyncGenerator<AgentEvent>
     firstLineAt ??= Date.now()
     spec.onLine(parsed, (event) => {
       if (event.type === 'delta') firstDeltaAt ??= Date.now()
+      if (event.type === 'activity') tools++
       queue.push(event)
     })
   })
@@ -137,10 +144,25 @@ export async function* runProcess(spec: ProcessSpec): AsyncGenerator<AgentEvent>
   child.on('close', (code, signal) => {
     clearTimeout(timer)
     spec.signal?.removeEventListener('abort', onAbort)
+    const endedAt = Date.now()
+    const { engine, model, effort } = spec.meta
+    const exit = signal ?? `code=${code}`
     console.log(
-      `[agent] ${spec.label} init=${since(firstLineAt)} first=${since(firstDeltaAt)}` +
-        ` total=${since(Date.now())} ${signal ?? `code=${code}`}`,
+      `[agent] ${[engine, model, effort === null ? 'default' : effort].filter(Boolean).join('/')}` +
+        ` init=${since(firstLineAt)} first=${since(firstDeltaAt)}` +
+        ` total=${since(endedAt)} tools=${tools} ${exit}`,
     )
+    agentRuns.push({
+      at: new Date(startedAt).toISOString(),
+      engine,
+      model,
+      effort: effort ?? null,
+      initMs: elapsed(firstLineAt),
+      firstMs: elapsed(firstDeltaAt),
+      totalMs: endedAt - startedAt,
+      tools,
+      exit,
+    })
 
     if (signal) {
       queue.finish(

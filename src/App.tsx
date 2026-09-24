@@ -12,6 +12,7 @@ import ChatPage from './pages/ChatPage'
 import TagsPage from './pages/TagsPage'
 import { AgentsPage, OrganizePage, ProfilePage } from './pages/SpaceDocPage'
 import AdminPage from './pages/AdminPage'
+import DiagnosticPage from './pages/DiagnosticPage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -59,6 +60,7 @@ export default function App() {
         </Route>
         {/* 家族の誰の画面でもない。鍵は URL の ?key= で渡す。 */}
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/diagnostic" element={<DiagnosticPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

@@ -48,6 +48,9 @@
 
 - `server/agent/` — CLI をヘッドレスで起動して SSE に流す部分。エンジンごとに
   `claude-code.ts` と `cursor.ts`、共通の実行と待ち行列が `process.ts` `queue.ts`
+- `server/diagnostic/` — サーバーが自分のログと CLI の時間を残す部分と、診断の AI への指示。
+  console を包んで `DATA_DIR/.logs` に書く。コンテナからは `docker logs` が読めないため。
+  診断の AI が読むソースは、イメージでは Dockerfile が `/app/source` に写す（`SOURCE_DIR`）
 - `server/routes/` — API。`server/store/` — data 配下の読み書き。パスの検査は `store/paths.ts` に集約
 - 個人のスペースと家族共有スペースは同じハンドラ・同じ画面で応える。違いは
   `server/routes/space.ts` と `src/lib/space.tsx` の記述子に集めてある。

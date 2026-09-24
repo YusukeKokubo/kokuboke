@@ -1,5 +1,6 @@
 import type {
   ActivityEntry,
+  AgentRun,
   ChatEvent,
   Agents,
   Effort,
@@ -7,6 +8,7 @@ import type {
   EngineInfo,
   EngineLogin,
   FamilyActivityEntry,
+  LogEntry,
   Message,
   Organize,
   OrganizeEvent,
@@ -282,6 +284,33 @@ export const api = {
     json.get<{ entries: ActivityEntry[] }>('/api/admin/activity', {
       headers: { 'x-admin-token': key },
     }),
+
+  /** サーバーのログ（古い順）。診断の画面が見る。 */
+  serverLogs: (key: string) =>
+    json.get<{ entries: LogEntry[] }>('/api/diagnostic/logs', {
+      headers: { 'x-admin-token': key },
+    }),
+
+  /** CLI を走らせるごとの時間（古い順）。 */
+  agentRuns: (key: string) =>
+    json.get<{ runs: AgentRun[] }>('/api/diagnostic/runs', {
+      headers: { 'x-admin-token': key },
+    }),
+
+  /** 診断の AI に聞く。やり取りはこちらが持っていて、毎回丸ごと送る。 */
+  diagnose: async function* (
+    key: string,
+    turns: ConsultTurn[],
+    signal?: AbortSignal,
+  ): AsyncGenerator<SummaryEvent> {
+    const res = await fetch('/api/diagnostic/ask', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-admin-token': key },
+      body: JSON.stringify({ turns }),
+      signal,
+    })
+    yield* readSSE<SummaryEvent>(res)
+  },
 
   /**
    * Watchtower に「今見に行け」と頼む。差し替えが始まると、返事が返る前に

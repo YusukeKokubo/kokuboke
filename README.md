@@ -18,6 +18,7 @@
 
 ```
 /data
+├── .logs/                     サーバーのログ（server.jsonl）と CLI の時間（agent-runs.jsonl）。診断の画面が見る
 ├── _family/                   家族共有スペース（予約名。FAMILY_DIR で変えられる）
 │   ├── AGENTS.md              家族みんなの秘書役の設定（手書き）
 │   ├── profile.md             家族の覚え書き（手書き）
@@ -364,6 +365,9 @@ Firebase のプロジェクトを家庭用に一つ作り、次を揃える。
 | POST | `/api/users/:user/organize/draft` | 方針の下書き。SSE で流す（保存はしない） |
 | GET | `/media/:user/:id/:file` | 保存済み画像・添付ファイル |
 | GET | `/api/family/activity` | 共有スペースの直近の一行（個人の一覧に出す入口） |
+| GET | `/api/diagnostic/logs` | サーバーのログ。管理画面と同じ鍵が要る |
+| GET | `/api/diagnostic/runs` | CLI を走らせるごとの時間。同じ鍵が要る |
+| POST | `/api/diagnostic/ask` | 診断の AI に聞く。JSON で `turns` を送り、SSE で返事を流す（保存はしない） |
 
 家族共有スペースは、上の表の `/api/users/:user` を `/api/family` に、
 `/media/:user` を `/media/family` に置き換えた経路で、同じハンドラが応える。
@@ -455,6 +459,9 @@ Claude Code が `AGENTS.md` を読むのは、Anthropic からフィーチャー
   返答が届くにつれて伸びていく表示、見出しの下のタグ。
 - `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/profile.md` / `/family/AGENTS.md` / `/family/organize.md` / `/family/:id` — 家族共有スペースの同じ画面。
 - `/admin` — イメージの差し替えと、Claude Code・cursor-agent のログイン。
+- `/diagnostic` — サーバーのログと、CLI の返事の速さ（組み合わせごとの中央値と最近の回）。
+  AI に聞く欄もあり、最近のログと時間を渡した Claude Code が、ソースとログのファイルを
+  読んで答える（読むだけで、書き換えもコマンドもしない）。鍵は `/admin` と同じ。
 
 返答を作っているあいだは、ファイルを開いたりウェブを見に行ったりしていることを
 吹き出しの下に一言で出す。一文字目が届くまで数十秒かかる回があり、

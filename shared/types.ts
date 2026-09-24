@@ -201,3 +201,28 @@ export interface FamilyActivityEntry {
 
 /** 管理画面の「最新の会話」。誰の会話かが付く。 */
 export type ActivityEntry = FamilyActivityEntry & { user: string }
+
+/** サーバーが出したログの一行。診断の画面が見る。 */
+export interface LogEntry {
+  at: string
+  level: 'log' | 'warn' | 'error'
+  text: string
+}
+
+/** CLI を一回走らせた記録。時間はどれも起動からのミリ秒で、届かなかったものは null。 */
+export interface AgentRun {
+  at: string
+  engine: EngineId
+  model: string
+  /** CLI に渡した深さ。渡していなければ null（CLI の既定）。 */
+  effort: string | null
+  /** 最初の行（CLI の支度が済んだところ）まで。 */
+  initMs: number | null
+  /** 本文の一文字目まで。 */
+  firstMs: number | null
+  totalMs: number
+  /** 道具を使い始めた回数。 */
+  tools: number
+  /** `code=0` や `SIGTERM`。 */
+  exit: string
+}
