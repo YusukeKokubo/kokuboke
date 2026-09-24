@@ -348,6 +348,7 @@ Firebase のプロジェクトを家庭用に一つ作り、次を揃える。
 | PATCH | `/api/users/:user/tags/:tag` | タグの改名・絵文字・棚。会話の配列も付け替える |
 | DELETE | `/api/users/:user/tags/:tag` | タグの削除。会話からは外す |
 | POST | `/api/users/:user/tags/:tag/draft` | タグ本文の下書き。SSE で流す（保存はしない） |
+| POST | `/api/users/:user/tags/:tag/consult` | タグ本文の相談。JSON で `turns`（やり取り）と `current`（書きかけ）を送り、SSE で返事を流す。案は `<proposal>` で囲む（保存はしない） |
 | GET | `/api/users/:user/profile` | プロフィール（`profile.md`）を読む |
 | PUT | `/api/users/:user/profile` | プロフィールを保存する |
 | GET | `/api/users/:user/agents` | ユーザーの `AGENTS.md`（人格）を読む |

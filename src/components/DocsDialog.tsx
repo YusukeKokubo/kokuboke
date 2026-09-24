@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
 import type { SummaryEvent } from '../../shared/types'
 import { Button } from '@/components/ui/button'
@@ -22,14 +22,7 @@ export interface DocSpec {
  * 札一枚分。読み込み・下書き・保存はここで完結する。隠れている間も生きたままで、
  * 書きかけを抱えている。`contents` なので、外の縦並びには直接ぶら下がる。
  */
-export function DocPane({
-  spec,
-  open,
-  source,
-  active,
-  onBusy,
-  onSaved,
-}: {
+export function DocPane(props: {
   spec: DocSpec
   open: boolean
   source: string
@@ -37,7 +30,31 @@ export function DocPane({
   onBusy: (busy: boolean) => void
   onSaved: () => void
 }) {
-  const doc = useDoc(open, source, spec.load)
+  const doc = useDoc(props.open, props.source, props.spec.load)
+  return <DocPaneView doc={doc} {...props} />
+}
+
+/**
+ * 書きかけを外で持つ版。タグ本文のように、相談の画面から本文へ直しを流し込む画面が使う。
+ */
+export function DocPaneView({
+  doc,
+  spec,
+  open,
+  active,
+  onBusy,
+  onSaved,
+  extraActions,
+}: {
+  doc: ReturnType<typeof useDoc>
+  spec: DocSpec
+  open: boolean
+  active: boolean
+  onBusy: (busy: boolean) => void
+  onSaved: () => void
+  /** 下書きのボタンの横に並べるもの。 */
+  extraActions?: ReactNode
+}) {
   const [drafting, setDrafting] = useState(false)
   const abort = useRef<AbortController | null>(null)
 
@@ -93,21 +110,26 @@ export function DocPane({
           if (await doc.save(spec.save)) onSaved()
         }}
         actions={
-          spec.draft && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={handleDraft}
-              disabled={busy || doc.status === 'loading'}
-            >
-              {drafting ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Sparkles className="size-4" />
+          (spec.draft || extraActions) && (
+            <>
+              {spec.draft && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleDraft}
+                  disabled={busy || doc.status === 'loading'}
+                >
+                  {drafting ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
+                  AI に整理させる
+                </Button>
               )}
-              AI に整理させる
-            </Button>
+              {extraActions}
+            </>
           )
         }
       />

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ListTree, Loader2, MoreHorizontal, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { ListTree, Loader2, MessageCircle, MoreHorizontal, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { organizeActionKey, type Tag, type TagOrganizeAction, type Topic } from '../../shared/types'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { useSpace } from '@/lib/space'
@@ -8,7 +8,9 @@ import { useDocumentTitle } from '@/lib/title'
 import { Button } from '@/components/ui/button'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 import { EmojiNameDialog } from '@/components/EmojiNameDialog'
-import { DocPane } from '@/components/DocsDialog'
+import { DocPaneView, type DocSpec } from '@/components/DocsDialog'
+import { useDoc } from '@/components/DocEditor'
+import { TagConsult, useTagConsult } from '@/components/TagConsult'
 import {
   Dialog,
   DialogContent,
@@ -32,7 +34,8 @@ import {
 export default function TagsPage() {
   const { tag: raw } = useParams()
   const tag = raw ? raw.replace(/\.md$/i, '') : null
-  return tag ? <TagDoc name={tag} /> : <TagList />
+  // 相談と書きかけはタグごと。別のタグへ移ったら持ち越さない。
+  return tag ? <TagDoc key={tag} name={tag} /> : <TagList />
 }
 
 function TagList() {
@@ -224,6 +227,23 @@ function TagDoc({ name }: { name: string }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const exists = tag !== null ? true : topics === null && error === null ? null : false
+  const [consulting, setConsulting] = useState(false)
+  const spec = useMemo<DocSpec>(
+    () => ({
+      label: name,
+      description: 'このタグの話をするときの指示。AGENTS.md と同じように毎回 AI に渡る。',
+      placeholder: 'まだ指示がないよ。手で書くか、AI に会話から起こさせる。',
+      load: () => space.api.getTag(name).then((current) => current.text),
+      save: (text) => space.api.saveTag(name, text),
+      draft: (signal) => space.api.draftTag(name, signal),
+    }),
+    [space, name],
+  )
+  // 相談から本文へ直しを流し込むので、書きかけはここで持つ。
+  const doc = useDoc(true, `${space.docKey()}:tag:${name}`, spec.load)
+  const consult = useTagConsult(
+    useCallback((input, signal) => space.api.consultTag(name, input, signal), [space, name]),
+  )
   useDocumentTitle(tag ? `${tag.emoji} ${tag.name}` : name)
 
   useEffect(() => {
@@ -305,26 +325,51 @@ function TagDoc({ name }: { name: string }) {
 
         {exists && (
           <>
-            <p className="text-muted-foreground text-xs">
-              このタグの話をするときの指示。AGENTS.md と同じように毎回 AI に渡る。
-            </p>
-            <DocPane
-              spec={{
-                label: name,
-                description: 'このタグの話をするときの指示。AGENTS.md と同じように毎回 AI に渡る。',
-                placeholder: 'まだ指示がないよ。手で書くか、AI に会話から起こさせる。',
-                load: () => space.api.getTag(name).then((current) => current.text),
-                save: (text) => space.api.saveTag(name, text),
-                draft: (signal) => space.api.draftTag(name, signal),
-              }}
+            {!consulting && (
+              <p className="text-muted-foreground text-xs">
+                このタグの話をするときの指示。AGENTS.md と同じように毎回 AI に渡る。
+              </p>
+            )}
+            <DocPaneView
+              doc={doc}
+              spec={spec}
               open
-              source={`${space.docKey()}:tag:${name}`}
-              active
+              active={!consulting}
               onBusy={setBusy}
               onSaved={() => {}}
+              extraActions={
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={doc.status === 'loading'}
+                  onClick={() => setConsulting(true)}
+                >
+                  {consult.busy ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <MessageCircle className="size-4" />
+                  )}
+                  {consult.entries.length > 0 || consult.busy ? '相談の続き' : 'AI と相談'}
+                </Button>
+              }
             />
 
-            <section className="flex flex-col gap-1.5 pt-2">
+            {consulting && (
+              <TagConsult
+                consult={consult}
+                current={doc.draft}
+                chatCount={topics?.length ?? null}
+                onClose={() => setConsulting(false)}
+                onApply={(text, count) => {
+                  doc.setDraft(text)
+                  doc.setNotice(`相談で決めた ${count} 件を入れたよ。まだ保存していないから、よければ保存してね。`)
+                  setConsulting(false)
+                }}
+              />
+            )}
+
+            <section className={consulting ? 'hidden' : 'flex flex-col gap-1.5 pt-2'}>
               <h2 className="text-muted-foreground px-1 text-xs font-medium">このタグの会話</h2>
               {topics?.length === 0 && (
                 <p className="text-muted-foreground px-1 py-4 text-sm">まだ付いている会話はないよ。</p>

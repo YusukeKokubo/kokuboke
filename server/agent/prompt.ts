@@ -1,5 +1,6 @@
 import type { Message } from '../../shared/types'
 import { localTime } from '../../shared/date'
+import type { ConsultTurn } from '../../shared/tag-consult'
 import { formatRevisions, type Revision } from '../store/revision'
 
 const MAX_HISTORY_CHARS = 20_000
@@ -219,22 +220,25 @@ ${classifyBlock(input)}${aboutName}この会話に大分類のタグを付けて
 {"tags": [{"name": "美術館博物館巡り", "emoji": "🖼️", "group": "文化"}]}`
 }
 
-export function tagDraftSystemPrompt(input: { audience: Audience; tagName: string }): string {
+function tagTarget(input: { audience: Audience; tagName: string }): string {
   const whose =
     input.audience.kind === 'family' ? '家族共有スペースの' : `「${input.audience.user}」さんの`
   const mixed = input.audience.kind === 'family' ? '\n- 会話には複数の家族メンバーの発言が混ざります。' : ''
+  return `- 対象は${whose}「${input.tagName}」タグです。このタグが付いた会話では、
+  タグの本文が AGENTS.md と同じように毎回 AI に渡されます。${mixed}`
+}
 
+export function tagDraftSystemPrompt(input: { audience: Audience; tagName: string }): string {
   return `あなたは、チャットの AI に渡す指示書を書く係です。
 
-- 対象は${whose}「${input.tagName}」タグです。このタグが付いた会話では、
-  タグの本文が AGENTS.md と同じように毎回 AI に渡されます。${mixed}
+${tagTarget(input)}
 - ファイルは書き換えません。新しい本文の全文を返すところまでが仕事です。
   保存するかどうかは人が決めます。
 - 前置き・説明・報告・作業の宣言は書かないでください。返答の 1 文字目から
   保存する本文です。見出しか箇条書きで始めてください。`
 }
 
-export function tagDraftPrompt(input: {
+interface TagSources {
   tagName: string
   current: string
   /** スペース全体に効く AGENTS.md。ここにあることは書かない。 */
@@ -243,7 +247,10 @@ export function tagDraftPrompt(input: {
   profile: string
   /** 新しい順。長すぎるときは古い方から落とす。 */
   chats: { name: string; history: Message[] }[]
-}): string {
+}
+
+/** 下書きと相談で同じ材料を渡す。 */
+function tagSourceParts(input: TagSources): string[] {
   const parts: string[] = []
 
   if (input.agents.trim()) {
@@ -272,9 +279,11 @@ export function tagDraftPrompt(input: {
     parts.push(`<chats>\n${blocks.join('\n\n')}\n</chats>`)
   }
 
-  parts.push(`上の会話を読んで、「${input.tagName}」の話をするときに AI が守る指示書を書き直してください。
+  return parts
+}
 
-- 書くのは、次にこの分野の話をするときに効くことだけです。
+/** 指示書に何を書き、何を書かないか。下書きと相談で同じ。 */
+const TAG_NOTE_RULES = `- 書くのは、次にこの分野の話をするときに効くことだけです。
   - 本人が繰り返し求めている深さ・形式・出典の扱い
   - 会話の中で本人が直した点や、嫌がった点
   - 関心の向き（どの地域・分野・切り口をよく追っているか）
@@ -283,9 +292,63 @@ export function tagDraftPrompt(input: {
 - <agents_md> と <profile> に既に書いてあることは繰り返しません。このタグに固有のことだけです。
 - <current> にすでに書かれている内容は消さずに、変わったところだけ直し、新しく分かったことを足します。
   人が手で書いた指示はそのまま残します。
-- 会話のたびに読み込まれるので、箇条書きで簡潔に。根拠の薄い推測は書きません。
+- 会話のたびに読み込まれるので、箇条書きで簡潔に。根拠の薄い推測は書きません。`
+
+export function tagDraftPrompt(input: TagSources): string {
+  const parts = tagSourceParts(input)
+
+  parts.push(`上の会話を読んで、「${input.tagName}」の話をするときに AI が守る指示書を書き直してください。
+
+${TAG_NOTE_RULES}
 - そのままファイルに保存できる形で、本文だけを返します。全体をコードブロックで
   囲まないでください。`)
+
+  return parts.join('\n\n')
+}
+
+export function tagConsultSystemPrompt(input: { audience: Audience; tagName: string }): string {
+  return `あなたは、チャットの AI に渡す指示書を、本人と相談しながら書く係です。
+
+${tagTarget(input)}
+- 本人が見ているのはスマートフォンのチャットの吹き出しです。話し言葉で短く返してください。
+- ファイルは書き換えません。本文の案を出すところまでが仕事です。
+  どの直しを入れるか、保存するかは本人が画面で決めます。
+- 「承知しました」のような前置きや、返答の要約は書かないでください。`
+}
+
+/** 相談のやり取り。長すぎるときは古い方から落とす。 */
+function renderConsult(turns: ConsultTurn[]): string {
+  const lines = turns.map((turn) => `${turn.role === 'user' ? '本人' : 'あなた'}: ${turn.text.trim()}`)
+  while (lines.join('\n\n').length > MAX_HISTORY_CHARS && lines.length > 1) {
+    lines.shift()
+  }
+  return lines.join('\n\n')
+}
+
+export function tagConsultPrompt(input: TagSources & { turns: ConsultTurn[] }): string {
+  const parts = tagSourceParts(input)
+  if (!input.current.trim()) parts.push('<current>\n（まだ何も書かれていません）\n</current>')
+  if (input.turns.length > 0) {
+    parts.push(`<consultation>\n${renderConsult(input.turns)}\n</consultation>`)
+  }
+
+  const task =
+    input.turns.length === 0
+      ? `相談の始まりです。上の会話を読んで、<current> にまだ無いが、この分野の話で本人が繰り返していることを
+三つまで挙げ、それぞれ指示書に書いておくか本人に聞いてください。番号を振って、一つ一行で。
+見つからなければ、どんなことを書いておきたいか本人に聞いてください。この回では本文の案は出しません。`
+      : `<consultation> の続きです。本人の最後の発言に答えてください。
+
+- 書く中身がまだ決まっていないうちは、聞き返してかまいません。一度に聞くのは三つまでです。
+- 何を書くか決まったら、ひとこと返したあとに、新しい本文の全文を <proposal> と </proposal> の行で
+  囲んで最後に付けます。本人が画面で一行ずつ選んで入れるので、変えない行は一字も変えずにそのまま残します。
+- 本文の案を出さない回は、<proposal> を書きません。`
+
+  parts.push(`${task}
+
+指示書の中身は次に従います。
+
+${TAG_NOTE_RULES}`)
 
   return parts.join('\n\n')
 }

@@ -15,6 +15,7 @@ import type {
   UpdateResult,
   UpdateStatus,
 } from '../../shared/types'
+import type { ConsultTurn } from '../../shared/tag-consult'
 
 async function unwrap<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(await errorMessage(res))
@@ -217,6 +218,24 @@ export function spaceApi(base: string, author?: string) {
      */
     draftTag: async function* (tag: string, signal?: AbortSignal): AsyncGenerator<SummaryEvent> {
       const res = await fetch(tagAt(tag, '/draft'), { method: 'POST', signal })
+      yield* readSSE<SummaryEvent>(res)
+    },
+
+    /**
+     * タグ本文を相談する。やり取りはこちらが持っていて、毎回丸ごと送る。
+     * `current` は書きかけの本文。ここでもファイルは変わらない。
+     */
+    consultTag: async function* (
+      tag: string,
+      input: { turns: ConsultTurn[]; current: string },
+      signal?: AbortSignal,
+    ): AsyncGenerator<SummaryEvent> {
+      const res = await fetch(tagAt(tag, '/consult'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+        signal,
+      })
       yield* readSSE<SummaryEvent>(res)
     },
   }

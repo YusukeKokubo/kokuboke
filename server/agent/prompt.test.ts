@@ -6,6 +6,7 @@ import {
   classifyBlock,
   organizeDraftPrompt,
   organizePrompt,
+  tagConsultPrompt,
   tagDraftPrompt,
   tagNote,
   tagPrompt,
@@ -254,5 +255,39 @@ describe('tagDraftPrompt', () => {
     assert.match(text, /<agents_md>\n結論から書く/)
     assert.match(text, /指示書/)
     assert.equal(text.includes('記憶'), false)
+  })
+})
+
+describe('tagConsultPrompt', () => {
+  const base = {
+    tagName: '旅行',
+    current: '- 候補は3つまで',
+    agents: '',
+    profile: '',
+    chats: [{ name: '京都', history: [] }],
+  }
+
+  it('始まりの回は案を出さずに聞く', () => {
+    const text = tagConsultPrompt({ ...base, turns: [] })
+    assert.match(text, /相談の始まり/)
+    assert.match(text, /<current>\n- 候補は3つまで/)
+    assert.equal(text.includes('<consultation>'), false)
+  })
+
+  it('やり取りを載せて、案の囲み方を伝える', () => {
+    const text = tagConsultPrompt({
+      ...base,
+      turns: [
+        { role: 'assistant', text: '子連れのことは書く？' },
+        { role: 'user', text: '書いて' },
+      ],
+    })
+    assert.match(text, /<consultation>\nあなた: 子連れのことは書く？\n\n本人: 書いて\n<\/consultation>/)
+    assert.match(text, /<proposal> と <\/proposal>/)
+  })
+
+  it('本文が空でも、空だと分かるようにする', () => {
+    const text = tagConsultPrompt({ ...base, current: '', turns: [] })
+    assert.match(text, /<current>\n（まだ何も書かれていません）/)
   })
 })

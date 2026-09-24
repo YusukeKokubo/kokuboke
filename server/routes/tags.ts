@@ -1,14 +1,23 @@
 import { Hono } from 'hono'
+import type { ConsultTurn } from '../../shared/tag-consult'
 import { NO_NAME, type OrganizeEvent, type SummaryEvent, type TagOrganizeAction } from '../../shared/types'
 import { resolveModel, unfence } from '../agent'
 import { parseOrganize } from '../agent/name'
-import { organizePrompt, organizeSystemPrompt, tagDraftPrompt, tagDraftSystemPrompt, tagNote } from '../agent/prompt'
+import {
+  organizePrompt,
+  organizeSystemPrompt,
+  tagConsultPrompt,
+  tagConsultSystemPrompt,
+  tagDraftPrompt,
+  tagDraftSystemPrompt,
+  tagNote,
+} from '../agent/prompt'
 import { limiter } from '../agent/queue'
 import { BadRequestError } from '../errors'
 import { streamAgent } from '../lib/agent-stream'
 import { readJson, readText } from '../lib/body'
 import { readAll } from '../store/log'
-import { asTopicName, tagsDir } from '../store/paths'
+import { asTopicName, tagsDir, type UserName } from '../store/paths'
 import { appendRevision, readRevisions, splitOrganizeActions } from '../store/revision'
 import {
   applyOrganize,
@@ -165,6 +174,34 @@ tags.on('DELETE', tagPaths(), async (c) => {
   return c.body(null, 204)
 })
 
+/** そのタグの付いた会話。新しい順。 */
+async function taggedChats(user: UserName, name: string) {
+  const tagged = (await listTopics(user)).filter((topic) => topic.tags.includes(name))
+  const chats = []
+  for (const topic of tagged) {
+    const found = await resolveTopic(user, topic.slug)
+    if (!found) continue
+    chats.push({ name: topic.name || NO_NAME, history: await readAll(user, found.folder) })
+  }
+  return { newest: tagged[0], chats }
+}
+
+const MAX_CONSULT_TURNS = 40
+
+/** 相談の履歴。形の崩れたものは落とし、長すぎる分は古い方から切る。 */
+function asConsultTurns(raw: unknown): ConsultTurn[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(
+      (turn): turn is ConsultTurn =>
+        !!turn &&
+        typeof turn === 'object' &&
+        (turn.role === 'user' || turn.role === 'assistant') &&
+        typeof turn.text === 'string',
+    )
+    .slice(-MAX_CONSULT_TURNS)
+}
+
 tags.on('POST', tagPaths('/draft'), async (c) => {
   const space = resolveSpace(c)
   const { user } = space
@@ -173,18 +210,11 @@ tags.on('POST', tagPaths('/draft'), async (c) => {
 
   // 日数では切らない。国際情勢のように一件ごとに話題が変わるタグでも、
   // 本人の求め方は古い会話にも出ている。新しい順に渡し、長すぎる分はプロンプト側が古い方から落とす。
-  const tagged = (await listTopics(user)).filter((topic) => topic.tags.includes(name))
-  const chats = []
-  for (const topic of tagged) {
-    const found = await resolveTopic(user, topic.slug)
-    if (!found) continue
-    chats.push({ name: topic.name || NO_NAME, history: await readAll(user, found.folder) })
-  }
+  const { newest, chats } = await taggedChats(user, name)
   if (chats.every((chat) => chat.history.length === 0)) {
     throw new BadRequestError('このタグの会話がまだないよ')
   }
 
-  const newest = tagged[0]
   const choice = resolveModel(newest?.engine, newest?.model)
   const release = await limiter.acquire(space.busyKey(name))
 
@@ -203,5 +233,44 @@ tags.on('POST', tagPaths('/draft'), async (c) => {
     tag: 'tag-draft',
     fallback: '指示書を整理できませんでした',
     close: (text, send) => send({ type: 'done', text: unfence(text), modelLabel: choice.label }),
+  })
+})
+
+/**
+ * 本文を相談しながら直す。やり取りは画面が持っていて、毎回丸ごと送ってくる。
+ * `current` は保存済みの本文ではなく、画面で書きかけている本文。
+ * ここでもファイルは変わらない。返すのは生の返答で、返事と案に分けるのは画面の側。
+ */
+tags.on('POST', tagPaths('/consult'), async (c) => {
+  const space = resolveSpace(c)
+  const { user } = space
+  const name = assertTagName(c.req.param('tag') ?? '')
+  const body = await readJson<{ turns?: unknown; current?: unknown }>(c.req.raw)
+  const turns = asConsultTurns(body.turns)
+  if (turns.length > 0 && turns.at(-1)?.role !== 'user') {
+    throw new BadRequestError('相談の内容がありません')
+  }
+  const current = typeof body.current === 'string' ? body.current : (await readTag(user, name)).text
+
+  const { newest, chats } = await taggedChats(user, name)
+  const choice = resolveModel(newest?.engine, newest?.model)
+  const release = await limiter.acquire(space.busyKey(name))
+
+  return streamAgent<SummaryEvent>(c, {
+    choice,
+    cwd: tagsDir(user),
+    prompt: tagConsultPrompt({
+      tagName: name,
+      current,
+      agents: await readAgents(user),
+      profile: await space.profile(),
+      chats,
+      turns,
+    }),
+    systemPrompt: tagConsultSystemPrompt({ audience: space.audience, tagName: name }),
+    release,
+    tag: 'tag-consult',
+    fallback: '相談の返事を書けませんでした',
+    close: (text, send) => send({ type: 'done', text, modelLabel: choice.label }),
   })
 })
