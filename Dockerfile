@@ -71,8 +71,11 @@ USER app
 # CI から毎回叩くと版が勝手に上がってログインが切れるので、スクリプトが実際に
 # やっていること（tar を展開して ~/.local/bin に symlink）をここに写して版を固定する。
 # 上げるときは https://cursor.com/install を読んで、中の版番号をここへ持ってくる。
+#
+# 起動の速さは版でかなり違う。同じ Mac で init（最初の行）までを測ると、
+# 2026.08.04-aaa8809 は 12〜13 秒、2026.09.23-86fc751 は 5 秒ほどだった。
 ARG INSTALL_CURSOR=true
-ARG CURSOR_VERSION=2026.08.04-aaa8809
+ARG CURSOR_VERSION=2026.09.23-86fc751
 ENV PATH=/home/app/.local/bin:$PATH
 RUN if [ "$INSTALL_CURSOR" = "true" ]; then \
       arch="$(uname -m)"; \
