@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import type { ActivityEntry, CursorLogin, UpdateResult, UpdateStatus } from '../../shared/types'
-import { cursorLogin, startCursorLogin } from '../agent/cursor-login'
+import type { ActivityEntry, EngineLogin, UpdateResult, UpdateStatus } from '../../shared/types'
+import { isEngineId } from '../agent/engines'
+import { engineLogin, startLogin, submitLoginCode } from '../agent/login'
 import { config } from '../config'
 import { listRecentActivity } from '../store/activity'
 
@@ -145,16 +146,34 @@ admin.post('/api/admin/update', async (c) => {
   return c.json<UpdateResult>({ replacing: false, summary: body.summary ?? null })
 })
 
-/** cursor-agent にログインしているか。手続きの途中なら、その様子も返す。 */
-admin.get('/api/admin/cursor', async (c) => {
-  return c.json<CursorLogin>(await cursorLogin())
+function engineParam(value: string) {
+  if (!isEngineId(value)) throw new HTTPException(404, { message: 'ページが見つかりません' })
+  return value
+}
+
+/** CLI にログインしているか。手続きの途中なら、その様子も返す。 */
+admin.get('/api/admin/login/:engine', async (c) => {
+  return c.json<EngineLogin>(await engineLogin(engineParam(c.req.param('engine'))))
 })
 
 /**
  * ログインを始める。URL が出たところで返すので、画面はそれを開かせて、
  * あとは GET を叩いて済むのを待つ。
  */
-admin.post('/api/admin/cursor/login', async (c) => {
-  await startCursorLogin()
-  return c.json<CursorLogin>(await cursorLogin())
+admin.post('/api/admin/login/:engine', async (c) => {
+  const engine = engineParam(c.req.param('engine'))
+  await startLogin(engine)
+  return c.json<EngineLogin>(await engineLogin(engine))
+})
+
+/** 認証のあとに出たコードを渡す。Claude Code だけが使う。 */
+admin.post('/api/admin/login/:engine/code', async (c) => {
+  const engine = engineParam(c.req.param('engine'))
+  const body = (await c.req.json().catch(() => ({}))) as { code?: unknown }
+  const code = typeof body.code === 'string' ? body.code.trim() : ''
+  if (!code) throw new HTTPException(400, { message: 'コードが空です' })
+  if (!submitLoginCode(engine, code)) {
+    throw new HTTPException(409, { message: 'ログインの手続きが止まっとる。もう一度ログインを押して' })
+  }
+  return c.json<EngineLogin>(await engineLogin(engine))
 })

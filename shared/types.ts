@@ -139,17 +139,28 @@ export interface UpdateStatus {
   error?: string
 }
 
-/** cursor-agent のログインの様子。管理画面が見る。 */
-export interface CursorLogin {
-  /** cursor-agent が入っているか。INSTALL_CURSOR=false のイメージでは false。 */
+/** CLI のログインの様子。管理画面がエンジンごとに見る。 */
+export interface EngineLogin {
+  engine: EngineId
+  /** CLI が入っているか。cursor は INSTALL_CURSOR=false のイメージだと入っていない。 */
   installed: boolean
   /** ログインしていれば、そのアカウントのメール。 */
   account: string | null
   /**
    * ログインの手続き。waiting のあいだは url を誰かがブラウザで開いて認証するのを
-   * CLI が待っている。済むと idle に戻り、account が埋まる。
+   * CLI が待っている。needsCode のエンジン（Claude Code）は、認証のあとに出る
+   * コードを貼って返すまで終わらない。済むと idle に戻り、account が埋まる。
    */
-  flow: { phase: 'idle' } | { phase: 'waiting'; url: string } | { phase: 'failed'; message: string }
+  flow:
+    | { phase: 'idle' }
+    | {
+        phase: 'waiting'
+        url: string
+        needsCode: boolean
+        /** コードを貼ったあとに CLI が言ったこと。形の違うコードだと、断ってまた待つ。 */
+        notice?: string
+      }
+    | { phase: 'failed'; message: string }
 }
 
 /** 更新を頼んだ結果。 */

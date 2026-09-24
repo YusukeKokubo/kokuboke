@@ -10,12 +10,13 @@ import {
   LogIn,
   RefreshCw,
 } from 'lucide-react'
-import type { ActivityEntry, CursorLogin, UpdateStatus } from '../../shared/types'
+import type { ActivityEntry, EngineId, EngineLogin, UpdateStatus } from '../../shared/types'
 import { api } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { personalHome, topicHref } from '@/lib/space'
 import { useDocumentTitle } from '@/lib/title'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 const KEY = 'kokuboke:admin'
 
@@ -221,7 +222,8 @@ export default function AdminPage() {
           )}
         </section>
 
-        <CursorLoginSection adminKey={key} />
+        <LoginSection adminKey={key} engine="claude" title="Claude Code のログイン" />
+        <LoginSection adminKey={key} engine="cursor" title="Cursor のログイン" />
 
         <section className="flex flex-col gap-3">
           <h2 className="text-muted-foreground text-xs font-medium tracking-wide">最新の会話</h2>
@@ -278,23 +280,26 @@ export default function AdminPage() {
 }
 
 /**
- * cursor-agent のログイン。ログインを押すとサーバーが CLI を起こして URL を返すので、
- * それを開いて認証してもらう。済むまで数秒おきに様子を聞きに行く。
+ * CLI のログイン。ログインを押すとサーバーが CLI を起こして URL を返すので、
+ * それを開いて認証してもらう。Claude Code は認証のあとに出るコードを貼って返す。
+ * 済むまで数秒おきに様子を聞きに行く。
  */
-function CursorLoginSection({ adminKey }: { adminKey: string }) {
-  const [state, setState] = useState<CursorLogin | null>(null)
+function LoginSection({ adminKey, engine, title }: { adminKey: string; engine: EngineId; title: string }) {
+  const [state, setState] = useState<EngineLogin | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
+  const [code, setCode] = useState('')
+  const [sending, setSending] = useState(false)
 
   const load = useCallback(() => {
     api
-      .cursorLogin(adminKey)
+      .engineLogin(adminKey, engine)
       .then((next) => {
         setState(next)
         setError(null)
       })
       .catch((cause: Error) => setError(cause.message))
-  }, [adminKey])
+  }, [adminKey, engine])
 
   useEffect(load, [load])
 
@@ -310,8 +315,9 @@ function CursorLoginSection({ adminKey }: { adminKey: string }) {
   async function start() {
     setStarting(true)
     setError(null)
+    setCode('')
     try {
-      setState(await api.startCursorLogin(adminKey))
+      setState(await api.startLogin(adminKey, engine))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'ログインを始められませんでした')
     } finally {
@@ -319,19 +325,32 @@ function CursorLoginSection({ adminKey }: { adminKey: string }) {
     }
   }
 
+  async function sendCode(event: React.FormEvent) {
+    event.preventDefault()
+    if (!code.trim()) return
+    setSending(true)
+    setError(null)
+    try {
+      setState(await api.submitLoginCode(adminKey, engine, code))
+      setCode('')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'コードを渡せませんでした')
+    } finally {
+      setSending(false)
+    }
+  }
+
   const flow = state?.flow
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-muted-foreground text-xs font-medium tracking-wide">Cursor のログイン</h2>
+      <h2 className="text-muted-foreground text-xs font-medium tracking-wide">{title}</h2>
 
       {error && <p className="text-destructive leading-relaxed">{error}</p>}
       {!error && state === null && <p className="text-muted-foreground">読み込み中…</p>}
 
       {state && !state.installed && (
-        <p className="text-muted-foreground leading-relaxed">
-          このイメージには cursor-agent が入っとらん。
-        </p>
+        <p className="text-muted-foreground leading-relaxed">この機械には CLI が入っとらん。</p>
       )}
 
       {state?.installed && (
@@ -348,7 +367,9 @@ function CursorLoginSection({ adminKey }: { adminKey: string }) {
           {flow?.phase === 'waiting' && (
             <div className="flex flex-col gap-2">
               <p className="leading-relaxed">
-                下のリンクを開いて、Cursor のアカウントで認証して。済んだらここが勝手に変わるでね。
+                {flow.needsCode
+                  ? '下のリンクを開いて認証して。最後にコードが出るで、それを下に貼って送って。'
+                  : '下のリンクを開いて、Cursor のアカウントで認証して。済んだらここが勝手に変わるでね。'}
               </p>
               <a
                 href={flow.url}
@@ -359,7 +380,26 @@ function CursorLoginSection({ adminKey }: { adminKey: string }) {
                 <ExternalLink className="size-4" />
                 認証のページを開く
               </a>
-              <p className="text-muted-foreground animate-pulse text-xs">待っとる…</p>
+              {flow.needsCode ? (
+                <form onSubmit={sendCode} className="flex gap-2">
+                  <Input
+                    value={code}
+                    onChange={(event) => setCode(event.target.value)}
+                    placeholder="コードを貼る"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="font-mono text-xs"
+                  />
+                  <Button type="submit" disabled={sending || !code.trim()}>
+                    {sending ? '送っとる…' : '送る'}
+                  </Button>
+                </form>
+              ) : (
+                <p className="text-muted-foreground animate-pulse text-xs">待っとる…</p>
+              )}
+              {flow.notice && (
+                <p className="text-destructive leading-relaxed whitespace-pre-wrap">{flow.notice}</p>
+              )}
             </div>
           )}
 

@@ -2,8 +2,9 @@ import type {
   ActivityEntry,
   ChatEvent,
   Agents,
-  CursorLogin,
+  EngineId,
   EngineInfo,
+  EngineLogin,
   FamilyActivityEntry,
   Message,
   Organize,
@@ -258,13 +259,19 @@ export const api = {
   updateStatus: (key: string) =>
     json.get<UpdateStatus>('/api/admin/status', { headers: { 'x-admin-token': key } }),
 
-  /** cursor-agent のログインの様子。 */
-  cursorLogin: (key: string) =>
-    json.get<CursorLogin>('/api/admin/cursor', { headers: { 'x-admin-token': key } }),
+  /** CLI のログインの様子。 */
+  engineLogin: (key: string, engine: EngineId) =>
+    json.get<EngineLogin>(`/api/admin/login/${engine}`, { headers: { 'x-admin-token': key } }),
 
   /** ログインを始める。返ってきた flow の url を開いて認証する。 */
-  startCursorLogin: (key: string) =>
-    json.send<CursorLogin>('POST', '/api/admin/cursor/login', undefined, {
+  startLogin: (key: string, engine: EngineId) =>
+    json.send<EngineLogin>('POST', `/api/admin/login/${engine}`, undefined, {
+      headers: { 'x-admin-token': key },
+    }),
+
+  /** 認証のあとに出たコードを渡す（Claude Code）。 */
+  submitLoginCode: (key: string, engine: EngineId, code: string) =>
+    json.send<EngineLogin>('POST', `/api/admin/login/${engine}/code`, { code }, {
       headers: { 'x-admin-token': key },
     }),
 
