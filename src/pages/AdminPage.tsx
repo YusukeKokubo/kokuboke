@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Check, Download, FileText, ImageIcon, RefreshCw } from 'lucide-react'
-import type { ActivityEntry, UpdateStatus } from '../../shared/types'
+import {
+  AlertTriangle,
+  Check,
+  Download,
+  ExternalLink,
+  FileText,
+  ImageIcon,
+  LogIn,
+  RefreshCw,
+} from 'lucide-react'
+import type { ActivityEntry, CursorLogin, UpdateStatus } from '../../shared/types'
 import { api } from '@/lib/api'
 import { relativeLabel, topicLabel } from '@/lib/format'
 import { personalHome, topicHref } from '@/lib/space'
@@ -212,6 +221,8 @@ export default function AdminPage() {
           )}
         </section>
 
+        <CursorLoginSection adminKey={key} />
+
         <section className="flex flex-col gap-3">
           <h2 className="text-muted-foreground text-xs font-medium tracking-wide">最新の会話</h2>
 
@@ -263,5 +274,112 @@ export default function AdminPage() {
         </section>
       </main>
     </div>
+  )
+}
+
+/**
+ * cursor-agent のログイン。ログインを押すとサーバーが CLI を起こして URL を返すので、
+ * それを開いて認証してもらう。済むまで数秒おきに様子を聞きに行く。
+ */
+function CursorLoginSection({ adminKey }: { adminKey: string }) {
+  const [state, setState] = useState<CursorLogin | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [starting, setStarting] = useState(false)
+
+  const load = useCallback(() => {
+    api
+      .cursorLogin(adminKey)
+      .then((next) => {
+        setState(next)
+        setError(null)
+      })
+      .catch((cause: Error) => setError(cause.message))
+  }, [adminKey])
+
+  useEffect(load, [load])
+
+  const waiting = state?.flow.phase === 'waiting'
+
+  // 認証はこの画面の外（別のタブ）で済むので、戻ってきたのを待って聞き直す。
+  useEffect(() => {
+    if (!waiting) return
+    const timer = setInterval(load, 3000)
+    return () => clearInterval(timer)
+  }, [waiting, load])
+
+  async function start() {
+    setStarting(true)
+    setError(null)
+    try {
+      setState(await api.startCursorLogin(adminKey))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'ログインを始められませんでした')
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  const flow = state?.flow
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-muted-foreground text-xs font-medium tracking-wide">Cursor のログイン</h2>
+
+      {error && <p className="text-destructive leading-relaxed">{error}</p>}
+      {!error && state === null && <p className="text-muted-foreground">読み込み中…</p>}
+
+      {state && !state.installed && (
+        <p className="text-muted-foreground leading-relaxed">
+          このイメージには cursor-agent が入っとらん。
+        </p>
+      )}
+
+      {state?.installed && (
+        <>
+          {state.account ? (
+            <p className="flex items-center gap-1.5">
+              <Check className="size-4 shrink-0" />
+              <span className="min-w-0 truncate">{state.account} でログインしとるよ</span>
+            </p>
+          ) : (
+            <p className="text-muted-foreground">ログインしとらん</p>
+          )}
+
+          {flow?.phase === 'waiting' && (
+            <div className="flex flex-col gap-2">
+              <p className="leading-relaxed">
+                下のリンクを開いて、Cursor のアカウントで認証して。済んだらここが勝手に変わるでね。
+              </p>
+              <a
+                href={flow.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary flex items-center gap-1.5 self-start underline underline-offset-4"
+              >
+                <ExternalLink className="size-4" />
+                認証のページを開く
+              </a>
+              <p className="text-muted-foreground animate-pulse text-xs">待っとる…</p>
+            </div>
+          )}
+
+          {flow?.phase === 'failed' && (
+            <p className="text-destructive leading-relaxed whitespace-pre-wrap">{flow.message}</p>
+          )}
+
+          {!waiting && (
+            <Button
+              onClick={start}
+              disabled={starting}
+              variant={state.account ? 'outline' : 'default'}
+              className="self-start"
+            >
+              <LogIn className="size-4" />
+              {starting ? '支度しとる…' : state.account ? 'ログインし直す' : 'ログインする'}
+            </Button>
+          )}
+        </>
+      )}
+    </section>
   )
 }

@@ -139,6 +139,19 @@ export interface UpdateStatus {
   error?: string
 }
 
+/** cursor-agent のログインの様子。管理画面が見る。 */
+export interface CursorLogin {
+  /** cursor-agent が入っているか。INSTALL_CURSOR=false のイメージでは false。 */
+  installed: boolean
+  /** ログインしていれば、そのアカウントのメール。 */
+  account: string | null
+  /**
+   * ログインの手続き。waiting のあいだは url を誰かがブラウザで開いて認証するのを
+   * CLI が待っている。済むと idle に戻り、account が埋まる。
+   */
+  flow: { phase: 'idle' } | { phase: 'waiting'; url: string } | { phase: 'failed'; message: string }
+}
+
 /** 更新を頼んだ結果。 */
 export interface UpdateResult {
   /**

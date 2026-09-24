@@ -2,6 +2,7 @@ import type {
   ActivityEntry,
   ChatEvent,
   Agents,
+  CursorLogin,
   EngineInfo,
   FamilyActivityEntry,
   Message,
@@ -256,6 +257,16 @@ export const api = {
   /** 動いているイメージと main のずれ。鍵が合わなければ 404 になる。 */
   updateStatus: (key: string) =>
     json.get<UpdateStatus>('/api/admin/status', { headers: { 'x-admin-token': key } }),
+
+  /** cursor-agent のログインの様子。 */
+  cursorLogin: (key: string) =>
+    json.get<CursorLogin>('/api/admin/cursor', { headers: { 'x-admin-token': key } }),
+
+  /** ログインを始める。返ってきた flow の url を開いて認証する。 */
+  startCursorLogin: (key: string) =>
+    json.send<CursorLogin>('POST', '/api/admin/cursor/login', undefined, {
+      headers: { 'x-admin-token': key },
+    }),
 
   /** ユーザーごとの最新の会話。詳細は各会話画面で見る。 */
   activity: (key: string) =>

@@ -50,7 +50,7 @@ class EventQueue<T> {
  * 環境変数は原則そのまま渡す。ただし、開発中に Claude Code の中から
  * 起動したときに紛れ込む入れ子用の変数だけは落としておく。
  */
-function childEnv(extra?: Record<string, string>): NodeJS.ProcessEnv {
+export function childEnv(extra?: Record<string, string>): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env, LANG: process.env.LANG ?? 'C.UTF-8', ...extra }
   for (const key of Object.keys(env)) {
     if (key === 'CLAUDECODE' || key.startsWith('CLAUDE_CODE_') || key === 'CLAUDE_PID') {

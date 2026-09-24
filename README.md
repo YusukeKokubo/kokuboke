@@ -232,6 +232,10 @@ sudo docker exec -it kokuboke cursor-agent login
 表示された URL をブラウザで開いて認証する。認証情報は名前付きボリュームに残るので、
 コンテナを作り直しても再ログインは要らない。ボリュームごと消した場合はやり直し。
 
+cursor の方は管理画面（`/admin`）の「Cursor のログイン」からも通せる。押すとサーバーが
+`cursor-agent login` を起こして認証の URL を出すので、それをどの端末で開いてもよい。
+済むと画面がログイン中のアカウントに変わる。版を上げてログインが切れたときも、SSH は要らない。
+
 cursor は置き場所が二つに分かれていて、`~/.cursor` に設定と履歴、
 `~/.config/cursor/auth.json` にトークン本体が入る。両方をボリュームにしてある。
 ここに行き着くまでの切り分けは `docs/202608-cli-auth-persistence.md` に残してある。
@@ -443,7 +447,7 @@ Claude Code が `AGENTS.md` を読むのは、Anthropic からフィーチャー
 - `/user/:user/:id` — チャット。日付の区切り、画像付きの吹き出し、
   返答が届くにつれて伸びていく表示、見出しの下のタグ。
 - `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/profile.md` / `/family/AGENTS.md` / `/family/organize.md` / `/family/:id` — 家族共有スペースの同じ画面。
-- `/admin` — イメージの差し替え。
+- `/admin` — イメージの差し替えと、cursor-agent のログイン。
 
 返答を作っているあいだは、ファイルを開いたりウェブを見に行ったりしていることを
 吹き出しの下に一言で出す。一文字目が届くまで数十秒かかる回があり、

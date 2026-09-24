@@ -122,6 +122,15 @@ async function applyMcp(): Promise<void> {
 let mcpSettled = false
 let mcpInFlight: Promise<void> | null = null
 
+/**
+ * ログインし直すと CLI が設定を書き直すことがある。次に起こすときに
+ * もう一度確かめるよう、済んだ印を落とす。
+ */
+export function forgetCursorConfig(): void {
+  settled = false
+  mcpSettled = false
+}
+
 /** remember を global mcp.json に足す。既にある他のサーバーは消さない。 */
 export function ensureRememberMcp(): Promise<void> {
   if (mcpSettled) return Promise.resolve()

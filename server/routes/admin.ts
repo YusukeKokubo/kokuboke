@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import type { ActivityEntry, UpdateResult, UpdateStatus } from '../../shared/types'
+import type { ActivityEntry, CursorLogin, UpdateResult, UpdateStatus } from '../../shared/types'
+import { cursorLogin, startCursorLogin } from '../agent/cursor-login'
 import { config } from '../config'
 import { listRecentActivity } from '../store/activity'
 
@@ -142,4 +143,18 @@ admin.post('/api/admin/update', async (c) => {
 
   const body = (await res.json()) as { summary?: UpdateResult['summary'] }
   return c.json<UpdateResult>({ replacing: false, summary: body.summary ?? null })
+})
+
+/** cursor-agent にログインしているか。手続きの途中なら、その様子も返す。 */
+admin.get('/api/admin/cursor', async (c) => {
+  return c.json<CursorLogin>(await cursorLogin())
+})
+
+/**
+ * ログインを始める。URL が出たところで返すので、画面はそれを開かせて、
+ * あとは GET を叩いて済むのを待つ。
+ */
+admin.post('/api/admin/cursor/login', async (c) => {
+  await startCursorLogin()
+  return c.json<CursorLogin>(await cursorLogin())
 })
