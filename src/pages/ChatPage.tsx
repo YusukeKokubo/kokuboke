@@ -387,11 +387,18 @@ export default function ChatPage() {
           </DialogHeader>
 
           <ModelPicker
-            value={meta ? { engine: meta.engine, model: meta.model } : null}
-            onChange={async (next) => {
+            value={meta ? { engine: meta.engine, model: meta.model, effort: meta.effort } : null}
+            onChange={async (next, { keepOpen }) => {
               try {
-                setMeta(await space.api.updateTopic(id, next))
-                setModelOpen(false)
+                setMeta(
+                  await space.api.updateTopic(id, {
+                    engine: next.engine,
+                    model: next.model,
+                    effort: next.effort ?? null,
+                  }),
+                )
+                // 深さを選べるモデルに移ったときは、続けて深さを選べるよう開けておく。
+                if (!keepOpen) setModelOpen(false)
               } catch (cause) {
                 setNotice(cause instanceof Error ? cause.message : 'モデルを変えられませんでした')
               }

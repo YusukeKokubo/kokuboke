@@ -51,7 +51,7 @@ docs.on('POST', spacePaths('/organize/draft'), async (c) => {
   const { user } = space
   const tags = await listTags(user)
   const topics = await listTopics(user)
-  const choice = resolveModel(topics[0]?.engine, topics[0]?.model)
+  const choice = resolveModel(topics[0]?.engine, topics[0]?.model, topics[0]?.effort)
   const key = asTopicName('organize')
   if (!key) throw new BadRequestError('方針をまとめられませんでした')
   const release = await limiter.acquire(space.busyKey(key))

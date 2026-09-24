@@ -36,7 +36,7 @@ function args(request: RunRequest): string[] {
     '--strict-mcp-config',
   ]
 
-  if (config.claudeEffort) list.push('--effort', config.claudeEffort)
+  if (request.effort) list.push('--effort', request.effort)
 
   return list
 }
@@ -52,7 +52,7 @@ export const claudeCode: Engine = {
 
     return runProcess({
       bin: config.claudeBin,
-      label: `claude/${request.model}`,
+      label: `claude/${request.model}/${request.effort ?? 'default'}`,
       args: args(request),
       cwd: request.cwd,
       stdin: request.prompt,

@@ -2,6 +2,7 @@ import type {
   ActivityEntry,
   ChatEvent,
   Agents,
+  Effort,
   EngineId,
   EngineInfo,
   EngineLogin,
@@ -133,7 +134,8 @@ export function spaceApi(base: string, author?: string) {
 
     createTopic: (input: NewTopic = {}) => json.send<Topic>('POST', `${base}/topics`, input),
 
-    updateTopic: (id: string, input: { engine: string; model: string }) =>
+    /** エンジンとモデル、考える深さ。深さは null で既定に戻す。 */
+    updateTopic: (id: string, input: { engine: string; model: string; effort?: Effort | null }) =>
       json.send<Topic>('PATCH', at(id, '/model'), input),
 
     /** 見出しを変える。URL は動かない。新しい会話はフォルダ名も合わせる。 */

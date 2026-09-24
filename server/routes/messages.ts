@@ -75,7 +75,7 @@ messages.on('POST', topicPaths('/messages'), async (c) => {
     const meta = await readTopic(user, id)
     const history = await readRecent(user, id)
 
-    choice = resolveModel(meta.engine, meta.model)
+    choice = resolveModel(meta.engine, meta.model, meta.effort)
     systemPrompt = chatSystemPrompt({ audience: space.audience, topicName: meta.name })
     prompt = chatPrompt({
       profile: await space.profile(),

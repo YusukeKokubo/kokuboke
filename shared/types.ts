@@ -19,11 +19,20 @@ export interface Message {
 
 export type EngineId = 'claude' | 'cursor'
 
+/** Claude Code の --effort。考える深さ。浅いほど一文字目が早い。 */
+export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+
 export interface EngineInfo {
   id: EngineId
   label: string
   note: string
-  models: Array<{ id: string; label: string }>
+  /** effort は考える深さを選べるモデルか。 */
+  models: Array<{ id: string; label: string; effort?: boolean }>
+  /**
+   * 考える深さの選択肢。選べるエンジン（Claude Code）だけが持つ。
+   * cursor は深さがモデルの id に埋まっていて、段の並びもモデルごとにばらばらなので持たない。
+   */
+  efforts?: Array<{ id: Effort; label: string }>
 }
 
 /**
@@ -40,6 +49,8 @@ export interface Topic {
   createdAt: string
   engine: EngineId
   model: string
+  /** 考える深さ。選んでいなければ null（CLAUDE_EFFORT か CLI の既定）。 */
+  effort: Effort | null
   modelLabel: string
   tags: string[]
   lastMessageAt: string | null

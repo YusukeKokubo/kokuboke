@@ -1,14 +1,16 @@
 import { BadRequestError } from '../errors'
-import type { EngineId } from '../../shared/types'
+import type { Effort, EngineId } from '../../shared/types'
 import { config } from '../config'
 import { claudeCode } from './claude-code'
 import { cursorAgent } from './cursor'
-import { ENGINES, isEngineId } from './engines'
+import { ENGINES, isEffort, isEngineId } from './engines'
 import type { AgentEvent, RunRequest } from './types'
 
 export interface ModelChoice {
   engine: EngineId
   model: string
+  /** 考える深さ。選べないモデルや、選んでいないときは null。 */
+  effort: Effort | null
   label: string
 }
 
@@ -23,20 +25,30 @@ function defaultModel(engine: EngineId): string {
   return models[engine]
 }
 
-/** 指定が無い、あるいは知らない組み合わせなら既定に落とす。 */
-export function resolveModel(engine?: string | null, model?: string | null): ModelChoice {
+/**
+ * 指定が無い、あるいは知らない組み合わせなら既定に落とす。
+ * 深さは、そのモデルが選べるときだけ残す。モデルを変えて選べなくなったら落とす。
+ */
+export function resolveModel(
+  engine?: string | null,
+  model?: string | null,
+  effort?: string | null,
+): ModelChoice {
   const id: EngineId = isEngineId(engine) ? engine : config.defaultEngine
   const info = ENGINES.find((item) => item.id === id)!
 
   const chosen = info.models.find((item) => item.id === model)
-  if (chosen) return { engine: id, model: chosen.id, label: `${info.label} / ${chosen.label}` }
+  const modelId = chosen?.id ?? defaultModel(id)
+  const known = chosen ?? info.models.find((item) => item.id === modelId)
 
-  const fallback = defaultModel(id)
-  const known = info.models.find((item) => item.id === fallback)
+  const depth = known?.effort && isEffort(effort) ? effort : null
+  const depthLabel = depth ? info.efforts?.find((item) => item.id === depth)?.label : undefined
+
   return {
     engine: id,
-    model: fallback,
-    label: `${info.label} / ${known?.label ?? fallback}`,
+    model: modelId,
+    effort: depth,
+    label: `${info.label} / ${known?.label ?? modelId}${depthLabel ? ` · ${depthLabel}` : ''}`,
   }
 }
 
@@ -53,6 +65,18 @@ export function lightModel(engine?: string | null): ModelChoice {
   return resolveModel(id, models[id])
 }
 
+/**
+ * CLI に渡す深さ。トピックで選んでいなければ CLAUDE_EFFORT を使う。
+ * 段の無いモデル（Haiku 4.5 など）には、既定も含めて渡さない。
+ * 受け付けはするが効かず、かえって一文字目が遅れる回があった。
+ */
+function effortFor(choice: ModelChoice): string | undefined {
+  if (choice.effort) return choice.effort
+  const info = ENGINES.find((item) => item.id === choice.engine)
+  const supports = info?.models.find((item) => item.id === choice.model)?.effort === true
+  return supports && config.claudeEffort ? config.claudeEffort : undefined
+}
+
 export function runAgent(
   choice: ModelChoice,
   request: Omit<RunRequest, 'model'>,
@@ -61,5 +85,5 @@ export function runAgent(
   if (!engine) {
     throw new BadRequestError('選べないモデルです')
   }
-  return engine.run({ ...request, model: choice.model })
+  return engine.run({ ...request, model: choice.model, effort: effortFor(choice) })
 }

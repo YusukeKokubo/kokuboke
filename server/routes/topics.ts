@@ -31,12 +31,15 @@ topics.on('GET', spacePaths('/topics'), async (c) => {
 
 topics.on('POST', spacePaths('/topics'), async (c) => {
   const { user } = resolveSpace(c)
-  const body = await readJson<{ name?: string; engine?: string; model?: string }>(c.req.raw)
+  const body = await readJson<{ name?: string; engine?: string; model?: string; effort?: string }>(
+    c.req.raw,
+  )
   return c.json(
     await createTopic(user, {
       name: String(body.name ?? ''),
       engine: body.engine,
       model: body.model,
+      effort: body.effort,
     }),
     201,
   )
@@ -63,7 +66,7 @@ topics.on('PATCH', topicPaths('/name'), async (c) => {
 
 topics.on('PATCH', topicPaths('/model'), async (c) => {
   const { space, id } = await requireTopic(c)
-  const body = await readJson<{ engine?: string; model?: string }>(c.req.raw)
+  const body = await readJson<{ engine?: string; model?: string; effort?: string | null }>(c.req.raw)
   return c.json(await updateTopic(space.user, id, body))
 })
 

@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { ENGINES, isEngineId } from './agent/engines'
+import { EFFORTS, ENGINES, isEngineId } from './agent/engines'
 import { isTopicName, normalizeTopicName } from './store/topic-name'
 
 // 手元で `npm run dev` するときのために .env を読む。
@@ -28,7 +28,7 @@ function oneOf<T extends string>(value: string | undefined, allowed: readonly T[
   return ''
 }
 
-const CLAUDE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+const CLAUDE_EFFORTS = EFFORTS
 
 export const config = {
   port: num(process.env.PORT, 3000),
@@ -84,7 +84,7 @@ export const config = {
   claudeLightModel: process.env.CLAUDE_LIGHT_MODEL ?? 'claude-haiku-4-5',
   cursorLightModel: process.env.CURSOR_LIGHT_MODEL ?? 'composer-2.5',
 
-  /** 未指定なら CLI の既定に任せる。 */
+  /** トピックで深さを選んでいないときの既定。未指定なら CLI の既定に任せる。 */
   claudeEffort: oneOf(process.env.CLAUDE_EFFORT, CLAUDE_EFFORTS),
 
   /**

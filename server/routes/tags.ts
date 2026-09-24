@@ -76,7 +76,7 @@ tags.on('POST', spacePaths('/tags/organize'), async (c) => {
   }
 
   const topics = await listTopics(user)
-  const choice = resolveModel(topics[0]?.engine, topics[0]?.model)
+  const choice = resolveModel(topics[0]?.engine, topics[0]?.model, topics[0]?.effort)
   const key = asTopicName('organize')
   if (!key) throw new BadRequestError('整理できませんでした')
   const release = await limiter.acquire(space.busyKey(key))
@@ -215,7 +215,7 @@ tags.on('POST', tagPaths('/draft'), async (c) => {
     throw new BadRequestError('このタグの会話がまだないよ')
   }
 
-  const choice = resolveModel(newest?.engine, newest?.model)
+  const choice = resolveModel(newest?.engine, newest?.model, newest?.effort)
   const release = await limiter.acquire(space.busyKey(name))
 
   return streamAgent<SummaryEvent>(c, {
@@ -253,7 +253,7 @@ tags.on('POST', tagPaths('/consult'), async (c) => {
   const current = typeof body.current === 'string' ? body.current : (await readTag(user, name)).text
 
   const { newest, chats } = await taggedChats(user, name)
-  const choice = resolveModel(newest?.engine, newest?.model)
+  const choice = resolveModel(newest?.engine, newest?.model, newest?.effort)
   const release = await limiter.acquire(space.busyKey(name))
 
   return streamAgent<SummaryEvent>(c, {

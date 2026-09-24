@@ -16,6 +16,8 @@ export interface RunRequest {
   /** 役割の指示。エンジンによって渡し方が違う。 */
   systemPrompt: string
   model: string
+  /** Claude Code の --effort。無ければ CLI の既定。CLAUDE_EFFORT はここに入る前に足す。 */
+  effort?: string
   signal?: AbortSignal
   /**
    * cursor-agent の子へ足す環境変数。MCP の remember は mcp.json の

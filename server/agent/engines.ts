@@ -1,4 +1,4 @@
-import type { EngineId, EngineInfo } from '../../shared/types'
+import type { Effort, EngineId, EngineInfo } from '../../shared/types'
 
 /**
  * 画面に出す選択肢。cursor-agent 側は `cursor-agent --list-models` で
@@ -17,9 +17,17 @@ export const ENGINES: EngineInfo[] = [
     label: 'Claude Code',
     note: 'AGENTS.md をそのまま読む。',
     models: [
-      { id: 'claude-opus-5', label: 'Opus 5' },
-      { id: 'claude-sonnet-5', label: 'Sonnet 5' },
+      { id: 'claude-opus-5', label: 'Opus 5', effort: true },
+      { id: 'claude-sonnet-5', label: 'Sonnet 5', effort: true },
+      // CLI は --effort を受け付けるが、Haiku 4.5 には考える深さの段が無い。
       { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
+    ],
+    efforts: [
+      { id: 'low', label: '浅め' },
+      { id: 'medium', label: 'ふつう' },
+      { id: 'high', label: '深め' },
+      { id: 'xhigh', label: 'もっと深く' },
+      { id: 'max', label: 'いちばん深く' },
     ],
   },
   {
@@ -43,4 +51,11 @@ export const ENGINES: EngineInfo[] = [
 
 export function isEngineId(value: unknown): value is EngineId {
   return typeof value === 'string' && ENGINES.some((engine) => engine.id === value)
+}
+
+/** Claude Code の --effort に渡せる値。config もここから引く。 */
+export const EFFORTS: readonly Effort[] = ['low', 'medium', 'high', 'xhigh', 'max']
+
+export function isEffort(value: unknown): value is Effort {
+  return typeof value === 'string' && (EFFORTS as readonly string[]).includes(value)
 }

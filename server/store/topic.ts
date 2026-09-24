@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { type EngineId, type Topic } from '../../shared/types'
+import { type Effort, type EngineId, type Topic } from '../../shared/types'
 import { BadRequestError, NotFoundError } from '../errors'
 import { resolveModel } from '../agent'
+import { isEffort } from '../agent/engines'
 import {
   asTopicName,
   assertInsideDataDir,
@@ -31,6 +32,8 @@ export interface TopicMeta {
   createdAt: string
   engine?: EngineId
   model?: string
+  /** 考える深さ。選べないモデルでは持たない。 */
+  effort?: Effort
   tags?: string[]
   /**
    * 自動命名を最後に試したときの、本人の発言回数。
@@ -116,6 +119,7 @@ export async function readMeta(user: UserName, id: TopicName): Promise<TopicMeta
       createdAt: parsed.createdAt ?? new Date().toISOString(),
       engine: parsed.engine,
       model: parsed.model,
+      effort: isEffort(parsed.effort) ? parsed.effort : undefined,
       tags: Array.isArray(parsed.tags)
         ? parsed.tags.filter((tag): tag is string => typeof tag === 'string')
         : [],
@@ -139,13 +143,14 @@ function publicSlug(meta: TopicMeta): string {
 }
 
 function toTopic(meta: TopicMeta, last: { at: string; text: string } | null): Topic {
-  const choice = resolveModel(meta.engine, meta.model)
+  const choice = resolveModel(meta.engine, meta.model, meta.effort)
   return {
     slug: publicSlug(meta),
     name: meta.name,
     createdAt: meta.createdAt,
     engine: choice.engine,
     model: choice.model,
+    effort: choice.effort,
     modelLabel: choice.label,
     tags: meta.tags ?? [],
     lastMessageAt: last?.at ?? null,
@@ -224,7 +229,7 @@ export async function listTopics(user: UserName): Promise<Topic[]> {
 
 export async function createTopic(
   user: UserName,
-  input: { name?: string; engine?: string; model?: string; tags?: string[] },
+  input: { name?: string; engine?: string; model?: string; effort?: string; tags?: string[] },
 ): Promise<Topic> {
   const name = (input.name ?? '').trim()
   if (name.length > 40) {
@@ -239,7 +244,7 @@ export async function createTopic(
   await fs.mkdir(imagesDir(user, folder), { recursive: true })
   await fs.mkdir(filesDir(user, folder), { recursive: true })
 
-  const choice = resolveModel(input.engine, input.model)
+  const choice = resolveModel(input.engine, input.model, input.effort)
   const named = Boolean(name)
   const meta: TopicMeta = {
     slug: folder,
@@ -248,6 +253,7 @@ export async function createTopic(
     createdAt: createdAt.toISOString(),
     engine: choice.engine,
     model: choice.model,
+    ...(choice.effort ? { effort: choice.effort } : {}),
     tags: input.tags ?? [],
     ...(named ? { nameTriedAt: AUTO_NAME_LAST, nameTried: true } : {}),
   }
@@ -257,16 +263,29 @@ export async function createTopic(
   return toTopic(meta, null)
 }
 
-/** エンジンとモデルだけを差し替える。名前を変えるのは renameTopic。 */
+/**
+ * エンジンとモデル、考える深さだけを差し替える。名前を変えるのは renameTopic。
+ * 深さは undefined なら今のまま（選べないモデルに移れば落ちる）、null なら既定に戻す。
+ */
 export async function updateTopic(
   user: UserName,
   id: string,
-  input: { engine?: string; model?: string },
+  input: { engine?: string; model?: string; effort?: string | null },
 ): Promise<Topic> {
   const folder = await locate(user, id)
   const meta = await readMeta(user, folder)
-  const choice = resolveModel(input.engine ?? meta.engine, input.model ?? meta.model)
-  const next: TopicMeta = { ...meta, engine: choice.engine, model: choice.model }
+  const choice = resolveModel(
+    input.engine ?? meta.engine,
+    input.model ?? meta.model,
+    input.effort === undefined ? meta.effort : input.effort,
+  )
+  // undefined の effort は JSON に書くときに落ちる。
+  const next: TopicMeta = {
+    ...meta,
+    engine: choice.engine,
+    model: choice.model,
+    effort: choice.effort ?? undefined,
+  }
   await writeMeta(user, folder, next)
   return toTopic(next, await readLastEntry(user, folder))
 }
