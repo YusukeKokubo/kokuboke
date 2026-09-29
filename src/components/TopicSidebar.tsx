@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ChevronsDown, ChevronsUpDown, FileText, House, MessageSquarePlus, MoreHorizontal, Tags, Trash2, UserRound } from 'lucide-react'
-import type { Topic } from '../../shared/types'
+import type { Tag, Topic } from '../../shared/types'
 import { topicLabel } from '@/lib/format'
 import { familySpace, personalSpace, useSpace, type Space } from '@/lib/space'
 import { Button } from '@/components/ui/button'
@@ -41,6 +41,9 @@ import {
 interface TopicsState {
   personal: Topic[] | null
   family: Topic[] | null
+  /** 会話の横に絵文字を出すための、スペースごとのタグ一覧。 */
+  personalTags: Tag[]
+  familyTags: Tag[]
   error: string | null
   reload: () => void
 }
@@ -60,15 +63,24 @@ export function TopicsProvider({ children }: { children: ReactNode }) {
   const family = useMemo(() => (user ? familySpace(user) : null), [user])
   const [personalTopics, setPersonalTopics] = useState<Topic[] | null>(null)
   const [familyTopics, setFamilyTopics] = useState<Topic[] | null>(null)
+  const [personalTags, setPersonalTags] = useState<Tag[]>([])
+  const [familyTags, setFamilyTags] = useState<Tag[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(() => {
     if (!personal || !family) return
-    Promise.all([personal.api.listTopics(), family.api.listTopics()])
-      .then(([mine, shared]) => {
+    Promise.all([
+      personal.api.listTopics(),
+      family.api.listTopics(),
+      personal.api.listTags(),
+      family.api.listTags(),
+    ])
+      .then(([mine, shared, mineTags, sharedTags]) => {
         space.confirm()
         setPersonalTopics(mine)
         setFamilyTopics(shared)
+        setPersonalTags(mineTags)
+        setFamilyTags(sharedTags)
         setError(null)
       })
       .catch((cause: Error) => setError(cause.message))
@@ -91,7 +103,7 @@ export function TopicsProvider({ children }: { children: ReactNode }) {
 
   return (
     <TopicsContext.Provider
-      value={{ personal: personalTopics, family: familyTopics, error, reload }}
+      value={{ personal: personalTopics, family: familyTopics, personalTags, familyTags, error, reload }}
     >
       {children}
     </TopicsContext.Provider>
@@ -110,7 +122,14 @@ export function TopicSidebar() {
   const user = current.owner ?? current.author ?? ''
   const personal = useMemo(() => (user ? personalSpace(user) : null), [user])
   const family = useMemo(() => (user ? familySpace(user) : null), [user])
-  const { personal: personalTopics, family: familyTopics, error, reload } = useTopics()
+  const {
+    personal: personalTopics,
+    family: familyTopics,
+    personalTags,
+    familyTags,
+    error,
+    reload,
+  } = useTopics()
   const [deleting, setDeleting] = useState<{ topic: Topic; space: Space } | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -119,8 +138,14 @@ export function TopicSidebar() {
   const { isMobile } = useSidebar()
   // 見せるのは開いている画面の側のスペースだけ。下の切り替えはもう片方の入口へ移る
   const sections = [
-    personal && { label: personal.title, note: '自分だけの会話', space: personal, topics: personalTopics },
-    family && { label: '家族', note: '家族みんなで見る', space: family, topics: familyTopics },
+    personal && {
+      label: personal.title,
+      note: '自分だけの会話',
+      space: personal,
+      topics: personalTopics,
+      tags: personalTags,
+    },
+    family && { label: '家族', note: '家族みんなで見る', space: family, topics: familyTopics, tags: familyTags },
   ].filter((section) => !!section)
   const shown = sections.find((section) => section.space.kind === current.kind)
 
@@ -155,6 +180,7 @@ export function TopicSidebar() {
               label={shown.label}
               space={shown.space}
               topics={shown.topics}
+              tags={shown.tags}
               error={error}
               onDelete={(topic) => {
                 setDeleteError(null)
@@ -256,16 +282,42 @@ function SpaceBadge({ section }: { section: { label: string; note: string; space
   )
 }
 
+// タグがまだ無い会話に出す印。本物のタグではなく、一覧で見分けるためだけのもの
+const UNTAGGED = { tag: '未分類', emoji: '❓' }
+
+// 一覧に無いタグ（消された直後など）は絵文字が分からないので出さない
+function TagEmojis({ topic, emojiByTag }: { topic: Topic; emojiByTag: Map<string, string> }) {
+  const emojis =
+    topic.tags.length === 0
+      ? [UNTAGGED]
+      : topic.tags.flatMap((tag) => {
+          const emoji = emojiByTag.get(tag)
+          return emoji ? [{ tag, emoji }] : []
+        })
+  if (emojis.length === 0) return null
+  return (
+    <span className="flex shrink-0 gap-0.5" aria-label={`タグ: ${emojis.map((item) => item.tag).join('、')}`}>
+      {emojis.map((item) => (
+        <span key={item.tag} title={item.tag} aria-hidden>
+          {item.emoji}
+        </span>
+      ))}
+    </span>
+  )
+}
+
 function SpaceSection({
   label,
   space,
   topics,
+  tags,
   error,
   onDelete,
 }: {
   label: string
   space: Space
   topics: Topic[] | null
+  tags: Tag[]
   error: string | null
   onDelete: (topic: Topic) => void
 }) {
@@ -282,6 +334,7 @@ function SpaceSection({
     return topics.slice(0, Math.max(shown, need))
   }, [topics, shown, here, id])
   const hidden = (topics?.length ?? 0) - visible.length
+  const emojiByTag = useMemo(() => new Map(tags.map((tag) => [tag.name, tag.emoji])), [tags])
 
   return (
     <SidebarGroup>
@@ -351,7 +404,8 @@ function SpaceSection({
                     render={<Link to={space.href(topic.slug)} />}
                     onClick={() => setOpenMobile(false)}
                   >
-                    <span className={topic.name ? '' : 'text-muted-foreground'}>
+                    <TagEmojis topic={topic} emojiByTag={emojiByTag} />
+                    <span className={topic.name ? 'truncate' : 'text-muted-foreground truncate'}>
                       {topicLabel(topic)}
                     </span>
                   </SidebarMenuButton>

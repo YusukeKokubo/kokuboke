@@ -144,12 +144,13 @@ export default function ChatPage() {
       const next = await space.api.autoTag(id)
       setMeta(next)
       setKnownTags(await space.api.listTags())
+      reloadTopics()
     } catch (cause) {
       console.warn('[tags]', cause)
     } finally {
       setTagBusy(false)
     }
-  }, [space, id])
+  }, [space, id, reloadTopics])
 
   async function saveTags(tags: string[]) {
     setTagBusy(true)
@@ -157,6 +158,7 @@ export default function ChatPage() {
       const next = await space.api.writeTags(id, tags)
       setMeta(next)
       setKnownTags(await space.api.listTags())
+      reloadTopics()
     } catch (cause) {
       setNotice(cause instanceof Error ? cause.message : 'タグを変えられませんでした')
     } finally {
