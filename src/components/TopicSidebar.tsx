@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronsDown, FileText, MessageSquarePlus, MoreHorizontal, Tags, Trash2, UserRound } from 'lucide-react'
+import { ChevronDown, ChevronsDown, ChevronsUpDown, FileText, House, MessageSquarePlus, MoreHorizontal, Tags, Trash2, UserRound } from 'lucide-react'
 import type { Topic } from '../../shared/types'
 import { topicLabel } from '@/lib/format'
 import { familySpace, personalSpace, useSpace, type Space } from '@/lib/space'
@@ -19,6 +19,9 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -27,6 +30,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarFooter,
   SidebarMenu,
   SidebarMenuAction,
   SidebarMenuButton,
@@ -112,6 +116,13 @@ export function TopicSidebar() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const navigate = useNavigate()
   const { id } = useParams()
+  const { isMobile } = useSidebar()
+  // 見せるのは開いている画面の側のスペースだけ。下の切り替えはもう片方の入口へ移る
+  const sections = [
+    personal && { label: personal.title, note: '自分だけの会話', space: personal, topics: personalTopics },
+    family && { label: '家族', note: '家族みんなで見る', space: family, topics: familyTopics },
+  ].filter((section) => !!section)
+  const shown = sections.find((section) => section.space.kind === current.kind)
 
   async function confirmDelete() {
     if (!deleting || deleteBusy) return
@@ -138,31 +149,58 @@ export function TopicSidebar() {
     <>
       <Sidebar>
         <SidebarContent className="pt-[calc(0.5rem+var(--safe-top))]">
-          {personal && (
+          {shown && (
             <SpaceSection
-              label={personal.title}
-              space={personal}
-              topics={personalTopics}
+              key={shown.space.kind}
+              label={shown.label}
+              space={shown.space}
+              topics={shown.topics}
               error={error}
               onDelete={(topic) => {
                 setDeleteError(null)
-                setDeleting({ topic, space: personal })
-              }}
-            />
-          )}
-          {family && (
-            <SpaceSection
-              label="家族"
-              space={family}
-              topics={familyTopics}
-              error={error}
-              onDelete={(topic) => {
-                setDeleteError(null)
-                setDeleting({ topic, space: family })
+                setDeleting({ topic, space: shown.space })
               }}
             />
           )}
         </SidebarContent>
+        {shown && (
+          <SidebarFooter className="pb-[calc(0.5rem+var(--safe-bottom))]">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={<SidebarMenuButton size="lg" className="data-popup-open:bg-sidebar-accent" />}
+                  >
+                    <SpaceBadge section={shown} />
+                    <ChevronsUpDown className="ml-auto" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-(--anchor-width) min-w-56"
+                    side={isMobile ? 'top' : 'right'}
+                    align="end"
+                  >
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>スペースを切り替える</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup
+                        value={current.kind}
+                        onValueChange={(kind: Space['kind']) => {
+                          const next = sections.find((section) => section.space.kind === kind)
+                          if (next) navigate(next.space.home)
+                        }}
+                      >
+                        {sections.map((section) => (
+                          <DropdownMenuRadioItem key={section.space.kind} value={section.space.kind}>
+                            <SpaceBadge section={section} />
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        )}
       </Sidebar>
 
       <Dialog
@@ -199,6 +237,21 @@ export function TopicSidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  )
+}
+
+function SpaceBadge({ section }: { section: { label: string; note: string; space: Space } }) {
+  const Icon = section.space.kind === 'family' ? House : UserRound
+  return (
+    <>
+      <span className="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
+        <Icon className="size-4" />
+      </span>
+      <span className="grid flex-1 text-left leading-tight">
+        <span className="truncate font-medium">{section.label}</span>
+        <span className="text-muted-foreground truncate text-xs">{section.note}</span>
+      </span>
     </>
   )
 }
