@@ -196,11 +196,10 @@ describe('shouldAutoName / shouldAutoTag', () => {
 
     await addUser(id, '2')
     assert.equal(await shouldAutoName(USER, id), false)
-    assert.equal(await shouldAutoTag(USER, id), false)
+    assert.equal(await shouldAutoTag(USER, id), true)
 
     await addUser(id, '3')
     assert.equal(await shouldAutoName(USER, id), true)
-    assert.equal(await shouldAutoTag(USER, id), true)
 
     await renameTopic(USER, id, { name: '付け直し', autoAt: 3 })
     assert.equal(await shouldAutoName(USER, id), false)

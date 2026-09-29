@@ -55,7 +55,7 @@ export const AUTO_NAME_AT = [1, 3, 5] as const
 export const AUTO_NAME_LAST = AUTO_NAME_AT[AUTO_NAME_AT.length - 1]
 
 /** 本人がこれだけ話したら、会話を読んでタグを付けにいく。 */
-export const AUTO_AFTER = 3
+export const AUTO_AFTER = 2
 
 function isAutoNameTurn(count: number): boolean {
   return (AUTO_NAME_AT as readonly number[]).includes(count)
