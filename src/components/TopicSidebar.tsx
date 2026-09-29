@@ -138,18 +138,6 @@ export function TopicSidebar() {
     <>
       <Sidebar>
         <SidebarContent className="pt-[calc(0.5rem+var(--safe-top))]">
-          {family && (
-            <SpaceSection
-              label="家族"
-              space={family}
-              topics={familyTopics}
-              error={error}
-              onDelete={(topic) => {
-                setDeleteError(null)
-                setDeleting({ topic, space: family })
-              }}
-            />
-          )}
           {personal && (
             <SpaceSection
               label={personal.title}
@@ -159,6 +147,18 @@ export function TopicSidebar() {
               onDelete={(topic) => {
                 setDeleteError(null)
                 setDeleting({ topic, space: personal })
+              }}
+            />
+          )}
+          {family && (
+            <SpaceSection
+              label="家族"
+              space={family}
+              topics={familyTopics}
+              error={error}
+              onDelete={(topic) => {
+                setDeleteError(null)
+                setDeleting({ topic, space: family })
               }}
             />
           )}
