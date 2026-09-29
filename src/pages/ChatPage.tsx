@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Pencil, RefreshCw, X } from 'lucide-react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Pencil } from 'lucide-react'
 import type { Message, Tag, Topic } from '../../shared/types'
 import { isDisconnectError } from '@/lib/api'
 import { dayKey, dayLabel, topicLabel } from '@/lib/format'
@@ -13,6 +13,7 @@ import { useTopics } from '@/components/TopicSidebar'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ModelPicker } from '@/components/ModelPicker'
+import { TagPicker } from '@/components/TagPicker'
 import { Input } from '@/components/ui/input'
 import {
   Dialog,
@@ -48,7 +49,6 @@ export default function ChatPage() {
   const [renameOpen, setRenameOpen] = useState(false)
   const [knownTags, setKnownTags] = useState<Tag[]>([])
   const [renameDraft, setRenameDraft] = useState('')
-  const [tagDraft, setTagDraft] = useState('')
   const [tagBusy, setTagBusy] = useState(false)
   const [booted, setBooted] = useState(false)
   const { reload: reloadTopics } = useTopics()
@@ -152,28 +152,33 @@ export default function ChatPage() {
     }
   }, [space, id, reloadTopics])
 
+  // タップのたびに保存する。一覧を丸ごと置き換える API なので、続けて押しても
+  // 前の保存に追い越されないよう一つずつ流し、最後に頼んだ形だけを送る
+  const tagQueue = useRef<string[] | null>(null)
+  const tagSaving = useRef(false)
+
   async function saveTags(tags: string[]) {
-    setTagBusy(true)
+    setMeta((current) => current && { ...current, tags })
+    tagQueue.current = tags
+    if (tagSaving.current) return
+    tagSaving.current = true
     try {
-      const next = await space.api.writeTags(id, tags)
-      setMeta(next)
+      let next: Topic | null = null
+      while (tagQueue.current) {
+        const wanted = tagQueue.current
+        tagQueue.current = null
+        next = await space.api.writeTags(id, wanted)
+      }
+      if (next) setMeta(next)
       setKnownTags(await space.api.listTags())
       reloadTopics()
     } catch (cause) {
+      tagQueue.current = null
       setNotice(cause instanceof Error ? cause.message : 'タグを変えられませんでした')
+      space.api.getTopic(id).then(setMeta, () => {})
     } finally {
-      setTagBusy(false)
+      tagSaving.current = false
     }
-  }
-
-  async function addTag(name: string) {
-    const tag = name.trim()
-    if (!tag || !meta || meta.tags.includes(tag)) {
-      setTagDraft('')
-      return
-    }
-    setTagDraft('')
-    await saveTags([...meta.tags, tag])
   }
 
   const handleSend = useCallback(
@@ -250,8 +255,6 @@ export default function ChatPage() {
     void handleSend(input)
   }, [booted, handleSend])
 
-  const unused = knownTags.filter((tag) => !meta?.tags.includes(tag.name))
-  const tagByName = new Map(knownTags.map((tag) => [tag.name, tag]))
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col">
@@ -289,59 +292,15 @@ export default function ChatPage() {
           </div>
 
           {meta && (
-            <div className="flex flex-wrap items-center gap-1">
-              {meta.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="bg-secondary text-muted-foreground inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px]"
-                >
-                  <Link to={space.tagHref(tag)} className="hover:underline">
-                    {[tagByName.get(tag)?.emoji, tag].filter(Boolean).join(' ')}
-                  </Link>
-                  <button
-                    type="button"
-                    disabled={tagBusy || status !== 'idle'}
-                    onClick={() => void saveTags(meta.tags.filter((item) => item !== tag))}
-                    aria-label={`${tag} を外す`}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              ))}
-              <form
-                className="flex min-w-24 flex-1 items-center gap-1"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  void addTag(tagDraft)
-                }}
-              >
-                <Input
-                  value={tagDraft}
-                  onChange={(event) => setTagDraft(event.target.value)}
-                  list="known-tags"
-                  placeholder="タグを付ける"
-                  disabled={tagBusy || status !== 'idle'}
-                  className="h-7 min-w-0 flex-1 text-[12px]"
-                />
-                <datalist id="known-tags">
-                  {unused.map((tag) => (
-                    <option key={tag.name} value={tag.name} />
-                  ))}
-                </datalist>
-              </form>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={tagBusy || status !== 'idle'}
-                onClick={() => void putTags()}
-                title="会話を読んでタグを付け直す"
-                className="text-muted-foreground h-7 shrink-0 px-2 text-[11px]"
-              >
-                <RefreshCw className={cn('size-3', tagBusy && 'animate-spin')} />
-                付け直す
-              </Button>
-            </div>
+            <TagPicker
+              value={meta.tags}
+              known={knownTags}
+              tagHref={space.tagHref}
+              retagging={tagBusy}
+              disabled={status !== 'idle'}
+              onChange={(tags) => void saveTags(tags)}
+              onRetag={() => void putTags()}
+            />
           )}
         </div>
       </SpaceHeaderSlot>
