@@ -3,6 +3,7 @@ dist
 dev-dist
 data
 .env
+secrets
 android/app/google-services.json
 *.tar
 *.log

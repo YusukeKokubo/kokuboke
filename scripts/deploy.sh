@@ -42,6 +42,13 @@ if ! grep -qE '^WATCHTOWER_TOKEN=[^[:space:]]+' .env; then
   exit 1
 fi
 
+# 入口を Cloudflare に任せる家だけ。鍵のファイルが無いまま立てると、
+# cloudflared が起動と失敗を繰り返すだけで外から届かない。
+if grep -qE '^COMPOSE_PROFILES=.*tunnel' .env && [ ! -s secrets/cloudflared-token ]; then
+  echo "secrets/cloudflared-token がありません。トンネルのトークンを書いてください" >&2
+  exit 1
+fi
+
 mkdir -p data
 
 echo "==> 最新を取り込む"
@@ -91,5 +98,9 @@ docker image prune -f >/dev/null
 
 echo "==> 完了"
 echo "   ログイン確認: sudo docker exec -it kokuboke claude"
-echo "   公開:         tailscale serve --bg 3000"
+if grep -qE '^COMPOSE_PROFILES=.*tunnel' .env; then
+  echo "   公開:         Cloudflare Tunnel（cloudflared が立っていれば済み）"
+else
+  echo "   公開:         tailscale serve --bg 3000"
+fi
 echo "   更新の画面:   /admin?key=<ADMIN_TOKEN>"

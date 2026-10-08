@@ -46,6 +46,15 @@ app.get('/api/health', (c) =>
   }),
 )
 
+// 前段（Cloudflare Access）のログインが切れた画面が入り直すための口。
+// 前段がログインを挟んだあとここへ戻すので、あとは元の画面へ返すだけ。
+// 前段を置かない構成でも、そのまま戻るだけで害はない。
+// next は自分のパスに限る。// や /\ で始まると、ブラウザは別のホストと読む。
+app.get('/login', (c) => {
+  const next = c.req.query('next') ?? '/'
+  return c.redirect(/^\/(?![/\\])/.test(next) ? next : '/')
+})
+
 app.route('/', admin)
 app.route('/', diagnostic)
 app.route('/', devices)

@@ -90,6 +90,9 @@ Watchtower の選び方の理由は `Dockerfile` と `docker-compose.yml` のコ
   `/opt/homebrew/share/android-commandlinetools`。Studio は開けても使わない
 - 差し替えたのに古い画面が出る（スーパーリロードだけ通る）なら `vite.config.ts` の
   workbox。`registerType: 'autoUpdate'` だけでは回らない
+- 画面から API を叩くときは `src/lib/api.ts` の `call` を通す。素の `fetch` だと、
+  前段の Cloudflare Access のログインが切れたときに CORS の失敗にしか見えず、
+  入り直しの `/login` へ抜けられない
 - 差し替えた直後に画面が真っ白なら `server/index.ts` の SPA フォールバック。
   古い画面が頼むハッシュ付きのファイルはもう無く、`/assets/` の取りこぼしは 404 で返す
 

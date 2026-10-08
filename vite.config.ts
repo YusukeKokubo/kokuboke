@@ -15,6 +15,9 @@ export default defineConfig({
       // Capacitor WebView では bridge 注入とぶつかるので、登録は main.tsx 側で分岐する。
       injectRegister: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      // 前段に Cloudflare Access を置くと、manifest も cookie 付きで頼まないと
+      // ログインの画面へ飛ばされて読めない（ホーム画面に追加できなくなる）。
+      useCredentials: true,
       manifest: {
         name: 'kokuboke',
         short_name: 'kokuboke',
@@ -46,7 +49,8 @@ export default defineConfig({
         // 数式まわり（KaTeX 本体とフォント）は重いうえ、使わない家庭も多い。
         // どのみち返答にはネットワークが要るので、必要になったときに取りに行く。
         globIgnores: ['**/KaTeX_*', '**/Math-*'],
-        navigateFallbackDenylist: [/^\/api/, /^\/media/],
+        // /login は前段のログインへ抜ける口なので、手元の index.html で受けない。
+        navigateFallbackDenylist: [/^\/api/, /^\/media/, /^\/login/],
         runtimeCaching: [],
       },
     }),

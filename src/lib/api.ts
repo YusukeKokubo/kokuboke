@@ -57,6 +57,24 @@ export function isDisconnectError(error: unknown): boolean {
   )
 }
 
+/**
+ * 前段（Cloudflare Access）のログインが切れると、API はログインの画面へ
+ * 飛ばされる。fetch のまま追うと別のオリジンに行って CORS で落ち、ただの
+ * 通信失敗にしか見えない。飛ばされたところで止めて、画面ごと入り直させる。
+ *
+ * 入り直しは /login を通す。画面のパスをそのまま開き直すと、service worker が
+ * 手元の index.html を返してしまい、前段まで届かずに同じところで詰まる。
+ * /login は service worker が素通しし、サーバーは next へ戻すだけ。
+ */
+function call(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, redirect: 'manual' }).then((res) => {
+    if (res.type !== 'opaqueredirect') return res
+    const next = location.pathname + location.search
+    location.assign(`/login?next=${encodeURIComponent(next)}`)
+    throw new Error('ログインし直します')
+  })
+}
+
 /** 名前に日本語や空白が入るので、経路に埋める前に必ず通す。 */
 function path(segment: string): string {
   return encodeURIComponent(segment)
@@ -68,9 +86,9 @@ function only<K extends string>(key: K) {
 }
 
 const json = {
-  get: <T>(url: string, init?: RequestInit) => fetch(url, init).then((r) => unwrap<T>(r)),
+  get: <T>(url: string, init?: RequestInit) => call(url, init).then((r) => unwrap<T>(r)),
   send: <T>(method: string, url: string, body?: unknown, init?: RequestInit) =>
-    fetch(url, {
+    call(url, {
       ...init,
       method,
       headers: {
@@ -169,7 +187,7 @@ export function spaceApi(base: string, author?: string) {
       json.send<Tag>('PATCH', tagAt(tag), input),
 
     organizeTags: async function* (signal?: AbortSignal): AsyncGenerator<OrganizeEvent> {
-      const res = await fetch(`${base}/tags/organize`, { method: 'POST', signal })
+      const res = await call(`${base}/tags/organize`, { method: 'POST', signal })
       yield* readSSE<OrganizeEvent>(res)
     },
 
@@ -195,7 +213,7 @@ export function spaceApi(base: string, author?: string) {
 
     /** 整理の方針の下書き。ここではファイルは変わらない。 */
     draftOrganize: async function* (signal?: AbortSignal): AsyncGenerator<SummaryEvent> {
-      const res = await fetch(`${base}/organize/draft`, { method: 'POST', signal })
+      const res = await call(`${base}/organize/draft`, { method: 'POST', signal })
       yield* readSSE<SummaryEvent>(res)
     },
 
@@ -214,7 +232,7 @@ export function spaceApi(base: string, author?: string) {
       for (const image of input.images) form.append('images', image)
       for (const file of input.files ?? []) form.append('files', file)
 
-      const res = await fetch(at(id, '/messages'), { method: 'POST', body: form, signal })
+      const res = await call(at(id, '/messages'), { method: 'POST', body: form, signal })
       yield* readSSE<ChatEvent>(res)
     },
 
@@ -223,7 +241,7 @@ export function spaceApi(base: string, author?: string) {
      * 保存するのは saveTag を呼んだとき。
      */
     draftTag: async function* (tag: string, signal?: AbortSignal): AsyncGenerator<SummaryEvent> {
-      const res = await fetch(tagAt(tag, '/draft'), { method: 'POST', signal })
+      const res = await call(tagAt(tag, '/draft'), { method: 'POST', signal })
       yield* readSSE<SummaryEvent>(res)
     },
 
@@ -236,7 +254,7 @@ export function spaceApi(base: string, author?: string) {
       input: { turns: ConsultTurn[]; current: string },
       signal?: AbortSignal,
     ): AsyncGenerator<SummaryEvent> {
-      const res = await fetch(tagAt(tag, '/consult'), {
+      const res = await call(tagAt(tag, '/consult'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(input),
@@ -303,7 +321,7 @@ export const api = {
     turns: ConsultTurn[],
     signal?: AbortSignal,
   ): AsyncGenerator<SummaryEvent> {
-    const res = await fetch('/api/diagnostic/ask', {
+    const res = await call('/api/diagnostic/ask', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-admin-token': key },
       body: JSON.stringify({ turns }),
@@ -319,7 +337,7 @@ export const api = {
    * などのはっきりした失敗は、サーバーが本文で返すのでそちらを投げる。
    */
   requestUpdate: (key: string): Promise<UpdateResult | null> =>
-    fetch('/api/admin/update', {
+    call('/api/admin/update', {
       method: 'POST',
       headers: { 'x-admin-token': key },
     }).then(

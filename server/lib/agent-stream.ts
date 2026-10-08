@@ -4,6 +4,13 @@ import type { AgentProgressEvent } from '../../shared/types'
 import { collectAgent, type ModelChoice } from '../agent'
 import { sse } from './sse'
 
+/**
+ * 黙っている間に流す空行の間隔。Cloudflare は 100 秒ほど何も届かないと
+ * 接続を切る（524）。考え込みや長い道具の実行ではそれくらい平気で黙るので、
+ * 余裕を持って短めに打つ。画面の読み手は data 行しか見ないので、注釈行は素通りする。
+ */
+const HEARTBEAT_MS = 25_000
+
 /** 進行の知らせはこちらが送るので、呼ぶ側が送るのは自分の分だけでよい。 */
 type Send<E> = (event: E | AgentProgressEvent) => Promise<void>
 
@@ -57,6 +64,11 @@ export function streamAgent<E>(
       }
     }
 
+    const heartbeat = setInterval(() => {
+      // 切れた相手への書き込みは hono が握りつぶすので、ここでは待たない。
+      void stream.write(': ping\n\n')
+    }, HEARTBEAT_MS)
+
     try {
       await run.open?.(emit)
 
@@ -89,6 +101,7 @@ export function streamAgent<E>(
         message: error instanceof Error ? error.message : run.fallback,
       })
     } finally {
+      clearInterval(heartbeat)
       run.release()
     }
 

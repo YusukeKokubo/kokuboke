@@ -21,7 +21,8 @@ services:
     labels:
       com.centurylinklabs.watchtower.enable: 'true'
 
-    # Tailscale がホストネットワークで動いているので、既定はループバックだけ。
+    # 外への入口は cloudflared（下）か、ホストで動く Tailscale。どちらも
+    # ループバックかコンテナ間で届くので、既定はループバックだけ。
     # LAN からも直接見せたい場合は .env に BIND_ADDR=0.0.0.0 を書く。
     ports:
       - '${BIND_ADDR:-127.0.0.1}:3000:3000'
@@ -113,6 +114,29 @@ services:
       WATCHTOWER_HTTP_API_TOKEN: ${WATCHTOWER_TOKEN:-}
 
     # 8080 は外に出さない。アプリがコンテナ間のネットワークで届けば足りる。
+    mem_limit: 128m
+
+  # 外からの入口。NAS から Cloudflare へ繋ぎに行く形なので、ルーターの
+  # ポートは開けない。どのホスト名をどこへ流すか（http://kokuboke:3000）と
+  # 誰を通すか（Access）は Cloudflare の管理画面に置く。アプリはログインを
+  # 持たないので、Access を掛けずに公開すると URL を知った誰でも入れる。
+  #
+  # .env の COMPOSE_PROFILES=tunnel で立つ。Tailscale だけで使う家では立たない。
+  cloudflared:
+    # Cloudflare は一年より古い版を相手にしなくなる。年に一度は上げる。
+    image: cloudflare/cloudflared:2026.9.3
+    container_name: kokuboke-cloudflared
+    restart: unless-stopped
+    profiles: ['tunnel']
+    command: ['tunnel', '--no-autoupdate', 'run']
+    # 鍵は .env に置かずファイルで渡す。.env はアプリにも渡り、そこから
+    # CLI の環境変数に入る。会話の AI に入口の鍵まで見せる理由は無い。
+    volumes:
+      - ./secrets/cloudflared-token:/run/secrets/cloudflared-token:ro
+    environment:
+      TUNNEL_TOKEN_FILE: /run/secrets/cloudflared-token
+    depends_on:
+      - kokuboke
     mem_limit: 128m
 
 volumes:

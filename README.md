@@ -10,7 +10,7 @@
 - フロント: Vite + React + TypeScript + Tailwind v4（PWA は `vite-plugin-pwa`）
 - サーバー: Hono（静的配信と API を同一プロセスで持つ）
 - 実行環境: Docker 一コンテナ、UGREEN NAS（Intel N100 / x86_64）
-- 公開: ホストで動く Tailscale の `tailscale serve` 経由
+- 公開: Cloudflare Tunnel と Access（ログインは Cloudflare が受け持つ）。Tailscale の `tailscale serve` でもよい
 
 ## データの置き場所
 
@@ -189,7 +189,7 @@ Watchtower のログに 403 が出るときは、まだ一度もビルドが通�
 
 ### 更新するとき
 
-push して、`https://<マシン名>.<tailnet>.ts.net/admin?key=<ADMIN_TOKEN>` を開いて
+push して、`https://<公開の URL>/admin?key=<ADMIN_TOKEN>` を開いて
 ボタンを押す。SSH は要らない。
 
 画面には動いている版と main のずれ、間のコミット、更新のボタンがある。鍵は
@@ -243,7 +243,50 @@ cursor は置き場所が二つに分かれていて、`~/.cursor` に設定と�
 `~/.config/cursor/auth.json` にトークン本体が入る。両方をボリュームにしてある。
 ここに行き着くまでの切り分けは `docs/202608-cli-auth-persistence.md` に残してある。
 
-### Tailscale で公開する
+### 外から届くようにする
+
+アプリ自身はログインを持たない。誰の画面かは `/user/名前` という URL でしか区別して
+いないので、入口で人を選ぶのは前段の仕事になる。前段は二通り用意してある。
+
+#### Cloudflare Tunnel（使う側に何も入れなくてよい）
+
+NAS の cloudflared が Cloudflare へ繋ぎに行き、外からの要求はその管に乗って届く。
+ルーターのポートは開けず、自宅の IP も外に出ない。入口では Cloudflare Access が
+ログインを求め、許可したメールアドレスの人だけを通す。計算もデータも NAS のまま。
+
+要るのは Cloudflare にネームサーバーを預けたドメイン。Cloudflare Registrar で
+取るとはじめから預けた状態になる。
+
+1. Zero Trust の管理画面で Networks → Tunnels からトンネルを作り、トークンを控える。
+   Public hostname に `kokuboke.<ドメイン>` を足し、行き先を `http://kokuboke:3000` にする
+   （compose の中のコンテナ名で届く）
+2. Access → Applications で同じホスト名のアプリを作る。ポリシーは家族のメール
+   アドレスを並べた Allow、ログインの手段は One-time PIN（メールに届くコード）。
+   Google ログインは Android の殻（WebView）で弾かれるので使わない。
+   セッションの長さは 1 か月にしておくと、入り直しの手間がほぼ無い
+3. NAS の clone にトークンを置いて、cloudflared を立てる
+
+```sh
+mkdir -p secrets
+printf '%s' '<トークン>' > secrets/cloudflared-token
+chmod 644 secrets/cloudflared-token   # cloudflared は root 以外で動く
+echo 'COMPOSE_PROFILES=tunnel' >> .env
+sudo ./scripts/deploy.sh
+```
+
+トークンを `.env` に書かないのは、`.env` がアプリに渡り、そこから会話の CLI の
+環境変数にまで入るため。
+
+Cloudflare は 100 秒ほど何も流れない応答を切る。返事の SSE は黙っている間も
+25 秒ごとに空の注釈行を打って、考え込んでいる途中で切られないようにしてある。
+ただし同時に走れる数（`MAX_CONCURRENT`）が埋まって順番を待つ間は、まだ応答を
+始めていないので打てない。そこで 100 秒を超えると切れる。
+
+ログインが切れると、API は Access のログイン画面へ飛ばされる。画面はそれを
+見つけたら `/login` を通して入り直す。そのまま開き直すと service worker が
+手元の index.html を返し、Access まで届かずに同じところで詰まるため。
+
+#### Tailscale（tailnet の端末からだけ）
 
 Tailscale はホストネットワークで動いているので、ループバックの 3000 番に前段を張るだけ。
 
@@ -254,8 +297,8 @@ tailscale serve --bg 3000
 `https://<マシン名>.<tailnet>.ts.net` で届くようになる。マシン名は Tailscale
 コンテナの `hostname` に設定したもの。正規の証明書が付く。
 
-誰の画面かは `/user/名前` という URL でしか区別していない。この URL そのものが鍵なので、
-誰がいるかを答える API は置いていない。名前の一覧も出さない。入口では自分の名前を
+tailnet に入れた端末しか届かないので、それ自体が入口の鍵になる。
+誰の画面かを分けるのは URL だけなので、誰がいるかを答える API は置いていない。名前の一覧も出さない。入口では自分の名前を
 手で入れるか、名前入り URL を直接開く。
 
 Android で Chrome を時間制限したまま使いたいときは、下の Capacitor シェルを使う。
@@ -264,7 +307,7 @@ Android で Chrome を時間制限したまま使いたいときは、下の Cap
 
 ### Android アプリ（Capacitor）
 
-別パッケージ `app.kokuboke` の WebView で、上の Tailscale URL を開く薄い殻。
+別パッケージ `app.kokuboke` の WebView で、上の公開 URL を開く薄い殻。
 UI と API は NAS 上のままなので、サーバーを更新すればアプリも追従する。
 Android Studio は不要。JDK と command line tools だけで APK を出す。
 
@@ -283,7 +326,7 @@ mise exec -- npm run android:sdk
 `.env` に家庭の URL を書く（末尾スラッシュなし）:
 
 ```
-CAPACITOR_SERVER_URL=https://<マシン名>.<tailnet>.ts.net
+CAPACITOR_SERVER_URL=https://kokuboke.<ドメイン>
 ```
 
 APK を作る:
