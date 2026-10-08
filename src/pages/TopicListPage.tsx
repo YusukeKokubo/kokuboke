@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import type { Tag } from '../../shared/types'
 import { useSpace } from '@/lib/space'
 import { useDocumentTitle } from '@/lib/title'
 import { Composer, type ComposerInput } from '@/components/Composer'
+import { TagPicker } from '@/components/TagPicker'
 import { useTopics } from '@/components/TopicSidebar'
 
 export default function TopicListPage() {
@@ -12,13 +14,20 @@ export default function TopicListPage() {
   const { reload } = useTopics()
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [tags, setTags] = useState<string[]>([])
+  const [knownTags, setKnownTags] = useState<Tag[]>([])
+
+  useEffect(() => {
+    // 読めなくても始められる。板が空なら新しく打てばよい
+    space.api.listTags().then(setKnownTags, () => {})
+  }, [space.api])
 
   async function start(input: ComposerInput) {
     if (starting) return
     setStarting(true)
     setError(null)
     try {
-      const topic = await space.api.createTopic({})
+      const topic = await space.api.createTopic({ tags })
       reload()
       navigate(space.href(topic.slug), { state: { draft: input } })
     } catch (cause) {
@@ -40,6 +49,15 @@ export default function TopicListPage() {
             keepOnFailure
             onSend={start}
           />
+          <div className="mt-2 px-1">
+            <TagPicker
+              value={tags}
+              known={knownTags}
+              tagHref={space.tagHref}
+              disabled={starting}
+              onChange={setTags}
+            />
+          </div>
         </div>
         {error && <p className="text-destructive text-center text-sm">{error}</p>}
       </div>

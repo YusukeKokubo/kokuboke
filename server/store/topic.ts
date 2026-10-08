@@ -256,6 +256,8 @@ export async function createTopic(
     ...(choice.effort ? { effort: choice.effort } : {}),
     tags: input.tags ?? [],
     ...(named ? { nameTriedAt: AUTO_NAME_LAST, nameTried: true } : {}),
+    // 人が始めから選んだタグは、自動のタグ付けで上書きしない。後から付けたときと同じ扱い。
+    ...(input.tags?.length ? { tagTried: true } : {}),
   }
 
   await writeMeta(user, folder, meta)

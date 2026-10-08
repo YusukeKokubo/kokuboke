@@ -14,10 +14,11 @@ interface Props {
   known: Tag[]
   tagHref: (name: string) => string
   /** AI が付け直している最中。 */
-  retagging: boolean
+  retagging?: boolean
   disabled: boolean
   onChange: (tags: string[]) => void
-  onRetag: () => void
+  /** 無ければ「AIに付け直してもらう」を出さない（まだ会話が無いとき）。 */
+  onRetag?: () => void
 }
 
 /**
@@ -25,7 +26,15 @@ interface Props {
  * タップした時点で付け外しが決まる（確定の操作は無い）。
  * スマホは下からのシート、それより広ければポップオーバー。
  */
-export function TagPicker({ value, known, tagHref, retagging, disabled, onChange, onRetag }: Props) {
+export function TagPicker({
+  value,
+  known,
+  tagHref,
+  retagging = false,
+  disabled,
+  onChange,
+  onRetag,
+}: Props) {
   const mobile = useIsMobile()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -144,7 +153,7 @@ interface PanelProps {
   onToggle: (name: string) => void
   onCreate: (name: string) => void
   onClose: () => void
-  onRetag: () => void
+  onRetag?: () => void
 }
 
 function TagPanel({
@@ -287,17 +296,21 @@ function TagPanel({
       </div>
 
       <div className="border-foreground/10 flex items-center justify-between gap-2 border-t pt-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={disabled || retagging}
-          onClick={onRetag}
-          className={cn('text-muted-foreground -ml-2', mobile ? 'h-11 text-[13px]' : 'h-7 text-[12px]')}
-        >
-          <RefreshCw className={cn('size-3.5', retagging && 'animate-spin')} />
-          {retagging ? '会話を読んでいます…' : 'AIに付け直してもらう'}
-        </Button>
+        {onRetag ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={disabled || retagging}
+            onClick={onRetag}
+            className={cn('text-muted-foreground -ml-2', mobile ? 'h-11 text-[13px]' : 'h-7 text-[12px]')}
+          >
+            <RefreshCw className={cn('size-3.5', retagging && 'animate-spin')} />
+            {retagging ? '会話を読んでいます…' : 'AIに付け直してもらう'}
+          </Button>
+        ) : (
+          <span />
+        )}
         {mobile ? (
           <span className="text-muted-foreground text-xs">{value.length} 個</span>
         ) : (

@@ -33,7 +33,7 @@ describe('resolveModel の考える深さ', () => {
   })
 
   it('知らないモデルで既定に落ちたときも、既定が選べるなら深さを残す', () => {
-    // CLAUDE_MODEL の既定は Opus 5.5。
+    // CLAUDE_MODEL の既定は Haiku 5.5。
     assert.equal(resolveModel('claude', 'claude-unknown', 'medium').effort, 'medium')
   })
 })

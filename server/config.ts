@@ -76,14 +76,14 @@ export const config = {
   uploadMaxBytes: num(process.env.UPLOAD_MAX_BYTES, 20 * 1024 * 1024),
 
   /** トピックに指定が無いときに使うエンジン。 */
-  defaultEngine: isEngineId(process.env.DEFAULT_ENGINE) ? process.env.DEFAULT_ENGINE : 'cursor',
+  defaultEngine: isEngineId(process.env.DEFAULT_ENGINE) ? process.env.DEFAULT_ENGINE : 'claude',
 
   /** 各 CLI の実行ファイル名。PATH 上にあるものを使う。 */
   claudeBin: process.env.CLAUDE_BIN ?? 'claude',
   cursorBin: process.env.CURSOR_BIN ?? 'cursor-agent',
 
   /** 会話に使うモデル。ENGINES にある id。無い値は捨てて既定に落ちる。 */
-  claudeModel: process.env.CLAUDE_MODEL ?? 'claude-opus-5-5',
+  claudeModel: process.env.CLAUDE_MODEL ?? 'claude-haiku-5-5',
 
   /** cursor-agent 側の既定モデル。 */
   cursorModel: process.env.CURSOR_MODEL ?? 'auto',

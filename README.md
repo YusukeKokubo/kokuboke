@@ -429,12 +429,12 @@ Firebase のプロジェクトを家庭用に一つ作り、次を揃える。
 | | Claude Code | cursor-agent |
 | --- | --- | --- |
 | 選べるモデル | Opus 5.5 / Sonnet 5.5 / Haiku 5.5 | GPT-5.x、Grok、Composer、Kimi、Claude 各種 |
-| 既定のモデル | Opus 5.5 | おまかせ（auto） |
+| 既定のモデル | Haiku 5.5 | おまかせ（auto） |
 | 人格の定義 | `AGENTS.md` を親まで遡って読む（2.1.277 以降） | `AGENTS.md` を親まで遡って読む |
 | 役割の指示 | `--append-system-prompt` | 本文の先頭に積む |
 | 権限 | ツール単位の許可リストで `Read` だけ | `--mode ask`（読み取り専用) |
 
-新しい会話の既定は **Cursor のおまかせ**。`DEFAULT_ENGINE` と `CURSOR_MODEL` で変えられる。
+新しい会話の既定は **Claude Code の Haiku 5.5**。`DEFAULT_ENGINE` と `CLAUDE_MODEL` で変えられる。
 
 Claude Code のモデルは、どれも選択で考える深さ（`--effort`）も選べる。
 浅めからいちばん深くまでの五段と、おまかせ（`CLAUDE_EFFORT`、空なら CLI の既定）。

@@ -63,6 +63,14 @@ describe('createTopic', () => {
     assert.match(topic.slug, UUID)
     assert.match(await folderOf(topic.slug), /^\d{2}-\d{2}-\d{2}$/)
   })
+
+  it('始めに選んだタグは、自動のタグ付けで上書きしない', async () => {
+    const topic = await createTopic(USER, { tags: ['料理'] })
+    assert.deepEqual(topic.tags, ['料理'])
+    await addUser(topic.slug, '1')
+    await addUser(topic.slug, '2')
+    assert.equal(await shouldAutoTag(USER, topic.slug), false)
+  })
 })
 
 describe('renameTopic', () => {

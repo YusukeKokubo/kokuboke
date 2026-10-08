@@ -6,6 +6,7 @@ import { limiter } from '../agent/queue'
 import { BadRequestError } from '../errors'
 import { readJson } from '../lib/body'
 import { readFamilyActivity } from '../store/activity'
+import type { UserName } from '../store/paths'
 import { ensureTag } from '../store/tag'
 import {
   createTopic,
@@ -21,6 +22,19 @@ import { requireTopic, resolveSpace, spacePaths, topicPaths } from './space'
 
 export const topics = new Hono()
 
+/** 人が選んだタグ名を確かめ、無いものは作る。重複は一つにまとめる。 */
+async function ensureTags(user: UserName, raw: unknown): Promise<string[]> {
+  if (!Array.isArray(raw) || raw.some((tag) => typeof tag !== 'string')) {
+    throw new BadRequestError('タグの指定が不正です')
+  }
+  const names: string[] = []
+  for (const name of raw as string[]) {
+    const tag = await ensureTag(user, name)
+    if (tag) names.push(tag)
+  }
+  return [...new Set(names)]
+}
+
 topics.get('/api/engines', (c) => c.json(ENGINES))
 
 topics.get('/api/family/activity', async (c) => c.json({ entry: await readFamilyActivity() }))
@@ -31,15 +45,20 @@ topics.on('GET', spacePaths('/topics'), async (c) => {
 
 topics.on('POST', spacePaths('/topics'), async (c) => {
   const { user } = resolveSpace(c)
-  const body = await readJson<{ name?: string; engine?: string; model?: string; effort?: string }>(
-    c.req.raw,
-  )
+  const body = await readJson<{
+    name?: string
+    engine?: string
+    model?: string
+    effort?: string
+    tags?: unknown
+  }>(c.req.raw)
   return c.json(
     await createTopic(user, {
       name: String(body.name ?? ''),
       engine: body.engine,
       model: body.model,
       effort: body.effort,
+      tags: body.tags === undefined ? [] : await ensureTags(user, body.tags),
     }),
     201,
   )
@@ -73,15 +92,7 @@ topics.on('PATCH', topicPaths('/model'), async (c) => {
 topics.on('PATCH', topicPaths('/tags'), async (c) => {
   const { space, id } = await requireTopic(c)
   const body = await readJson<{ tags?: unknown }>(c.req.raw)
-  if (!Array.isArray(body.tags) || body.tags.some((tag) => typeof tag !== 'string')) {
-    throw new BadRequestError('タグの指定が不正です')
-  }
-  const names: string[] = []
-  for (const raw of body.tags as string[]) {
-    const tag = await ensureTag(space.user, raw)
-    if (tag) names.push(tag)
-  }
-  return c.json(await writeTags(space.user, id, [...new Set(names)]))
+  return c.json(await writeTags(space.user, id, await ensureTags(space.user, body.tags)))
 })
 
 topics.on('DELETE', topicPaths(), async (c) => {

@@ -103,6 +103,7 @@ interface NewTopic {
   name?: string
   engine?: string
   model?: string
+  tags?: string[]
 }
 
 /** fetch のボディから SSE の data 行だけを取り出す。 */
