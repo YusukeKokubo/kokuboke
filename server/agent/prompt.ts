@@ -64,18 +64,12 @@ ${who}
   で囲んでください。式が主役になる説明では、素の文字で書くより読みやすくなります。
 - ファイルの作成・編集・削除はしないでください。読み取りだけ行えます。
 - 添付（画像・PDF・テキスト）がある場合は、示された絶対パスを Read ツールで開いて内容を踏まえて答えてください。
-- 「承知しました」のような前置きや、返答の要約は書かないでください。本文だけを返します。${
-    input.audience.kind === 'personal'
-      ? '\n- 家族の事実や好みを知ったら remember で覚える。'
-      : ''
-  }`
+- 「承知しました」のような前置きや、返答の要約は書かないでください。本文だけを返します。`
 }
 
 export function chatPrompt(input: {
   /** スペース直下の profile.md。無ければ空文字。 */
   profile: string
-  /** AI が前の会話で覚えたもの。無ければ空文字。 */
-  memory?: string
   /** 付いているタグの覚え書き。無ければ空。 */
   tags: { name: string; text: string }[]
   history: Message[]
@@ -89,11 +83,6 @@ export function chatPrompt(input: {
 
   if (input.profile.trim()) {
     parts.push(`<profile>\n${input.profile.trim()}\n</profile>`)
-  }
-  if (input.memory?.trim()) {
-    parts.push(
-      `<memory>\nあなたが前の会話で覚えたもの。間違いは人が直す。\n\n${input.memory.trim()}\n</memory>`,
-    )
   }
   for (const tag of input.tags) {
     if (!tag.text.trim()) continue
@@ -288,7 +277,7 @@ const TAG_NOTE_RULES = `- 書くのは、次にこの分野の話をするとき
   - 会話の中で本人が直した点や、嫌がった点
   - 関心の向き（どの地域・分野・切り口をよく追っているか）
   - 前提として知っておいてほしい背景や、本人の立ち位置
-- 個々の話題の要約や、ニュースの内容そのものは書きません。事実は覚え書き.md の側に残るので、ここには書きません。
+- 個々の話題の要約や、ニュースの内容そのものは書きません。
 - <agents_md> と <profile> に既に書いてあることは繰り返しません。このタグに固有のことだけです。
 - <current> にすでに書かれている内容は消さずに、変わったところだけ直し、新しく分かったことを足します。
   人が手で書いた指示はそのまま残します。

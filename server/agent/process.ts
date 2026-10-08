@@ -83,7 +83,6 @@ export interface ProcessSpec {
   finished(): boolean
   /** CLI 側がエラーを報告していれば、その文言。 */
   reportedError(): string | null
-  extraEnv?: Record<string, string>
 }
 
 /** JSON Lines を吐く CLI を起動して、本文の差分と最終結果を流す。 */
@@ -102,7 +101,7 @@ export async function* runProcess(spec: ProcessSpec): AsyncGenerator<AgentEvent>
   const child = spawn(spec.bin, spec.args, {
     cwd: spec.cwd,
     stdio: ['pipe', 'pipe', 'pipe'],
-    env: childEnv(spec.extraEnv),
+    env: childEnv(),
   })
 
   const timer = setTimeout(() => {

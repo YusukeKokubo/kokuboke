@@ -29,7 +29,6 @@ export function streamAgent<E>(
     cwd: string
     prompt: string
     systemPrompt: string
-    extraEnv?: Record<string, string>
     extraTools?: string[]
     /** limiter.acquire の戻り。 */
     release: () => void
@@ -78,7 +77,6 @@ export function streamAgent<E>(
           cwd: run.cwd,
           prompt: run.prompt,
           systemPrompt: run.systemPrompt,
-          extraEnv: run.extraEnv,
           extraTools: run.extraTools,
           signal: survive ? undefined : c.req.raw.signal,
         },
