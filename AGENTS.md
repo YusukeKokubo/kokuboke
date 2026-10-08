@@ -86,6 +86,9 @@ Watchtower の選び方の理由は `Dockerfile` と `docker-compose.yml` のコ
 - Android 殻は `server.url` で NAS を開く。APK に焼かれる URL は
   `android:sync` 時の `CAPACITOR_SERVER_URL`。PWA の「ホーム画面に追加」は
   実体が Chrome のままなので、画面時間の切り分けには使えない
+- APK は debug 鍵で署名していて、鍵は焼いた機械の `~/.android/debug.keystore`。
+  別の機械で焼いた APK は上書きで入らず（`INSTALL_FAILED_UPDATE_INCOMPATIBLE`）、
+  アンインストールが要る。端末に覚えさせた名前と通知の許可も消えるので、焼く機械は変えない
 - Android ビルドは cmdline-tools + JDK。`ANDROID_HOME` の既定は
   `/opt/homebrew/share/android-commandlinetools`。Studio は開けても使わない
 - 差し替えたのに古い画面が出る（スーパーリロードだけ通る）なら `vite.config.ts` の

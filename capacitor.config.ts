@@ -5,7 +5,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
  * Android シェルは NAS 上の本番 UI を WebView で開く。
  * Chrome の時間制限を避けつつ、中身の更新は今までどおり NAS 側だけで済む。
  *
- * CAPACITOR_SERVER_URL 例: https://kokuboke.tailXXXX.ts.net
+ * CAPACITOR_SERVER_URL 例: https://kokuboke.example.com
  * ユーザー名はアプリ内（/）で覚える。ここにはホストだけを書く。
  */
 const serverUrl = process.env.CAPACITOR_SERVER_URL?.replace(/\/$/, '')
@@ -19,6 +19,10 @@ const config: CapacitorConfig = {
     ? {
         url: serverUrl,
         cleartext: serverUrl.startsWith('http://'),
+        // 前段の Cloudflare Access はログインを自分のホストで受ける。ここに無い
+        // ホストへの移動は外のブラウザに渡されるので、ログインの cookie が
+        // 殻に残らず、いつまでもログイン画面に戻される。
+        allowNavigation: ['*.cloudflareaccess.com'],
       }
     : undefined,
   android: {
