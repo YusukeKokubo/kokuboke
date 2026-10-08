@@ -136,5 +136,13 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
 - NAS の clone は compose を上げるためだけにある。動いているのは Watchtower が引いた
   ghcr のイメージで、clone の Dockerfile はビルドに使われない（pull し忘れて古いまま
   でも中身は新しい）。中の版は `sudo docker exec kokuboke ...` で確かめる
+- 本番の入口は Cloudflare Tunnel と Access（`docker-compose.yml` の `cloudflared`）。
+  外から curl しても Access のログインへ 302 されるだけで、トンネルの先が生きているかは
+  分からない。つながりは NAS の `sudo docker logs kokuboke-cloudflared` に
+  `Registered tunnel connection` が出ているかで見て、画面はユーザーにブラウザで開いてもらう。
+  公開のホスト名はリポジトリに書かない（`.env` の `CAPACITOR_SERVER_URL` にだけある）
+- `deploy.sh` は自分の取り込みより先に読まれている。`deploy.sh` を直した回は、
+  直した分が効くのは次に流したときから。取り込みが `.git/index.lock` で止まると
+  古い compose のまま「完了」まで進むので、`git pull` の行が失敗していないか見る
 - NAS の管理画面が `docker-compose.yaml` を横に作ることがある。`.yml` と両方あると
   Compose がファイルを決められずに止まる
