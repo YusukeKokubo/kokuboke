@@ -3,7 +3,7 @@ import { describe, it } from 'node:test'
 
 process.env.USERS = 'taro'
 process.env.DEFAULT_ENGINE = 'cursor'
-process.env.CLAUDE_LIGHT_MODEL = 'claude-haiku-4-5'
+process.env.CLAUDE_LIGHT_MODEL = 'claude-haiku-5-5'
 process.env.CURSOR_LIGHT_MODEL = 'composer-2.5'
 
 const { lightModel, resolveModel } = await import('./model')
@@ -12,9 +12,9 @@ describe('lightModel', () => {
   it('エンジンはそのままで、モデルだけ軽いものにする', () => {
     assert.deepEqual(lightModel('claude'), {
       engine: 'claude',
-      model: 'claude-haiku-4-5',
+      model: 'claude-haiku-5-5',
       effort: null,
-      label: 'Claude Code / Haiku 4.5',
+      label: 'Claude Code / Haiku 5.5',
     })
     assert.equal(lightModel('cursor').model, 'composer-2.5')
   })
@@ -27,13 +27,13 @@ describe('lightModel', () => {
 
 describe('resolveModel の考える深さ', () => {
   it('選べるモデルだけが深さを持つ', () => {
-    assert.equal(resolveModel('claude', 'claude-opus-5', 'xhigh').effort, 'xhigh')
-    assert.equal(resolveModel('claude', 'claude-haiku-4-5', 'xhigh').effort, null)
+    assert.equal(resolveModel('claude', 'claude-opus-5-5', 'xhigh').effort, 'xhigh')
+    assert.equal(resolveModel('claude', 'claude-haiku-5-5', 'xhigh').effort, 'xhigh')
     assert.equal(resolveModel('cursor', 'auto', 'xhigh').effort, null)
   })
 
   it('知らないモデルで既定に落ちたときも、既定が選べるなら深さを残す', () => {
-    // CLAUDE_MODEL の既定は Opus 5。
+    // CLAUDE_MODEL の既定は Opus 5.5。
     assert.equal(resolveModel('claude', 'claude-unknown', 'medium').effort, 'medium')
   })
 })

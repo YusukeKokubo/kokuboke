@@ -17,10 +17,9 @@ export const ENGINES: EngineInfo[] = [
     label: 'Claude Code',
     note: 'AGENTS.md をそのまま読む。',
     models: [
-      { id: 'claude-opus-5', label: 'Opus 5', effort: true },
-      { id: 'claude-sonnet-5', label: 'Sonnet 5', effort: true },
-      // CLI は --effort を受け付けるが、Haiku 4.5 には考える深さの段が無い。
-      { id: 'claude-haiku-4-5', label: 'Haiku 4.5' },
+      { id: 'claude-opus-5-5', label: 'Opus 5.5', effort: true },
+      { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5', effort: true },
+      { id: 'claude-haiku-5-5', label: 'Haiku 5.5', effort: true },
     ],
     efforts: [
       { id: 'low', label: '浅め' },
@@ -39,11 +38,11 @@ export const ENGINES: EngineInfo[] = [
     models: [
       { id: 'auto', label: 'おまかせ' },
       { id: 'composer-2.5', label: 'Composer 2.5' },
-      { id: 'claude-sonnet-5-thinking-high', label: 'Sonnet 5 Thinking' },
-      { id: 'claude-opus-5-thinking-high', label: 'Opus 5 Thinking' },
+      { id: 'claude-sonnet-5-5-high', label: 'Sonnet 5.5' },
+      { id: 'claude-opus-5-5-high', label: 'Opus 5.5' },
       { id: 'gpt-5.6-sol-high', label: 'GPT-5.6' },
       { id: 'gpt-5.3-codex', label: 'Codex 5.3' },
-      { id: 'cursor-grok-4.6-high', label: 'Grok 4.6' },
+      { id: 'grok-4.7-high', label: 'Grok 4.7' },
       { id: 'kimi-k3-high', label: 'Kimi K3' },
     ],
   },

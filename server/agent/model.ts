@@ -67,7 +67,7 @@ export function lightModel(engine?: string | null): ModelChoice {
 
 /**
  * CLI に渡す深さ。トピックで選んでいなければ CLAUDE_EFFORT を使う。
- * 段の無いモデル（Haiku 4.5 など）には、既定も含めて渡さない。
+ * 段の無いモデル（cursor 側など）には、既定も含めて渡さない。
  * 受け付けはするが効かず、かえって一文字目が遅れる回があった。
  */
 function effortFor(choice: ModelChoice): string | undefined {

@@ -429,22 +429,22 @@ Firebase のプロジェクトを家庭用に一つ作り、次を揃える。
 
 | | Claude Code | cursor-agent |
 | --- | --- | --- |
-| 選べるモデル | Opus 5 / Sonnet 5 / Haiku 4.5 | GPT-5.x、Grok、Composer、Kimi、Claude 各種 |
-| 既定のモデル | Opus 5 | おまかせ（auto） |
+| 選べるモデル | Opus 5.5 / Sonnet 5.5 / Haiku 5.5 | GPT-5.x、Grok、Composer、Kimi、Claude 各種 |
+| 既定のモデル | Opus 5.5 | おまかせ（auto） |
 | 人格の定義 | `AGENTS.md` を親まで遡って読む（2.1.277 以降） | `AGENTS.md` を親まで遡って読む |
 | 役割の指示 | `--append-system-prompt` | 本文の先頭に積む |
 | 権限 | ツール単位の許可リストで `Read` だけ | `--mode ask`（読み取り専用) |
 
 新しい会話の既定は **Cursor のおまかせ**。`DEFAULT_ENGINE` と `CURSOR_MODEL` で変えられる。
 
-Claude Code の Opus 5 と Sonnet 5 は、モデルの選択で考える深さ（`--effort`）も選べる。
+Claude Code のモデルは、どれも選択で考える深さ（`--effort`）も選べる。
 浅めからいちばん深くまでの五段と、おまかせ（`CLAUDE_EFFORT`、空なら CLI の既定）。
 選んだ深さはトピックに残り、段の無いモデルに移ると落ちる。cursor は深さがモデルの id に
 埋まっていて段の並びもモデルごとにばらばらなので、選択肢はモデルごとに一つのままにしてある。
 
 会話もタグ本文の整理も読み取りだけで走る。タグの下書きは、その会話で使っている
 エンジン・モデルをそのまま使う。命名とタグ付けはエンジンだけ合わせて、モデルは
-軽いもの（`CLAUDE_LIGHT_MODEL` / `CURSOR_LIGHT_MODEL`、既定は Haiku 4.5 と Composer 2.5）
+軽いもの（`CLAUDE_LIGHT_MODEL` / `CURSOR_LIGHT_MODEL`、既定は Haiku 5.5 と Composer 2.5）
 に差し替える。走っているあいだはトピックの枠を握るので、重いモデルだと次の発言が弾かれる。
 
 cursor-agent はイメージにも入れてあるが、`cursor-agent login` を一度通す必要がある。

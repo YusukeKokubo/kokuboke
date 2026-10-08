@@ -86,7 +86,7 @@ export const config = {
   cursorBin: process.env.CURSOR_BIN ?? 'cursor-agent',
 
   /** 会話に使うモデル。ENGINES にある id。無い値は捨てて既定に落ちる。 */
-  claudeModel: process.env.CLAUDE_MODEL ?? 'claude-opus-5',
+  claudeModel: process.env.CLAUDE_MODEL ?? 'claude-opus-5-5',
 
   /** cursor-agent 側の既定モデル。 */
   cursorModel: process.env.CURSOR_MODEL ?? 'auto',
@@ -96,7 +96,7 @@ export const config = {
    * 走っているあいだはトピックの枠を握るため、長引くと次の発言が弾かれる。
    * エンジンはトピックのものに合わせ、モデルだけこちらに差し替える。
    */
-  claudeLightModel: process.env.CLAUDE_LIGHT_MODEL ?? 'claude-haiku-4-5',
+  claudeLightModel: process.env.CLAUDE_LIGHT_MODEL ?? 'claude-haiku-5-5',
   cursorLightModel: process.env.CURSOR_LIGHT_MODEL ?? 'composer-2.5',
 
   /** トピックで深さを選んでいないときの既定。未指定なら CLI の既定に任せる。 */

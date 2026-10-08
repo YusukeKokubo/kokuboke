@@ -261,19 +261,19 @@ describe('updateTopic の考える深さ', () => {
     const topic = await createTopic(USER, { name: '深さ' })
     const next = await updateTopic(USER, topic.slug, {
       engine: 'claude',
-      model: 'claude-sonnet-5',
+      model: 'claude-sonnet-5-5',
       effort: 'low',
     })
     assert.equal(next.effort, 'low')
-    assert.equal(next.modelLabel, 'Claude Code / Sonnet 5 · 浅め')
+    assert.equal(next.modelLabel, 'Claude Code / Sonnet 5.5 · 浅め')
     assert.equal((await readTopic(USER, await folderOf(topic.slug))).effort, 'low')
   })
 
   it('深さを渡さなければ今のまま、null なら既定に戻す', async () => {
-    const topic = await createTopic(USER, { engine: 'claude', model: 'claude-opus-5', effort: 'high' })
+    const topic = await createTopic(USER, { engine: 'claude', model: 'claude-opus-5-5', effort: 'high' })
     assert.equal(topic.effort, 'high')
 
-    const moved = await updateTopic(USER, topic.slug, { engine: 'claude', model: 'claude-sonnet-5' })
+    const moved = await updateTopic(USER, topic.slug, { engine: 'claude', model: 'claude-sonnet-5-5' })
     assert.equal(moved.effort, 'high')
 
     const cleared = await updateTopic(USER, topic.slug, { effort: null })
@@ -285,13 +285,12 @@ describe('updateTopic の考える深さ', () => {
   })
 
   it('選べないモデルに移ると深さは落ちる', async () => {
-    const topic = await createTopic(USER, { engine: 'claude', model: 'claude-opus-5', effort: 'max' })
-    assert.equal((await updateTopic(USER, topic.slug, { model: 'claude-haiku-4-5' })).effort, null)
+    const topic = await createTopic(USER, { engine: 'claude', model: 'claude-opus-5-5', effort: 'max' })
     assert.equal((await updateTopic(USER, topic.slug, { engine: 'cursor', model: 'auto' })).effort, null)
   })
 
   it('知らない値は受け付けない', async () => {
-    const topic = await createTopic(USER, { engine: 'claude', model: 'claude-opus-5' })
+    const topic = await createTopic(USER, { engine: 'claude', model: 'claude-opus-5-5' })
     assert.equal((await updateTopic(USER, topic.slug, { effort: 'turbo' })).effort, null)
   })
 })
