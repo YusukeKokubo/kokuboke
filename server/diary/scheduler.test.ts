@@ -73,6 +73,7 @@ describe('いまなにしとる の一日', () => {
     await diaryStore.writeDiarySettings(TARO, { enabled: true, from: 9, to: 21, count: 2 })
     await diaryStore.writePlan(TARO, {
       date: '2026-10-10',
+      planned: true,
       slots: [
         { at: jst('2026-10-10T10:00:00').toISOString(), state: 'pending' },
         { at: jst('2026-10-10T14:00:00').toISOString(), state: 'pending' },
@@ -191,6 +192,25 @@ describe('いまなにしとる の一日', () => {
         assert.ok(at > now.getTime(), '過ぎた時刻は選ばない')
         assert.ok(Math.abs(at - now.getTime()) >= 2 * 60 * 60 * 1000, '手で聞いた 2 時間以内は選ばない')
       }
+    }
+  })
+
+  it('「今すぐ聞く」を先に押した日も、見回りが残りの時刻を選び足す', async () => {
+    const now = jst('2026-10-14T11:15:00')
+    await diaryStore.removePlan(TARO)
+    await diaryStore.writeDiarySettings(TARO, { enabled: false, from: 9, to: 21, count: 3 })
+    await askQuestion(TARO, now, { manual: true })
+    await diaryStore.writeDiarySettings(TARO, { enabled: true, from: 9, to: 21, count: 3 })
+    await replan(TARO, now)
+
+    await tickUser(TARO, jst('2026-10-14T11:16:00'))
+    const plan = await diaryStore.readPlan(TARO)
+    assert.equal(plan?.planned, true)
+    assert.equal(plan?.slots[0]?.state, 'asked')
+    const pending = plan!.slots.filter((slot) => slot.state === 'pending')
+    assert.ok(pending.length > 0, '残りの時刻がある')
+    for (const slot of pending) {
+      assert.ok(new Date(slot.at).getTime() - now.getTime() >= 2 * 60 * 60 * 1000)
     }
   })
 })

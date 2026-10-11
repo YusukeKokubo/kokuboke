@@ -117,6 +117,11 @@ export interface DiaryPlan {
   /** 今日の会話の URL の id。まだ一度も聞いていなければ無い。 */
   topic?: string
   slots: PlanSlot[]
+  /**
+   * 時間帯から時刻を選んだか。手で聞いただけの日は予定が先にできるので、
+   * これが無ければ見回りが選び足す。
+   */
+  planned?: boolean
 }
 
 function isSlot(value: unknown): value is PlanSlot {
@@ -137,6 +142,7 @@ export async function readPlan(user: UserName): Promise<DiaryPlan | null> {
     date: row.date,
     topic: typeof row.topic === 'string' && row.topic ? row.topic : undefined,
     slots: Array.isArray(row.slots) ? row.slots.filter(isSlot) : [],
+    planned: row.planned === true,
   }
 }
 

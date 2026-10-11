@@ -2,7 +2,7 @@ import { config } from '../config'
 import { listDeviceTokens } from '../store/device'
 import { readDiarySettings, readPlan, removePlan, writePlan, type DiaryPlan } from '../store/diary'
 import { assertUser, type UserName } from '../store/paths'
-import { diaryDateOf, dueSlot, MIN_GAP_MINUTES, newPlan, weekdayOf } from './clock'
+import { diaryDateOf, dueSlot, fillPlan, newPlan, weekdayOf } from './clock'
 import { askQuestion, proposeProfile, writeDiary } from './jobs'
 
 /** 見回りの間隔。時刻は分単位で選ぶので、一分ごとに見れば足りる。 */
@@ -41,6 +41,10 @@ export async function tickUser(user: UserName, now = new Date()): Promise<void> 
   if (!plan) {
     plan = newPlan(today, settings, now)
     await writePlan(user, plan)
+  } else if (!plan.planned) {
+    // 「今すぐ聞く」だけで予定ができた日。時刻を選ばないままだと、その日はもう聞かない。
+    plan = fillPlan(plan, settings, now)
+    await writePlan(user, plan)
   }
 
   const { due, late } = dueSlot(plan, now)
@@ -53,30 +57,11 @@ export async function tickUser(user: UserName, now = new Date()): Promise<void> 
   if (due) await askQuestion(user, now)
 }
 
-/**
- * 設定を変えた日は、まだ来ていない時刻だけ選び直す。聞いた時刻は残し、
- * そこから 2 時間以内に入った新しい時刻は捨てる。
- */
+/** 設定を変えた日は、まだ来ていない時刻だけ選び直す。 */
 export async function replan(user: UserName, now = new Date()): Promise<void> {
-  const settings = await readDiarySettings(user)
-  const today = diaryDateOf(now)
   const plan = await readPlan(user)
-  if (!plan || plan.date !== today) return
-
-  const kept = plan.slots.filter((slot) => slot.state !== 'pending')
-  if (!settings.enabled) {
-    await writePlan(user, { ...plan, slots: kept })
-    return
-  }
-  const asked = kept.filter((slot) => slot.state === 'asked').map((slot) => new Date(slot.at).getTime())
-  const gap = MIN_GAP_MINUTES * 60 * 1000
-  const fresh = newPlan(today, settings, now).slots.filter(
-    (slot) =>
-      slot.state === 'pending' &&
-      asked.every((at) => Math.abs(new Date(slot.at).getTime() - at) >= gap),
-  )
-  const slots = [...kept, ...fresh].sort((a, b) => a.at.localeCompare(b.at))
-  await writePlan(user, { ...plan, slots })
+  if (!plan || plan.date !== diaryDateOf(now)) return
+  await writePlan(user, fillPlan(plan, await readDiarySettings(user), now))
 }
 
 /** 人ごとに走らせる。一人の問いかけが長引いても、ほかの人の時刻は遅らせない。 */

@@ -69,7 +69,32 @@ export function newPlan(
     at: at.toISOString(),
     state: at.getTime() <= now.getTime() ? 'skipped' : 'pending',
   }))
-  return { date, slots }
+  return { date, slots, planned: true }
+}
+
+/**
+ * 今日の予定に時刻を選び直す。聞いた時刻と飛ばした時刻は残し、まだ来ていない時刻だけ
+ * 入れ替える。聞いた時刻から 2 時間以内に入った新しい時刻は捨てる。
+ * 設定を変えたときと、手で聞いただけでまだ時刻を選んでいない日に使う。
+ */
+export function fillPlan(
+  plan: DiaryPlan,
+  settings: DiarySettings,
+  now: Date,
+  random: () => number = Math.random,
+): DiaryPlan {
+  const kept = plan.slots.filter((slot) => slot.state !== 'pending')
+  if (!settings.enabled) return { ...plan, slots: kept, planned: false }
+
+  const asked = kept.filter((slot) => slot.state === 'asked').map((slot) => new Date(slot.at).getTime())
+  const gap = MIN_GAP_MINUTES * 60 * 1000
+  const fresh = newPlan(plan.date, settings, now, random).slots.filter(
+    (slot) =>
+      slot.state === 'pending' &&
+      asked.every((at) => Math.abs(new Date(slot.at).getTime() - at) >= gap),
+  )
+  const slots = [...kept, ...fresh].sort((a, b) => a.at.localeCompare(b.at))
+  return { ...plan, slots, planned: true }
 }
 
 /**
