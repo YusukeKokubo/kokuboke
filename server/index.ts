@@ -8,10 +8,12 @@ import { config, assertConfig } from './config'
 import { AppError } from './errors'
 import { limiter } from './agent/queue'
 import { captureLogs } from './diagnostic/log'
+import { startDiaryScheduler } from './diary/scheduler'
 import { loadServiceAccount } from './push/fcm'
 import { admin } from './routes/admin'
 import { devices } from './routes/devices'
 import { diagnostic } from './routes/diagnostic'
+import { diary } from './routes/diary'
 import { docs } from './routes/docs'
 import { media } from './routes/media'
 import { messages } from './routes/messages'
@@ -62,6 +64,7 @@ app.route('/', topics)
 app.route('/', messages)
 app.route('/', tags)
 app.route('/', docs)
+app.route('/', diary)
 app.route('/', media)
 
 app.onError((error, c) => {
@@ -105,4 +108,5 @@ serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {
   console.log(`  users    : ${config.users.join(', ')}`)
   console.log(`  model    : ${config.defaultEngine} / ${config.claudeModel} · ${config.cursorModel}`)
   console.log(`  light    : ${config.claudeLightModel} · ${config.cursorLightModel}`)
+  startDiaryScheduler()
 })

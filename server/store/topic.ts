@@ -48,6 +48,8 @@ export interface TopicMeta {
   proposedName?: string
   /** 自動タグ付けが最後に付けた配列。人が直した対を残すために持つ。 */
   proposedTags?: string[]
+  /** 「いまなにしとる」の会話なら、その日記の日付（YYYY-MM-DD）。 */
+  diary?: string
 }
 
 /** 本人がこの回数話したところで、会話を読んで名前を付け（直し）にいく。 */
@@ -130,6 +132,7 @@ export async function readMeta(user: UserName, id: TopicName): Promise<TopicMeta
       proposedTags: Array.isArray(parsed.proposedTags)
         ? parsed.proposedTags.filter((tag): tag is string => typeof tag === 'string')
         : undefined,
+      diary: typeof parsed.diary === 'string' ? parsed.diary : undefined,
     }
     if (parsed.id !== topicId) await writeMeta(user, id, meta)
     return meta
@@ -210,6 +213,18 @@ async function locate(user: UserName, ref: string): Promise<TopicName> {
   return found.folder
 }
 
+/** 「いまなにしとる」の会話。日付と、URL の id とフォルダ。 */
+export async function listDiaryTopics(
+  user: UserName,
+): Promise<{ date: string; slug: string; folder: TopicName }[]> {
+  const found = []
+  for (const folder of await listFolders(user)) {
+    const meta = await readMeta(user, folder)
+    if (meta.diary) found.push({ date: meta.diary, slug: meta.id, folder })
+  }
+  return found.sort((a, b) => b.date.localeCompare(a.date))
+}
+
 /** 一番新しく話した順。まだ話していないものは作成日で並べる。 */
 function byRecency(a: Topic, b: Topic): number {
   return (b.lastMessageAt ?? b.createdAt).localeCompare(a.lastMessageAt ?? a.createdAt)
@@ -229,7 +244,14 @@ export async function listTopics(user: UserName): Promise<Topic[]> {
 
 export async function createTopic(
   user: UserName,
-  input: { name?: string; engine?: string; model?: string; effort?: string; tags?: string[] },
+  input: {
+    name?: string
+    engine?: string
+    model?: string
+    effort?: string
+    tags?: string[]
+    diary?: string
+  },
 ): Promise<Topic> {
   const name = (input.name ?? '').trim()
   if (name.length > 40) {
@@ -258,6 +280,7 @@ export async function createTopic(
     ...(named ? { nameTriedAt: AUTO_NAME_LAST, nameTried: true } : {}),
     // 人が始めから選んだタグは、自動のタグ付けで上書きしない。後から付けたときと同じ扱い。
     ...(input.tags?.length ? { tagTried: true } : {}),
+    ...(input.diary ? { diary: input.diary } : {}),
   }
 
   await writeMeta(user, folder, meta)

@@ -107,6 +107,16 @@ export function organizeFile(user: UserName): string {
   return path.join(userDir(user), 'organize.md')
 }
 
+/** 「いまなにしとる」の設定・予定・日記。会話とは分けて、あとで束ねやすくする。 */
+export function diaryDir(user: UserName): string {
+  return path.join(userDir(user), 'diary')
+}
+
+/** 一日分の日記。`diary/2026/10-11.md`。date は YYYY-MM-DD で、呼ぶ側が形を確かめる。 */
+export function diaryEntryFile(user: UserName, date: string): string {
+  return path.join(diaryDir(user), date.slice(0, 4), `${date.slice(5)}.md`)
+}
+
 /** 検証済みの id から会話ディレクトリを組み立てる。 */
 export function topicDir(user: UserName, id: TopicName): string {
   return path.join(topicsDir(user), id)

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronsDown, ChevronsUpDown, FileText, House, MessageSquarePlus, MoreHorizontal, Tags, Trash2, UserRound } from 'lucide-react'
+import { ChevronDown, ChevronsDown, ChevronsUpDown, FileText, House, MessageSquarePlus, MoreHorizontal, NotebookPen, Tags, Trash2, UserRound } from 'lucide-react'
 import type { Tag, Topic } from '../../shared/types'
 import { topicLabel } from '@/lib/format'
 import { familySpace, personalSpace, useSpace, type Space } from '@/lib/space'
@@ -361,6 +361,18 @@ function SpaceSection({
               タグ
             </SidebarMenuButton>
           </SidebarMenuItem>
+          {space.diary && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={atPath(pathname, space.diary)}
+                render={<Link to={space.diary} />}
+                onClick={() => setOpenMobile(false)}
+              >
+                <NotebookPen />
+                日記
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={pathname === space.profile}

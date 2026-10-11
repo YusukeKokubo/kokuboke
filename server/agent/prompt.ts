@@ -5,7 +5,7 @@ import { formatRevisions, type Revision } from '../store/revision'
 
 const MAX_HISTORY_CHARS = 20_000
 
-function renderHistory(messages: Message[]): string {
+export function renderHistory(messages: Message[]): string {
   if (messages.length === 0) return '（このトピックでの会話はまだありません）'
 
   const lines = messages.map((m) => {

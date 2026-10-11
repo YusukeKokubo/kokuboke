@@ -96,6 +96,12 @@ export const config = {
   claudeLightModel: process.env.CLAUDE_LIGHT_MODEL ?? 'claude-haiku-5-5',
   cursorLightModel: process.env.CURSOR_LIGHT_MODEL ?? 'composer-2.5',
 
+  /**
+   * 「いまなにしとる」の見回りを動かすか。本番は既定で動く。手元の dev は本番の写しを見て
+   * いて家族の端末も入っているので、立てたときだけ動かす（`DIARY_SCHEDULER=1`）。
+   */
+  diaryScheduler: process.env.DIARY_SCHEDULER ? process.env.DIARY_SCHEDULER === '1' : isProduction,
+
   /** トピックで深さを選んでいないときの既定。未指定なら CLI の既定に任せる。 */
   claudeEffort: oneOf(process.env.CLAUDE_EFFORT, CLAUDE_EFFORTS),
 

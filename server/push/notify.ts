@@ -9,29 +9,44 @@ export interface ReplyNotice {
   path: string
 }
 
+export interface Notice {
+  recipient: UserName
+  title: string
+  body: string
+  path: string
+}
+
 /**
- * 返答が書き終わったあと、その人の端末へ知らせる。
- * アプリが前面にいるときは OS が出さない。設定が無ければ何もしない。
+ * その人の端末へ知らせる。アプリが前面にいるときは OS が出さない。
+ * 設定が無ければ何もしない。届いた端末の数を返す。
  */
-export async function notifyReply(notice: ReplyNotice): Promise<void> {
+export async function notifyUser(notice: Notice): Promise<number> {
   const tokens = await listDeviceTokens(notice.recipient)
-  if (tokens.length === 0) return
+  if (tokens.length === 0) return 0
 
-  const title = notice.topicName.trim() || NO_NAME
-  const payload = {
-    title,
-    body: '返答が届いたよ',
-    path: notice.path,
-  }
+  const payload = { title: notice.title, body: notice.body, path: notice.path }
 
+  let sent = 0
   const gone: string[] = []
   for (const token of tokens) {
     try {
       const result = await sendFcm(token, payload)
       if (result === 'gone') gone.push(token)
+      if (result === 'ok') sent++
     } catch (error) {
       console.error('[push]', error)
     }
   }
   await removeDevices(notice.recipient, gone)
+  return sent
+}
+
+/** 返答が書き終わったあと、その人の端末へ知らせる。本文は載せない。 */
+export async function notifyReply(notice: ReplyNotice): Promise<void> {
+  await notifyUser({
+    recipient: notice.recipient,
+    title: notice.topicName.trim() || NO_NAME,
+    body: '返答が届いたよ',
+    path: notice.path,
+  })
 }

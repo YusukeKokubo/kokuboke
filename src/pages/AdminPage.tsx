@@ -8,9 +8,19 @@ import {
   FileText,
   ImageIcon,
   LogIn,
+  MessageCircleQuestion,
   RefreshCw,
+  Smartphone,
+  UserRound,
 } from 'lucide-react'
-import type { ActivityEntry, EngineId, EngineLogin, UpdateStatus } from '../../shared/types'
+import type {
+  ActivityEntry,
+  DiaryAdminEntry,
+  DiarySettings,
+  EngineId,
+  EngineLogin,
+  UpdateStatus,
+} from '../../shared/types'
 import { api } from '@/lib/api'
 import { rememberedKey } from '@/lib/admin-key'
 import { relativeLabel, topicLabel } from '@/lib/format'
@@ -209,6 +219,8 @@ export default function AdminPage() {
             </>
           )}
         </section>
+
+        <DiarySection adminKey={key} />
 
         <LoginSection adminKey={key} engine="claude" title="Claude Code のログイン" />
         <LoginSection adminKey={key} engine="cursor" title="Cursor のログイン" />
@@ -409,5 +421,223 @@ function LoginSection({ adminKey, engine, title }: { adminKey: string; engine: E
         </>
       )}
     </section>
+  )
+}
+
+const HOURS_FROM = Array.from({ length: 20 }, (_, i) => i + 4)
+const HOURS_TO = Array.from({ length: 20 }, (_, i) => i + 5)
+const COUNTS = [1, 2, 3, 4, 5, 6]
+
+const SLOT_LABEL: Record<DiaryAdminEntry['today'][number]['state'], string> = {
+  pending: 'これから',
+  asked: '聞いた',
+  skipped: '飛ばした',
+}
+
+/**
+ * 「いまなにしとる」を誰にいつ聞くか。人ごとに時間帯と回数を決める。
+ * 端末の無い人はオンにしても聞かないので、その旨を横に出す。
+ */
+function DiarySection({ adminKey }: { adminKey: string }) {
+  const [entries, setEntries] = useState<DiaryAdminEntry[] | null>(null)
+  const [scheduler, setScheduler] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(() => {
+    api
+      .diaryAdmin(adminKey)
+      .then((doc) => {
+        setEntries(doc.entries)
+        setScheduler(doc.scheduler)
+        setError(null)
+      })
+      .catch((cause: Error) => setError(cause.message))
+  }, [adminKey])
+
+  useEffect(load, [load])
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-muted-foreground text-xs font-medium tracking-wide">いまなにしとる</h2>
+      <p className="text-muted-foreground text-xs leading-relaxed">
+        時間帯の中のでたらめな時刻に、Android の端末へ「いまなにしとる？」を送るよ。
+        答えは次の朝 4 時を過ぎたころに日記にまとめて、日曜にはプロフィールの直し案も作る。
+      </p>
+      {!scheduler && (
+        <p className="text-destructive text-xs leading-relaxed">
+          この機械では見回りが止まっとる（DIARY_SCHEDULER）。時刻が来ても聞かんし、日記も書かん。
+        </p>
+      )}
+      {error && <p className="text-destructive leading-relaxed">{error}</p>}
+      {!error && entries === null && <p className="text-muted-foreground">読み込み中…</p>}
+      {entries?.map((entry) => (
+        <DiaryUserRow key={entry.user} adminKey={adminKey} entry={entry} onChanged={load} />
+      ))}
+    </section>
+  )
+}
+
+function DiaryUserRow({
+  adminKey,
+  entry,
+  onChanged,
+}: {
+  adminKey: string
+  entry: DiaryAdminEntry
+  onChanged: () => void
+}) {
+  const [draft, setDraft] = useState<DiarySettings>(entry.settings)
+  const [busy, setBusy] = useState<'save' | 'ask' | 'profile' | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  useEffect(() => setDraft(entry.settings), [entry.settings])
+
+  const dirty =
+    draft.enabled !== entry.settings.enabled ||
+    draft.from !== entry.settings.from ||
+    draft.to !== entry.settings.to ||
+    draft.count !== entry.settings.count
+
+  async function run(kind: 'save' | 'ask' | 'profile', job: () => Promise<string>) {
+    setBusy(kind)
+    setNotice(null)
+    try {
+      setNotice(await job())
+      onChanged()
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : 'うまくいかんかった')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const id = `diary-${entry.user}`
+
+  return (
+    <div className="flex flex-col gap-2.5 rounded-xl border px-3.5 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor={`${id}-enabled`} className="flex items-center gap-2 font-medium">
+          <input
+            id={`${id}-enabled`}
+            type="checkbox"
+            checked={draft.enabled}
+            onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })}
+            className="accent-primary size-4"
+          />
+          {entry.user}
+        </label>
+        <span
+          className={`flex items-center gap-1 text-xs ${entry.hasDevice ? 'text-muted-foreground' : 'text-destructive'}`}
+        >
+          <Smartphone className="size-3.5" />
+          {entry.hasDevice ? '端末あり' : '端末なし。オンでも聞かんよ'}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        <select
+          id={`${id}-from`}
+          aria-label="聞き始め"
+          value={draft.from}
+          onChange={(event) => setDraft({ ...draft, from: Number(event.target.value) })}
+          className="bg-background rounded-md border px-1.5 py-1 tabular-nums"
+        >
+          {HOURS_FROM.map((hour) => (
+            <option key={hour} value={hour}>
+              {hour} 時
+            </option>
+          ))}
+        </select>
+        <span>から</span>
+        <select
+          id={`${id}-to`}
+          aria-label="聞き終わり"
+          value={draft.to}
+          onChange={(event) => setDraft({ ...draft, to: Number(event.target.value) })}
+          className="bg-background rounded-md border px-1.5 py-1 tabular-nums"
+        >
+          {HOURS_TO.map((hour) => (
+            <option key={hour} value={hour}>
+              {hour} 時
+            </option>
+          ))}
+        </select>
+        <span>までに</span>
+        <select
+          id={`${id}-count`}
+          aria-label="回数"
+          value={draft.count}
+          onChange={(event) => setDraft({ ...draft, count: Number(event.target.value) })}
+          className="bg-background rounded-md border px-1.5 py-1 tabular-nums"
+        >
+          {COUNTS.map((count) => (
+            <option key={count} value={count}>
+              {count} 回
+            </option>
+          ))}
+        </select>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!dirty || busy !== null}
+          onClick={() =>
+            run('save', async () => {
+              await api.saveDiarySettings(adminKey, entry.user, draft)
+              return '保存したよ'
+            })
+          }
+        >
+          保存
+        </Button>
+      </div>
+
+      {entry.today.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5">
+          {entry.today.map((slot) => (
+            <li
+              key={slot.at}
+              className={`rounded-full px-2 py-0.5 font-mono text-[11px] tabular-nums ${
+                slot.state === 'pending' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {slot.at} {SLOT_LABEL[slot.state]}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy !== null || !entry.hasDevice}
+          onClick={() =>
+            run('ask', async () => {
+              const { topic } = await api.askNow(adminKey, entry.user)
+              return `送ったよ（${topic.slice(0, 8)}）`
+            })
+          }
+        >
+          <MessageCircleQuestion className="size-3.5" />
+          {busy === 'ask' ? '書いとる…' : '今すぐ聞く'}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy !== null}
+          onClick={() =>
+            run('profile', async () => {
+              const { count } = await api.proposeProfile(adminKey, entry.user)
+              return count > 0 ? `直し案を ${count} 件作ったよ` : '直す案は出んかった（答えが二日分ないと作らん）'
+            })
+          }
+        >
+          <UserRound className="size-3.5" />
+          {busy === 'profile' ? '作っとる…' : '直し案を作る'}
+        </Button>
+      </div>
+
+      {notice && <p className="text-muted-foreground text-xs">{notice}</p>}
+    </div>
   )
 }

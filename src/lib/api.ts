@@ -3,6 +3,10 @@ import type {
   AgentRun,
   ChatEvent,
   Agents,
+  DiaryAdminEntry,
+  DiaryDay,
+  DiaryEntry,
+  DiarySettings,
   Effort,
   EngineId,
   EngineInfo,
@@ -13,6 +17,7 @@ import type {
   Organize,
   OrganizeEvent,
   Profile,
+  ProfileProposal,
   SummaryEvent,
   Tag,
   TagOrganizeAction,
@@ -207,6 +212,28 @@ export function spaceApi(base: string, author?: string) {
     saveProfile: (profile: string) =>
       json.send<Profile>('PUT', `${base}/profile`, { profile }).then(only('profile')),
 
+    /** 日記の一覧。答えの無かった日も、会話が残っていれば並ぶ。共有スペースでは 404。 */
+    listDiary: () => json.get<{ days: DiaryDay[]; today: string }>(`${base}/diary`),
+
+    getDiary: (date: string) =>
+      json.get<{ entry: DiaryEntry | null; topic: string | null }>(`${base}/diary/${path(date)}`),
+
+    /** 記録を人が直す。答えは変わらない。 */
+    saveDiary: (date: string, record: string) =>
+      json.send<DiaryEntry>('PUT', `${base}/diary/${path(date)}`, { record }),
+
+    /** 会話から書き直す。直した記録も書き直す。CLI を待つので数十秒かかる。 */
+    writeDiary: (date: string) => json.send<DiaryEntry>('POST', `${base}/diary/${path(date)}/write`),
+
+    getProfileProposal: () =>
+      json.get<{ proposal: ProfileProposal | null }>(`${base}/profile/proposal`).then((doc) => doc.proposal),
+
+    /** 選んだ案を profile.md に書く。選ばなかった案は見送り。 */
+    applyProfileProposal: (picked: string[]) =>
+      json
+        .send<Profile>('POST', `${base}/profile/proposal/apply`, { picked })
+        .then(only('profile')),
+
     getOrganize: () => json.get<Organize>(`${base}/organize`).then(only('organize')),
 
     saveOrganize: (organize: string) =>
@@ -301,6 +328,29 @@ export const api = {
   /** ユーザーごとの最新の会話。詳細は各会話画面で見る。 */
   activity: (key: string) =>
     json.get<{ entries: ActivityEntry[] }>('/api/admin/activity', {
+      headers: { 'x-admin-token': key },
+    }),
+
+  /** 「いまなにしとる」の設定と、今日の予定。 */
+  diaryAdmin: (key: string) =>
+    json.get<{ entries: DiaryAdminEntry[]; scheduler: boolean }>('/api/admin/diary', {
+      headers: { 'x-admin-token': key },
+    }),
+
+  saveDiarySettings: (key: string, user: string, settings: DiarySettings) =>
+    json.send<{ settings: DiarySettings }>('PUT', `/api/admin/diary/${path(user)}`, settings, {
+      headers: { 'x-admin-token': key },
+    }),
+
+  /** 予定を待たずに一通送る。 */
+  askNow: (key: string, user: string) =>
+    json.send<{ topic: string }>('POST', `/api/admin/diary/${path(user)}/ask`, undefined, {
+      headers: { 'x-admin-token': key },
+    }),
+
+  /** 日曜を待たずに profile.md の直し案を作る。 */
+  proposeProfile: (key: string, user: string) =>
+    json.send<{ count: number }>('POST', `/api/admin/diary/${path(user)}/profile`, undefined, {
       headers: { 'x-admin-token': key },
     }),
 

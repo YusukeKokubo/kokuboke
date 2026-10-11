@@ -24,7 +24,7 @@
 
 - `mise exec -- npm run dev` — Vite 5173 + API 3000。`.env` を読む（`USERS` は必須）
 - `mise exec -- npm run typecheck` / `... npm run lint` / `... npm test` / `... npm run build`
-- テストは `server/store/` と `server/agent/`。`node --test` を tsx 経由で走らせる。
+- テストは `server/store/` と `server/agent/`、`server/diary/`。`node --test` を tsx 経由で走らせる。
   それ以外の確認は typecheck と build、あとは実際に動かして見る
 - テストは環境変数を差し込んでから `await import` する。`config` は読み込んだ時点で
   環境変数を見るため。`process.loadEnvFile` は既にある値を上書きしないので `.env` には負けない
@@ -51,6 +51,9 @@
 - `server/diagnostic/` — サーバーが自分のログと CLI の時間を残す部分と、診断の AI への指示。
   console を包んで `DATA_DIR/.logs` に書く。コンテナからは `docker logs` が読めないため。
   診断の AI が読むソースは、イメージでは Dockerfile が `/app/source` に写す（`SOURCE_DIR`）
+- `server/diary/` — 「いまなにしとる」。見回り（`scheduler.ts`）が時刻に問いかけを書いて push し、
+  4 時を過ぎたら前の日の日記を、日曜は `profile.md` の直し案を作る。手元の dev では
+  `DIARY_SCHEDULER=1` を立てないと見回らない（本番の写しには家族の端末も入っとるため）
 - `server/routes/` — API。`server/store/` — data 配下の読み書き。パスの検査は `store/paths.ts` に集約
 - 個人のスペースと家族共有スペースは同じハンドラ・同じ画面で応える。違いは
   `server/routes/space.ts` と `src/lib/space.tsx` の記述子に集めてある。

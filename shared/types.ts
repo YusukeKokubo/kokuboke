@@ -226,3 +226,59 @@ export interface AgentRun {
   /** `code=0` や `SIGTERM`。 */
   exit: string
 }
+
+/** 「いまなにしとる」を聞く設定。人ごと。管理画面が書く。 */
+export interface DiarySettings {
+  enabled: boolean
+  /** 聞き始める時（4〜23）。日記の一日が 4 時に始まるので、それより前は選べない。 */
+  from: number
+  /** 聞き終わる時（5〜24）。この時ちょうどまで。 */
+  to: number
+  /** 一日に聞く回数。 */
+  count: number
+}
+
+/** 管理画面の一人分。端末が無ければオンにしても聞かない。 */
+export interface DiaryAdminEntry {
+  user: string
+  settings: DiarySettings
+  hasDevice: boolean
+  /** 今日聞く予定の時刻（HH:MM）と、聞いたかどうか。 */
+  today: { at: string; state: 'pending' | 'asked' | 'skipped' }[]
+}
+
+/** 日記の一日分。答えは本人の発言をそのまま、記録は AI がまとめたもの。 */
+export interface DiaryEntry {
+  /** YYYY-MM-DD。04:00 から翌 04:00 までを一日とする。 */
+  date: string
+  /** 元の会話の URL の id。 */
+  topic: string
+  answers: { at: string; text: string }[]
+  record: string
+  /** 人が記録を直したか。直した日は作り直しで上書きしない。 */
+  edited: boolean
+}
+
+/** 日記の一覧の一行。答えの無かった日は entry が無い。 */
+export interface DiaryDay {
+  date: string
+  topic: string
+  answers: number
+  /** 一覧に出す答えの一つ目。 */
+  firstAnswer: string | null
+  /** 記録の頭。 */
+  preview: string | null
+}
+
+/** profile.md の直し案の一件。足す・直す・消す。 */
+export type ProfileChange =
+  | { id: string; type: 'add'; text: string; dates: string[] }
+  | { id: string; type: 'replace'; from: string; to: string; dates: string[] }
+  | { id: string; type: 'remove'; text: string; reason: string }
+
+export interface ProfileProposal {
+  at: string
+  changes: ProfileChange[]
+  /** 案を作ったときの profile.md の上限（字）。 */
+  limit: number
+}

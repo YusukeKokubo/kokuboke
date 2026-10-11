@@ -1,13 +1,26 @@
-import { useEffect } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useSpace } from '@/lib/space'
 import { useDocumentTitle } from '@/lib/title'
 import { DocPane, type DocSpec } from '@/components/DocsDialog'
+import { ProfileProposalCard } from '@/components/ProfileProposal'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 
 /**
  * スペース直下の文書。プロフィールと AGENTS.md と整理の方針。個人と家族で同じ画面。
  */
-function SpaceDocPage({ title, spec }: { title: string; spec: DocSpec }) {
+function SpaceDocPage({
+  title,
+  spec,
+  version = 0,
+  children,
+}: {
+  title: string
+  spec: DocSpec
+  /** 外で本文を書き換えたら増やす。読み直させる。 */
+  version?: number
+  /** 本文の上に置くもの。 */
+  children?: ReactNode
+}) {
   const space = useSpace()
   useDocumentTitle(title)
 
@@ -23,10 +36,11 @@ function SpaceDocPage({ title, spec }: { title: string; spec: DocSpec }) {
           <p className="text-muted-foreground text-xs">{spec.description}</p>
         </div>
       </SpaceHeaderSlot>
+      {children}
       <DocPane
         spec={spec}
         open
-        source={`${space.docKey()}:${title}`}
+        source={`${space.docKey()}:${title}:${version}`}
         active
         onBusy={() => {}}
         onSaved={() => {}}
@@ -38,10 +52,12 @@ function SpaceDocPage({ title, spec }: { title: string; spec: DocSpec }) {
 export function ProfilePage() {
   const space = useSpace()
   const owner = space.owner
+  const [version, setVersion] = useState(0)
 
   return (
     <SpaceDocPage
       title={space.profileTitle}
+      version={version}
       spec={{
         label: space.profileTitle,
         description: owner
@@ -51,7 +67,12 @@ export function ProfilePage() {
         load: () => space.api.getProfile(),
         save: (text) => space.api.saveProfile(text),
       }}
-    />
+    >
+      <ProfileProposalCard
+        source={`${space.docKey()}:${version}`}
+        onApplied={() => setVersion((value) => value + 1)}
+      />
+    </SpaceDocPage>
   )
 }
 

@@ -35,6 +35,11 @@ export interface Space {
   authorOf(body: Record<string, unknown>): string | undefined
   /** profile.md の中身。無ければ空文字。 */
   profile(): Promise<string>
+  /**
+   * 「いまなにしとる」の日記があるか。push で一人に聞く仕組みなので個人だけ。
+   * 経路は両方に載せ、共有スペースでは 404 を返す。
+   */
+  diary: boolean
 }
 
 /** `/media/family/...` と `/api/family/...` で使う区切り。config が USERS に禁じている。 */
@@ -49,6 +54,7 @@ function personalSpace(user: UserName): Space {
     busyKey: () => user,
     authorOf: () => undefined,
     profile: () => readProfile(user),
+    diary: true,
   }
 }
 
@@ -68,6 +74,7 @@ function familySpace(): Space {
       return assertAuthor(raw)
     },
     profile: () => readProfile(user),
+    diary: false,
   }
 }
 

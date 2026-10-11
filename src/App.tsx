@@ -12,6 +12,7 @@ import ChatPage from './pages/ChatPage'
 import TagsPage from './pages/TagsPage'
 import { AgentsPage, OrganizePage, ProfilePage } from './pages/SpaceDocPage'
 import AdminPage from './pages/AdminPage'
+import DiaryPage from './pages/DiaryPage'
 import DiagnosticPage from './pages/DiagnosticPage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,6 +45,8 @@ export default function App() {
             <Route path="profile.md" element={<ProfilePage />} />
             <Route path="AGENTS.md" element={<AgentsPage />} />
             <Route path="organize.md" element={<OrganizePage />} />
+            <Route path="diary" element={<DiaryPage />} />
+            <Route path="diary/:date" element={<DiaryPage />} />
             <Route path=":id" element={<ChatPage />} />
           </Route>
         </Route>
@@ -55,6 +58,8 @@ export default function App() {
             <Route path="profile.md" element={<ProfilePage />} />
             <Route path="AGENTS.md" element={<AgentsPage />} />
             <Route path="organize.md" element={<OrganizePage />} />
+            <Route path="diary" element={<DiaryPage />} />
+            <Route path="diary/:date" element={<DiaryPage />} />
             <Route path=":id" element={<ChatPage />} />
           </Route>
         </Route>

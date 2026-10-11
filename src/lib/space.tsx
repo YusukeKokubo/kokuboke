@@ -22,6 +22,8 @@ export interface Space {
   agents: string
   /** organize.md への経路。 */
   organize: string
+  /** 日記への経路。push で一人に聞く仕組みなので、共有スペースには無い。 */
+  diary?: string
   title: string
   subtitle: string
   /** タグ一覧の見出し。家族か個人か、タイトルだけで分かるようにする。 */
@@ -100,6 +102,16 @@ export function organizeHref(home: string): string {
   return `${home}/organize.md`
 }
 
+/** 日記の一覧への経路。会話 id より先に置くので、`:id` に食われない。 */
+export function diaryHref(home: string): string {
+  return `${home}/diary`
+}
+
+/** 一日分の日記への経路。 */
+export function diaryDayHref(home: string, date: string): string {
+  return `${diaryHref(home)}/${date}`
+}
+
 /** 個人のスペース記述子。Sidebar からも組み立てる。 */
 export function personalSpace(user: string): Space {
   const home = personalHome(user)
@@ -111,6 +123,7 @@ export function personalSpace(user: string): Space {
     profile: profileHref(home),
     agents: agentsHref(home),
     organize: organizeHref(home),
+    diary: diaryHref(home),
     title: user,
     subtitle: '会話',
     tagsTitle: `${user}のタグ`,
