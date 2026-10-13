@@ -32,6 +32,48 @@ function takeDraft(state: unknown): ComposerInput | null {
   return { text: draft.text, images: draft.images, files: Array.isArray(draft.files) ? draft.files : [] }
 }
 
+/**
+ * 書きかけの返答の下に取っておく余白の刻み。画面の縦幅に対する割合。
+ * 下に張り付いていると見えるのは余白の下端の側なので、刻みが見えている範囲
+ * （画面から見出しと入力欄を引いた分）を越えると、伸びている行が上に隠れる。その手前で止める。
+ */
+const GROW_STEP_RATIO = 0.6
+
+/**
+ * 書きかけの返答を包んで、高さを画面の縦幅に応じた刻みでしか伸ばさない。
+ * 差分は数文字ずつ届くので、そのまま伸ばすと一行増えるたびに画面が下へずれてカクつく。
+ * 先に余白を取っておけば、中の吹き出しはその中で伸び、画面が動くのは刻みを越えたときだけになる。
+ * 書き終わったら外すので、余白は残らない。
+ */
+function GrowInSteps({ children }: { children: React.ReactNode }) {
+  const outer = useRef<HTMLDivElement>(null)
+  const inner = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const box = outer.current
+    const body = inner.current
+    if (!box || !body) return
+    let reserved = 0
+    const observer = new ResizeObserver(() => {
+      // 画面を回したときに合わせるため、刻みは測るたびに取り直す。
+      const step = Math.max(1, Math.round(window.innerHeight * GROW_STEP_RATIO))
+      const next = Math.ceil(body.offsetHeight / step) * step
+      // 縮めるとまた伸びたときにずれるので、書いている間は伸ばす一方にする。
+      if (next <= reserved) return
+      reserved = next
+      box.style.minHeight = `${next}px`
+    })
+    observer.observe(body)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div ref={outer}>
+      <div ref={inner}>{children}</div>
+    </div>
+  )
+}
+
 export default function ChatPage() {
   const space = useSpace()
   const navigate = useNavigate()
@@ -328,7 +370,9 @@ export default function ChatPage() {
         })}
 
         {draft && (
-          <MessageBubble message={draft} streaming activity={activity} selfAuthor={space.author} />
+          <GrowInSteps>
+            <MessageBubble message={draft} streaming activity={activity} selfAuthor={space.author} />
+          </GrowInSteps>
         )}
 
         {notice && (
