@@ -50,7 +50,9 @@ export default defineConfig({
         // どのみち返答にはネットワークが要るので、必要になったときに取りに行く。
         globIgnores: ['**/KaTeX_*', '**/Math-*'],
         // /login は前段のログインへ抜ける口なので、手元の index.html で受けない。
-        navigateFallbackDenylist: [/^\/api/, /^\/media/, /^\/login/],
+        // /cdn-cgi/ はログインを終えた前段が cookie を置きに戻ってくる口で、
+        // Cloudflare の縁が受ける。ここで受けると縁まで届かず、画面の NotFound になる。
+        navigateFallbackDenylist: [/^\/api/, /^\/media/, /^\/login/, /^\/cdn-cgi\//],
         runtimeCaching: [],
       },
     }),
