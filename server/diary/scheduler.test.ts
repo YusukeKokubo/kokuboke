@@ -29,6 +29,10 @@ const proposal = JSON.stringify({
     { type: 'remove', text: '- 朝はコーヒー', reason: '紅茶に変えたと話していた' },
   ],
 })
+const question = JSON.stringify({
+  text: '日本シリーズが延長戦だったらしいね。いまはどんな感じ？',
+  choices: { where: ['家', '職場'], who: ['ひとり'], what: ['洗濯'], mood: ['ふつう'] },
+})
 const fake = path.join(binDir, 'claude')
 fs.writeFileSync(
   fake,
@@ -38,7 +42,7 @@ printf '%s\\n=====\\n' "$input" >> '${promptLog}'
 case "$input" in
   *"直し案を出してください"*) printf '%s\\n' '${result(proposal)}' ;;
   *"この日の記録を書いてください"*) printf '%s\\n' '${result('洗濯を干してから、子どもとホームセンターへ。')}' ;;
-  *) printf '%s\\n' '${result('日本シリーズが延長戦だったらしいね。今何してる？')}' ;;
+  *) printf '%s\\n' '${result(question)}' ;;
 esac
 `,
   { mode: 0o755 },
@@ -49,7 +53,7 @@ const { addDevice } = await import('../store/device')
 const { assertUser } = await import('../store/paths')
 const { ensureUser, readProfile, writeProfile } = await import('../store/user')
 const { appendMessage, readAll } = await import('../store/log')
-const { listDiaryTopics, readMeta } = await import('../store/topic')
+const { createTopic, listDiaryTopics, readMeta, resolveTopic } = await import('../store/topic')
 const diaryStore = await import('../store/diary')
 const { replan, tickUser } = await import('./scheduler')
 const { applyProposal, askQuestion } = await import('./jobs')
@@ -88,6 +92,17 @@ describe('いまなにしとる の一日', () => {
       edited: false,
     })
 
+    // 興味の手がかりにする普段の会話。中身まで問いかけのプロンプトに渡る。
+    const bike = await createTopic(TARO, { name: '電動自転車えらび' })
+    const bikeFolder = (await resolveTopic(TARO, bike.slug))!.folder
+    await appendMessage(TARO, bikeFolder, {
+      id: 'b1',
+      role: 'user',
+      text: '坂が多いから軽いのがほしい',
+      images: [],
+      at: jst('2026-10-09T21:00:00').toISOString(),
+    })
+
     // 10:05 に見回ると、10:00 の分を聞く。
     await tickUser(TARO, jst('2026-10-10T10:05:00'))
     const topics = await listDiaryTopics(TARO)
@@ -99,7 +114,11 @@ describe('いまなにしとる の一日', () => {
     const first = await readAll(TARO, topics[0]!.folder)
     assert.equal(first.length, 1)
     assert.equal(first[0]!.role, 'assistant')
-    assert.match(first[0]!.text, /今何してる/)
+    assert.equal(first[0]!.text, '日本シリーズが延長戦だったらしいね。いまはどんな感じ？')
+    assert.deepEqual(first[0]!.form?.fields[0], { label: 'どこで', choices: ['家', '職場'] })
+
+    const asked = fs.readFileSync(promptLog, 'utf8')
+    assert.match(asked, /<conversation name="電動自転車えらび">[\s\S]*坂が多いから軽いのがほしい/)
 
     const plan = await diaryStore.readPlan(TARO)
     assert.equal(plan?.topic, topics[0]!.slug)

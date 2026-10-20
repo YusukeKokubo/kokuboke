@@ -1,6 +1,7 @@
 import type { DiaryEntry, Message } from '../../shared/types'
 import { renderHistory } from '../agent/prompt'
 import type { ProfileRevision } from '../store/diary'
+import { CHOICE_CHARS, CHOICES_PER_FIELD } from '../../shared/diary-form'
 
 /** 問いかけの長さの目安。通知の本文に頭が載るので、短いほど読まれる。 */
 const QUESTION_CHARS = 120
@@ -8,11 +9,18 @@ const QUESTION_CHARS = 120
 export function questionSystemPrompt(user: string): string {
   return `あなたは家族向けのチャットアプリの中で、「${user}」さんに自分から話しかけています。
 
-- 日中のでたらめな時刻に「今何してる？」と声をかけ、その答えを日記にためていく仕組みです。
-- 返すのは、いま送る一通の本文だけです。前置き、説明、作業の報告は書きません。
-- スマートフォンの通知に頭の一行が出ます。${QUESTION_CHARS} 字くらいまでの話し言葉で書きます。
+- 日中のでたらめな時刻に声をかけ、その答えを日記にためていく仕組みです。
+- 本人は画面の穴埋め（どこで・だれと・なにを・きぶん）で答えます。押すだけで答えられるよう、各欄の候補もあなたが出します。
+- 返すのは指定された JSON 一つだけです。前置き、説明、作業の報告は書きません。
+- 本文はスマートフォンの通知に頭の一行が出ます。${QUESTION_CHARS} 字くらいまでの話し言葉で書きます。
 - Markdown の見出し・箇条書き・リンクは使いません。
 - ファイルの作成・編集・削除はしません。`
+}
+
+export interface RecentConversation {
+  name: string
+  /** 会話の終わりの数往復。長い発言は呼ぶ側が切り詰めてある。 */
+  messages: Message[]
 }
 
 export function questionPrompt(input: {
@@ -22,6 +30,8 @@ export function questionPrompt(input: {
   tags: { name: string; group: string }[]
   /** この一週間の会話の見出し。興味の手がかり。 */
   recentNames: string[]
+  /** 直近の会話の中身。いちばん強い手がかり。 */
+  recent: RecentConversation[]
   /** 今日の会話。初めの問いかけなら空。 */
   today: Message[]
 }): string {
@@ -33,6 +43,12 @@ export function questionPrompt(input: {
   }
   if (input.recentNames.length > 0) {
     parts.push(`<recent_topics>\n${input.recentNames.map((name) => `- ${name}`).join('\n')}\n</recent_topics>`)
+  }
+  if (input.recent.length > 0) {
+    const blocks = input.recent.map(
+      (conversation) => `<conversation name="${conversation.name}">\n${renderHistory(conversation.messages)}\n</conversation>`,
+    )
+    parts.push(`<recent_conversations>\n${blocks.join('\n\n')}\n</recent_conversations>`)
   }
   if (input.today.length > 0) {
     parts.push(`<today>\n${renderHistory(input.today)}\n</today>`)
@@ -48,14 +64,26 @@ export function questionPrompt(input: {
 
   parts.push(`いまは ${input.now} です。${flow}
 
-一通を書いてください。
+一通の本文と、穴埋めの候補を書いてください。
 
-- WebSearch で、今日いま話題になっているニュースを探し、本人が興味を持ちそうなものを一つ選びます。
-  手がかりは <profile>、<tags>、<recent_topics> です。どれにも当たらなければ、誰にでも話しやすい明るい話題にします。
+本文:
+- WebSearch で、今日いま話題になっているニュースを探し、本人がいま気にしていそうなものを一つ選びます。
+  手がかりは強い順に <recent_conversations>（直近の会話の中身）、<recent_topics> と <tags>、<profile> です。
+  直近の会話で本人が話していた物・出来事・調べものに、そのままつながるニュースをいちばんに選びます。
+- 誰にでも当てはまる季節の話、芸能のうわさ、事件・事故、ランキングやまとめの記事は選びません。
 - 今日の <today> にすでに出したニュースは使いません。
-- ニュースはひとことで触れるだけにして、最後は「今何してる？」の気持ちで、いまの様子を聞きます。
+- ニュースはひとことで触れ、なぜそれを選んだか（「この前話していた〜」）が本人に分かるようにします。
   ニュースへの感想を求める問いにはしません。答えてほしいのは本人のいまのことです。
-- 検索がうまくいかなければ、ニュースには触れずに、いまの様子だけを聞きます。`)
+- 最後は、いまの様子を短く尋ねる一言で締めます。「今何してる？」の決まり文句は毎回使わず、言い回しを変えます。
+- つながるニュースが見つからなければ、ニュースには触れず、前の答えの続きか、いまの様子だけを短く聞きます。
+
+穴埋めの候補（choices）:
+- where（どこで）、who（だれと）、what（なにを）、mood（きぶん）に、それぞれ 3〜${CHOICES_PER_FIELD} 個。
+- いまの時刻と曜日、<today> の前の答え、本人の暮らしぶりから、いま当てはまりそうなものを選びます。
+- 一つは ${CHOICE_CHARS} 字以内の短い言葉にします。「ほか」は画面が足すので入れません。
+
+次の形の JSON だけを返してください。
+{"text":"この前話していた電動アシスト自転車、軽い新型が出たってニュースになってたよ。いまはどんな感じ？","choices":{"where":["家","職場","スーパー","移動中"],"who":["ひとり","家族と","職場の人と"],"what":["仕事","晩ごはんの支度","ひと休み"],"mood":["いい感じ","ふつう","つかれた","ねむい"]}}`)
 
   return parts.join('\n\n')
 }
@@ -91,7 +119,7 @@ export function profileSystemPrompt(): string {
 function renderEntries(entries: DiaryEntry[]): string {
   return entries
     .map((entry) => {
-      const answers = entry.answers.map((answer) => `- ${answer.at} ${answer.text.replace(/\n/g, ' ')}`)
+      const answers = entry.answers.map((answer) => `- ${answer.at} ${answer.text.replace(/\r?\n/g, ' / ')}`)
       return `<day date="${entry.date}">\n${answers.join('\n')}\n</day>`
     })
     .join('\n\n')

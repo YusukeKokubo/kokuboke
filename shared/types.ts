@@ -15,6 +15,19 @@ export interface Message {
   at: string
   /** 共有スペースの user 発言だけ。個人スペースでは付けない。 */
   author?: string
+  /** 「いまなにしとる」の問いかけだけ。画面が答えの穴埋めとして出す。 */
+  form?: DiaryForm
+}
+
+/** 穴埋めの一行。見出しと、押すだけで入る候補。 */
+export interface DiaryFormField {
+  /** 答えの行の頭にも付く。「どこで」。 */
+  label: string
+  choices: string[]
+}
+
+export interface DiaryForm {
+  fields: DiaryFormField[]
 }
 
 export type EngineId = 'claude' | 'cursor'

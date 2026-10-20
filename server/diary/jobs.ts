@@ -30,7 +30,9 @@ import {
   questionSystemPrompt,
   recordPrompt,
   recordSystemPrompt,
+  type RecentConversation,
 } from './prompt'
+import { parseQuestion } from './question'
 
 /** 「いまなにしとる」の会話に付けるタグ。 */
 export const DIARY_TAG = '日記'
@@ -38,11 +40,13 @@ export const DIARY_TAG = '日記'
 /** 問いかけを書くのに待つ上限。ニュースを探すぶん返答より遅いが、枠を長く握らせない。 */
 const QUESTION_TIMEOUT_MS = 2 * 60 * 1000
 
-/** ニュースが探せなかったときや、書けなかったときの一通。 */
-const PLAIN_QUESTION = '今何してる？'
-
 /** 通知の本文に載せる長さ。 */
 const PUSH_BODY_CHARS = 100
+
+/** 中身まで渡す直近の会話の数と、一つから渡す終わりのやり取りの数・一発言の長さ。 */
+const RECENT_CONVERSATIONS = 3
+const RECENT_MESSAGES = 6
+const RECENT_MESSAGE_CHARS = 300
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 
@@ -100,6 +104,31 @@ async function recentNames(user: UserName, now: Date): Promise<string[]> {
 }
 
 /**
+ * 興味のいちばん強い手がかり。最後に話した会話いくつかの、終わりのやり取り。
+ * 見出しだけでは何が気になっているのか分からず、話題が外れやすかった。
+ */
+async function recentConversations(user: UserName, now: Date): Promise<RecentConversation[]> {
+  const since = now.getTime() - 7 * 24 * 60 * 60 * 1000
+  const diary = new Set((await listDiaryTopics(user)).map((topic) => topic.slug))
+  const picked = (await listTopics(user))
+    .filter((topic) => !diary.has(topic.slug) && topic.lastMessageAt)
+    .filter((topic) => new Date(topic.lastMessageAt!).getTime() >= since)
+    .slice(0, RECENT_CONVERSATIONS)
+
+  const out: RecentConversation[] = []
+  for (const topic of picked) {
+    const found = await resolveTopic(user, topic.slug)
+    if (!found) continue
+    const messages = (await readAll(user, found.folder)).slice(-RECENT_MESSAGES).map((m) => {
+      const chars = [...m.text]
+      return chars.length > RECENT_MESSAGE_CHARS ? { ...m, text: `${chars.slice(0, RECENT_MESSAGE_CHARS).join('')}…` } : m
+    })
+    if (messages.length > 0) out.push({ name: topic.name || '（名前なし）', messages })
+  }
+  return out
+}
+
+/**
  * 今日の会話に問いかけを一通置いて、端末へ知らせる。
  * 置いた会話の URL の id を返す。予定には呼ぶ側が書き戻す。
  */
@@ -121,15 +150,16 @@ export async function askQuestion(
     const meta = await readMeta(user, topic.folder)
     const today = await readAll(user, topic.folder)
 
-    text = ''
+    let raw = ''
     try {
-      text = await collectAgent(resolveModel(meta.engine, meta.model, meta.effort), {
+      raw = await collectAgent(resolveModel(meta.engine, meta.model, meta.effort), {
         cwd: topicDir(user, topic.folder),
         prompt: questionPrompt({
           now: nowLabel(now),
           profile: await readProfile(user),
           tags: (await listTags(user)).map((tag) => ({ name: tag.name, group: tag.group })),
           recentNames: await recentNames(user, now),
+          recent: await recentConversations(user, now),
           today,
         }),
         systemPrompt: questionSystemPrompt(user),
@@ -138,7 +168,8 @@ export async function askQuestion(
     } catch (error) {
       console.error('[diary] 問いかけを書けませんでした', error)
     }
-    text = unfence(text).trim() || PLAIN_QUESTION
+    const question = parseQuestion(unfence(raw))
+    text = question.text
 
     const message: Message = {
       id: crypto.randomUUID(),
@@ -146,6 +177,7 @@ export async function askQuestion(
       text,
       images: [],
       at: new Date().toISOString(),
+      form: question.form,
     }
     await appendMessage(user, topic.folder, message)
   } finally {

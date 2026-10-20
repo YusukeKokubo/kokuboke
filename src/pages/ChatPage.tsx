@@ -12,6 +12,7 @@ import { Composer, type ComposerInput } from '@/components/Composer'
 import { useTopics } from '@/components/TopicSidebar'
 import { SpaceHeaderSlot } from '@/components/SpaceHeader'
 import { MessageBubble } from '@/components/MessageBubble'
+import { DiaryAnswerForm } from '@/components/DiaryAnswerForm'
 import { ModelPicker } from '@/components/ModelPicker'
 import { TagPicker } from '@/components/TagPicker'
 import { Input } from '@/components/ui/input'
@@ -290,6 +291,10 @@ export default function ChatPage() {
     [space, id, putName, putTags, reload],
   )
 
+  // 「いまなにしとる」の問いかけがまだ答えられていなければ、その下に穴埋めを出す。
+  const last = messages.at(-1)
+  const diaryForm = !draft && status === 'idle' && last?.role === 'assistant' ? last.form : undefined
+
   useEffect(() => {
     const input = pendingDraft.current
     if (!booted || !input) return
@@ -369,6 +374,14 @@ export default function ChatPage() {
           )
         })}
 
+        {diaryForm && last && (
+          <DiaryAnswerForm
+            key={last.id}
+            form={diaryForm}
+            onSend={(text) => handleSend({ text, images: [], files: [] })}
+          />
+        )}
+
         {draft && (
           <GrowInSteps>
             <MessageBubble message={draft} streaming activity={activity} selfAuthor={space.author} />
@@ -382,7 +395,12 @@ export default function ChatPage() {
         )}
       </main>
 
-      <Composer disabled={status !== 'idle'} onSend={handleSend} keepOnFailure />
+      <Composer
+        disabled={status !== 'idle'}
+        onSend={handleSend}
+        keepOnFailure
+        placeholder={diaryForm ? '自由に書いてもいいよ' : undefined}
+      />
 
       <Dialog open={modelOpen} onOpenChange={setModelOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
