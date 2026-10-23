@@ -3,7 +3,8 @@
 家族それぞれの AI と話すための、自宅 NAS で動く PWA チャットアプリ。
 
 応答は Anthropic API を直接叩くのではなく、コンテナ内の CLI をヘッドレスで起動して得る。
-**Claude Code** と **cursor-agent** のどちらでも動き、会話ごとに使うモデルを選べる。
+CLI は **Claude Code** で、会話ごとに使うモデルを選べる。
+以前は cursor-agent でも動いたが、使わなくなったので外した（戻すときは git の履歴と `docs/` を見る）。
 
 ## 構成
 
@@ -88,7 +89,7 @@ NAS で見たときに日付順になる。見出しを付け直すとフォル�
 
 命名にもタグ付けにも、その会話のエンジン・モデルを使う。
 
-人格の定義は人／家族直下の `AGENTS.md` 1 枚。Claude Code（2.1.277 以降）も cursor-agent も、
+人格の定義は人／家族直下の `AGENTS.md` 1 枚。Claude Code（2.1.277 以降）は
 作業ディレクトリから親を遡って `AGENTS.md` を読むので、会話フォルダには何も置かない。
 Claude Code は作業ディレクトリかその上に `CLAUDE.md` が一つでもあると `AGENTS.md` を
 読まないため、`/data` の下に `CLAUDE.md` を置かないこと。以前の形（`CLAUDE.md` が実体で
@@ -249,34 +250,29 @@ Watchtower に任せている。アプリには `docker.sock` を渡さず、「
 引き継ぐ。設定を変えた回は見た目は正常に上がってくるので、更新の画面が
 「compose の変更が入っている」と出したときは `sudo ./scripts/deploy.sh` を叩く。
 
-CLI の版は Dockerfile で固定してある（`CLAUDE_VERSION` / `CURSOR_VERSION`）。
+CLI の版は Dockerfile で固定してある（`CLAUDE_VERSION`）。
 CI は毎回まっさらな環境でビルドするので、固定しないと push のたびに CLI が
 上がり、そのたびにサブスクリプションのログインが切れる。上げたいときは
-Dockerfile を書き換えて、下の「二つのログイン」をやり直す。
+Dockerfile を書き換えて、下の「ログイン」をやり直す。
 
 ## 初回だけ必要なこと
 
-### 二つのログイン
+### ログイン
 
-会話は既定で Cursor、要約の更新は Claude Code で走るので、どちらの認証も通しておく。
+会話も要約の更新も Claude Code で走るので、その認証を通しておく。
 
 ```sh
 sudo docker exec -it kokuboke claude
-sudo docker exec -it kokuboke cursor-agent login
 ```
 
 表示された URL をブラウザで開いて認証する。認証情報は名前付きボリュームに残るので、
 コンテナを作り直しても再ログインは要らない。ボリュームごと消した場合はやり直し。
 
-どちらも管理画面（`/admin`）の「Claude Code のログイン」「Cursor のログイン」からも通せる。
-押すとサーバーが `claude auth login` / `cursor-agent login` を起こして認証の URL を出すので、
-それをどの端末で開いてもよい。Claude Code は認証の最後にコードが出るので、画面の欄に
-貼って送る。cursor は認証するだけで済む。済むと画面がログイン中のアカウントに変わる。
+管理画面（`/admin`）の「Claude Code のログイン」からも通せる。
+押すとサーバーが `claude auth login` を起こして認証の URL を出すので、
+それをどの端末で開いてもよい。認証の最後にコードが出るので、画面の欄に
+貼って送る。済むと画面がログイン中のアカウントに変わる。
 版を上げてログインが切れたときも、SSH は要らない。
-
-cursor は置き場所が二つに分かれていて、`~/.cursor` に設定と履歴、
-`~/.config/cursor/auth.json` にトークン本体が入る。両方をボリュームにしてある。
-ここに行き着くまでの切り分けは `docs/202608-cli-auth-persistence.md` に残してある。
 
 ### 外から届くようにする
 
@@ -470,32 +466,24 @@ Firebase のプロジェクトを家庭用に一つ作り、次を揃える。
 
 ## モデルの選び方
 
-会話ごとに「どのエンジンのどのモデルで話すか」を持つ。チャット画面のタイトル下に
+会話ごとに「どのモデルで話すか」を持つ。チャット画面のタイトル下に
 出ている名前を押すと変えられる。会話の記録はそのまま引き継がれる。
 
-| | Claude Code | cursor-agent |
-| --- | --- | --- |
-| 選べるモデル | Opus 5.5 / Sonnet 5.5 / Haiku 5.5 | GPT-5.x、Grok、Composer、Kimi、Claude 各種 |
-| 既定のモデル | Haiku 5.5 | おまかせ（auto） |
-| 人格の定義 | `AGENTS.md` を親まで遡って読む（2.1.277 以降） | `AGENTS.md` を親まで遡って読む |
-| 役割の指示 | `--append-system-prompt` | 本文の先頭に積む |
-| 権限 | ツール単位の許可リストで `Read` だけ | `--mode ask`（読み取り専用) |
+選べるのは Opus 5.5 / Sonnet 5.5 / Haiku 5.5 で、新しい会話の既定は Haiku 5.5
+（`CLAUDE_MODEL` で変えられる）。人格は `AGENTS.md` を親まで遡って読ませ、役割の指示は
+`--append-system-prompt` で渡す。道具はツール単位の許可リストで読み取り系だけを通す。
 
-新しい会話の既定は **Claude Code の Haiku 5.5**。`DEFAULT_ENGINE` と `CLAUDE_MODEL` で変えられる。
+エンジンを選ぶ仕組み自体は残してある。cursor-agent を使っていたころのトピックは
+エンジンに `cursor` を持ったままだが、開くと既定のモデルに落ちて Claude Code で話す。
 
 Claude Code のモデルは、どれも選択で考える深さ（`--effort`）も選べる。
 浅めからいちばん深くまでの五段と、おまかせ（`CLAUDE_EFFORT`、空なら CLI の既定）。
-選んだ深さはトピックに残り、段の無いモデルに移ると落ちる。cursor は深さがモデルの id に
-埋まっていて段の並びもモデルごとにばらばらなので、選択肢はモデルごとに一つのままにしてある。
+選んだ深さはトピックに残り、段の無いモデルに移ると落ちる。
 
 会話もタグ本文の整理も読み取りだけで走る。タグの下書きは、その会話で使っている
-エンジン・モデルをそのまま使う。命名とタグ付けはエンジンだけ合わせて、モデルは
-軽いもの（`CLAUDE_LIGHT_MODEL` / `CURSOR_LIGHT_MODEL`、既定は Haiku 5.5 と Composer 2.5）
-に差し替える。走っているあいだはトピックの枠を握るので、重いモデルだと次の発言が弾かれる。
-
-cursor-agent はイメージにも入れてあるが、`cursor-agent login` を一度通す必要がある。
-ビルド中の導入で転ぶときや、そもそも要らないときは `.env` に `INSTALL_CURSOR=false`
-を書いて deploy.sh を叩き直せば外れる。その場合エンジンは Claude Code だけになる。
+エンジン・モデルをそのまま使う。命名とタグ付けはモデルだけ軽いもの
+（`CLAUDE_LIGHT_MODEL`、既定は Haiku 5.5）に差し替える。
+走っているあいだはトピックの枠を握るので、重いモデルだと次の発言が弾かれる。
 
 ## 安全側に倒してあるところ
 
@@ -547,7 +535,7 @@ Claude Code が `AGENTS.md` を読むのは、Anthropic からフィーチャー
 - `/user/:user/:id` — チャット。日付の区切り、画像付きの吹き出し、
   返答が届くにつれて伸びていく表示、見出しの下のタグ。
 - `/family` / `/family/tags` / `/family/tags/:tag.md` / `/family/profile.md` / `/family/AGENTS.md` / `/family/organize.md` / `/family/:id` — 家族共有スペースの同じ画面。
-- `/admin` — イメージの差し替えと、Claude Code・cursor-agent のログイン。
+- `/admin` — イメージの差し替えと、Claude Code のログイン。
 - `/diagnostic` — サーバーのログと、CLI の返事の速さ（組み合わせごとの中央値と最近の回）。
   AI に聞く欄もあり、最近のログと時間を渡した Claude Code が、ソースとログのファイルを
   読んで答える（読むだけで、書き換えもコマンドもしない）。鍵は `/admin` と同じ。

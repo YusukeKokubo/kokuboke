@@ -58,43 +58,12 @@ ENV HOME=/home/app
 # ここで chown すると同じ内容のレイヤーがもう一つ増えてイメージが太る。
 # ボリュームを載せる場所はここで作っておく。イメージに無いパスに載せると
 # Docker が root 持ちで作ってしまい、app ユーザーが書けなくなる。
-RUN mkdir -p /data /home/app/.claude /home/app/.cursor /home/app/.config/cursor \
+RUN mkdir -p /data /home/app/.claude \
   && chown -R 1000:1000 /data /home/app
 
 USER app
 
-# cursor-agent は ~/.local/bin に入る。不要なら --build-arg INSTALL_CURSOR=false で外す。
-# ビルド成果物より上に置く。下に置くとコードを直すたびに入り直しになり、
-# そのとき版が上がって cursor のログインが切れることがある。
-#
-# 公式の install スクリプトは版を選べない（取得した時点の最新が埋め込まれて降りてくる）。
-# CI から毎回叩くと版が勝手に上がってログインが切れるので、スクリプトが実際に
-# やっていること（tar を展開して ~/.local/bin に symlink）をここに写して版を固定する。
-# 上げるときは https://cursor.com/install を読んで、中の版番号をここへ持ってくる。
-#
-# 起動の速さは版でかなり違う。同じ Mac で init（最初の行）までを測ると、
-# 2026.08.04-aaa8809 は 12〜13 秒、2026.09.23-86fc751 は 5 秒ほどだった。
-ARG INSTALL_CURSOR=true
-ARG CURSOR_VERSION=2026.09.23-86fc751
-ENV PATH=/home/app/.local/bin:$PATH
-RUN if [ "$INSTALL_CURSOR" = "true" ]; then \
-      arch="$(uname -m)"; \
-      case "$arch" in \
-        x86_64 | amd64) arch=x64 ;; \
-        arm64 | aarch64) arch=arm64 ;; \
-        *) echo "cursor-agent の無い環境: $arch" >&2; exit 1 ;; \
-      esac; \
-      dir="$HOME/.local/share/cursor-agent/versions/${CURSOR_VERSION}"; \
-      mkdir -p "$dir" "$HOME/.local/bin"; \
-      curl -fsSL "https://downloads.cursor.com/lab/${CURSOR_VERSION}/linux/${arch}/agent-cli-package.tar.gz" \
-        | tar --strip-components=1 -xzf - -C "$dir"; \
-      ln -sf "$dir/cursor-agent" "$HOME/.local/bin/cursor-agent"; \
-      ln -sf "$dir/cursor-agent" "$HOME/.local/bin/agent"; \
-    fi
-
 # 毎回変わるものはいちばん下に置く。ここから下だけが作り直される。
-# 依存もここに置く。cursor より上に置くと、依存を足しただけで cursor が
-# 入り直し、そのとき版が上がってログインが切れることがある。
 # package.json は type=module の宣言のために要る（dist は ESM）。
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./

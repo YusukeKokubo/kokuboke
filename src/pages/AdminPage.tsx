@@ -223,7 +223,6 @@ export default function AdminPage() {
         <DiarySection adminKey={key} />
 
         <LoginSection adminKey={key} engine="claude" title="Claude Code のログイン" />
-        <LoginSection adminKey={key} engine="cursor" title="Cursor のログイン" />
 
         <section className="flex flex-col gap-3">
           <h2 className="text-muted-foreground text-xs font-medium tracking-wide">最新の会話</h2>
@@ -369,7 +368,7 @@ function LoginSection({ adminKey, engine, title }: { adminKey: string; engine: E
               <p className="leading-relaxed">
                 {flow.needsCode
                   ? '下のリンクを開いて認証して。最後にコードが出るで、それを下に貼って送って。'
-                  : '下のリンクを開いて、Cursor のアカウントで認証して。済んだらここが勝手に変わるでね。'}
+                  : '下のリンクを開いて認証して。済んだらここが勝手に変わるでね。'}
               </p>
               <a
                 href={flow.url}

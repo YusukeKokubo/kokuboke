@@ -25,8 +25,8 @@ function args(request: RunRequest): string[] {
     request.systemPrompt,
     // 天気や営業時間みたいな鮮度が要る質問に答えられるよう、読み取り系の
     // WebSearch / WebFetch も許可する。--permission-mode dontAsk のままで
-    // 確認プロンプトなしに通ることは実機で確認済み（cursor 側のような
-    // 追加の許可設定は不要）。書き込み・実行系は ALWAYS_DENIED で塞いだまま。
+    // 確認プロンプトなしに通ることは実機で確認済み（追加の許可設定は不要）。
+    // 書き込み・実行系は ALWAYS_DENIED で塞いだまま。
     '--allowed-tools',
     ['Read', 'WebSearch', 'WebFetch', ...(request.extraTools ?? [])].join(','),
     '--disallowed-tools',

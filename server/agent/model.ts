@@ -2,7 +2,6 @@ import { BadRequestError } from '../errors'
 import type { Effort, EngineId } from '../../shared/types'
 import { config } from '../config'
 import { claudeCode } from './claude-code'
-import { cursorAgent } from './cursor'
 import { ENGINES, isEffort, isEngineId } from './engines'
 import type { AgentEvent, RunRequest } from './types'
 
@@ -14,13 +13,12 @@ export interface ModelChoice {
   label: string
 }
 
-const IMPLEMENTATIONS = { claude: claudeCode, cursor: cursorAgent } as const
+const IMPLEMENTATIONS = { claude: claudeCode } as const
 
 /** エンジンごとの会話用の既定モデル。EngineId を増やすとここも型で迫られる。 */
 function defaultModel(engine: EngineId): string {
   const models: Record<EngineId, string> = {
     claude: config.claudeModel,
-    cursor: config.cursorModel,
   }
   return models[engine]
 }
@@ -60,14 +58,13 @@ export function lightModel(engine?: string | null): ModelChoice {
   const id: EngineId = isEngineId(engine) ? engine : config.defaultEngine
   const models: Record<EngineId, string> = {
     claude: config.claudeLightModel,
-    cursor: config.cursorLightModel,
   }
   return resolveModel(id, models[id])
 }
 
 /**
  * CLI に渡す深さ。トピックで選んでいなければ CLAUDE_EFFORT を使う。
- * 段の無いモデル（cursor 側など）には、既定も含めて渡さない。
+ * 段の無いモデルには、既定も含めて渡さない。
  * 受け付けはするが効かず、かえって一文字目が遅れる回があった。
  */
 function effortFor(choice: ModelChoice): string | undefined {

@@ -30,7 +30,7 @@ export interface DiaryForm {
   fields: DiaryFormField[]
 }
 
-export type EngineId = 'claude' | 'cursor'
+export type EngineId = 'claude'
 
 /** Claude Code の --effort。考える深さ。浅いほど一文字目が早い。 */
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
@@ -41,10 +41,7 @@ export interface EngineInfo {
   note: string
   /** effort は考える深さを選べるモデルか。 */
   models: Array<{ id: string; label: string; effort?: boolean }>
-  /**
-   * 考える深さの選択肢。選べるエンジン（Claude Code）だけが持つ。
-   * cursor は深さがモデルの id に埋まっていて、段の並びもモデルごとにばらばらなので持たない。
-   */
+  /** 考える深さの選択肢。選べるエンジンだけが持つ。 */
   efforts?: Array<{ id: Effort; label: string }>
 }
 
@@ -166,7 +163,7 @@ export interface UpdateStatus {
 /** CLI のログインの様子。管理画面がエンジンごとに見る。 */
 export interface EngineLogin {
   engine: EngineId
-  /** CLI が入っているか。cursor は INSTALL_CURSOR=false のイメージだと入っていない。 */
+  /** CLI が入っているか。 */
   installed: boolean
   /** ログインしていれば、そのアカウントのメール。 */
   account: string | null

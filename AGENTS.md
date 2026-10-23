@@ -1,6 +1,7 @@
 # kokuboke
 
-家族向けの AI チャット PWA。返答は Claude Code / cursor-agent をヘッドレスで起動して得る。
+家族向けの AI チャット PWA。返答は Claude Code をヘッドレスで起動して得る。
+cursor-agent は外した（経緯と、戻すときの落とし穴は `docs/202610-cursor-removal.md`）。
 
 ## 環境
 
@@ -28,10 +29,6 @@
   それ以外の確認は typecheck と build、あとは実際に動かして見る
 - テストは環境変数を差し込んでから `await import` する。`config` は読み込んだ時点で
   環境変数を見るため。`process.loadEnvFile` は既にある値を上書きしないので `.env` には負けない
-- CLI の出力の読み方は、記録を流し込んで通しで確かめる。`CURSOR_BIN` を
-  `server/agent/__fixtures__/cursor/replay.sh` に向けると、`CURSOR_FIXTURE` の記録を
-  そのまま吐くのでエンジンをそっくり動かせる。記録の取り直しは本物の出力を保存して
-  中の絶対パスを均すだけ。増やしたら `cursor-replay.test.ts` の一覧にも足す
 - 更新まわりの確認は、手元で compose を上げて中から叩く。ホストの 3000 は
   開発中のサーバーが握っているので、ポートと `DATA_PATH` を上書きする別の
   compose ファイルを scratchpad に置いて `-f` で重ねる。ただし `DATA_PATH` は
@@ -46,8 +43,8 @@
 
 ## どこに何があるか
 
-- `server/agent/` — CLI をヘッドレスで起動して SSE に流す部分。エンジンごとに
-  `claude-code.ts` と `cursor.ts`、共通の実行と待ち行列が `process.ts` `queue.ts`
+- `server/agent/` — CLI をヘッドレスで起動して SSE に流す部分。エンジンは
+  `claude-code.ts`、共通の実行と待ち行列が `process.ts` `queue.ts`
 - `server/diagnostic/` — サーバーが自分のログと CLI の時間を残す部分と、診断の AI への指示。
   console を包んで `DATA_DIR/.logs` に書く。コンテナからは `docker logs` が読めないため。
   診断の AI が読むソースは、イメージでは Dockerfile が `/app/source` に写す（`SOURCE_DIR`）
@@ -110,33 +107,17 @@ CLI のフラグと出力形式は推測で書かず、実際に叩いて確か�
 - Claude Code が `AGENTS.md` を直接読むのは 2.1.277 以降で、作業ディレクトリとその上に
   `CLAUDE.md` / `CLAUDE.local.md` が無いときだけ（ホームの `~/.claude/CLAUDE.md` は数えない）。
   直接読んだ分は `/context` に出ないので、確認は起動時の `AGENTS.md loaded` の行か、
-  ヘッドレスで指示の中身を聞く。cursor-agent は昔から親まで遡って読む
+  ヘッドレスで指示の中身を聞く
 - `DATA_DIR` の上の階層にリポジトリや compose 用の clone があると、手元から起こした
   Claude Code はそこのプロジェクト用 `AGENTS.md` も一緒に読む（コンテナでは読まない）。
   写しはリポジトリの外に置く。clone が古くて `CLAUDE.md` のままだと、それだけが読まれて人格が効かない
-- cursor の `assistant` イベントは、道具を挟むと本文がいくつかの区切りに分かれ、
-  区切りの終わりに、そこまでの差分を丸ごと繰り返した言い直しが一つ届く。
-  `timestamp_ms` が無いのはいちばん最後の区切りだけで、途中の区切りの言い直しは
-  キーも中身の並びも差分とまったく同じ形で来る（`model_call_id` が付く回もあるが、
-  付かない回もある）。見分けずにつなぐと、道具を使った回だけ前半が二重になる。
-  頼れるのは「それまで流した分と丸ごと同じ」という形だけで、短い区切りでは
-  たまたま同じ差分とも区別が付かないため、いったん預かって次の行で決めている
-  （`server/agent/cursor.ts` の `assistantSegment`）。`result` が持つのは
-  最後の区切りだけなので、本文は区切りをつないだ方を採る
-- 途中の様子（何を読んでいるか）は cursor は `tool_call` の `started`、
-  Claude Code は `content_block_start` の `tool_use` で分かる。札の文言は
+- 途中の様子（何を読んでいるか）は Claude Code の `content_block_start` の
+  `tool_use` で分かる。札の文言は
   `server/agent/activity.ts` に集約。道具は増えるので、知らない名前は丸める
 - remark-math が独立した式として扱うのは `$$` が行頭と行末に来た形だけ
 - CLI の認証をコンテナで永続化するときは、書かれている置き場所を信じる前に、
-  ログインした直後の `docker diff` を見る。cursor は二か所に分かれとった
+  ログインした直後の `docker diff` を見る。cursor のときは二か所に分かれとった
   （`docs/202608-cli-auth-persistence.md`。当てが三回外れた経緯もそこに）
-- cursor-agent はヘッドレスでもウェブ検索とページ取得のたびに承認を求め、答える人が
-  いないので即 `User Rejected` になる。検索は `cli-config.json` の
-  `autoAcceptWebSearch` で通る（`server/agent/cursor-config.ts` が起動のたびに
-  書き足す。設定はボリュームの中なのでイメージには焼けない）。ページ取得を通す道は
-  `--force` だけで、`permissions` の許可リストは `--print` の経路では見ていない
-  （2026.08.04-aaa8809 で確認）。`--force` を足しても ask モードなら書き込みと
-  シェルは道具ごと無いままで、増えるのはウェブの読み取りだけ
 - Watchtower のログの 403 は、たいてい非公開ではなくイメージがまだ無いだけ。
   引けるかどうかは `ghcr.io/token` で匿名トークンを取ってマニフェストを叩けば分かる
 - NAS の clone は compose を上げるためだけにある。動いているのは Watchtower が引いた

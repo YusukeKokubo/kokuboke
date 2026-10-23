@@ -1,13 +1,11 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import type { EngineId, EngineLogin } from '../../shared/types'
 import { config } from '../config'
-import { forgetCursorConfig } from './cursor-config'
 import { childEnv } from './process'
 
 /**
- * CLI のログインを管理画面から通す。どちらの CLI も、ブラウザを開けないときは
- * 認証の URL を出して待つ。違いは認証のあとで、cursor は CLI が自分で気付いて
- * 終わり、Claude Code は戻り先のページに出るコードを貼って返すまで待つ。
+ * CLI のログインを管理画面から通す。CLI はブラウザを開けないときは認証の URL を
+ * 出して待つ。Claude Code は戻り先のページに出るコードを貼って返すまで終わらない。
  * 手元で返事を受け取る口を開く作りではないので、URL はどの端末で開いてもよい。
  *
  * 手続きはエンジンごとに一つだけ持つ。途中でもう一度頼まれたら、同じ URL を返す。
@@ -25,31 +23,9 @@ interface LoginSpec {
   needsCode: boolean
   /** status の JSON から、ログインしていればアカウントを返す。 */
   account(status: Record<string, unknown>): string | null
-  /** 済んだあとの後始末。 */
-  afterLogin?: () => void
 }
 
 const SPECS: Record<EngineId, LoginSpec> = {
-  /**
-   * NO_OPEN_BROWSER を立てると
-   * 「Open a browser and navigate to this link: https://cursor.com/loginDeepControl?…」
-   * と一行出して、認証が済むまでサーバーに問い合わせ続ける（2026.09.23-86fc751 で確認）。
-   * status --format json は isAuthenticated と userInfo.email を返す。
-   */
-  cursor: {
-    bin: () => config.cursorBin,
-    loginArgs: ['login'],
-    statusArgs: ['status', '--format', 'json'],
-    env: { NO_OPEN_BROWSER: '1' },
-    needsCode: false,
-    account: (s) => {
-      if (s.isAuthenticated !== true) return null
-      return (s.userInfo as { email?: string } | undefined)?.email ?? '（アカウント不明）'
-    },
-    // ログインし直すと CLI が cli-config.json を書き直すことがある。
-    afterLogin: forgetCursorConfig,
-  },
-
   /**
    * 「If the browser didn't open, visit: https://claude.com/cai/oauth/authorize?…」
    * と出してから「Paste code here if prompted >」で標準入力を待つ（2.1.281 で確認）。
@@ -70,7 +46,6 @@ const SPECS: Record<EngineId, LoginSpec> = {
 
 /** 認証の URL。端末の包みを剥がした（plain を通した）あとの出力から拾う。 */
 const URL_PATTERN: Record<EngineId, RegExp> = {
-  cursor: /https:\/\/cursor\.com\/loginDeepControl\?\S+/,
   claude: /https:\/\/\S*oauth\/authorize\?\S+/,
 }
 
@@ -88,7 +63,6 @@ interface State {
 }
 
 const states: Record<EngineId, State> = {
-  cursor: { flow: { phase: 'idle' }, child: null, afterCode: null },
   claude: { flow: { phase: 'idle' }, child: null, afterCode: null },
 }
 
@@ -209,7 +183,6 @@ export function startLogin(engine: EngineId): Promise<Flow> {
 
       if (code === 0) {
         console.log(`[login:${engine}] ログインしました`)
-        spec.afterLogin?.()
         settle({ phase: 'idle' })
         return
       }

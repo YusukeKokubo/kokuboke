@@ -9,10 +9,6 @@ services:
     # `up -d --no-build` を掛ける。
     build:
       context: .
-      args:
-        # イメージのビルド中に cursor-agent が入らないときは
-        # .env に INSTALL_CURSOR=false を書いて外す。
-        INSTALL_CURSOR: ${INSTALL_CURSOR:-true}
     container_name: kokuboke
     restart: unless-stopped
 
@@ -31,13 +27,7 @@ services:
       # compose ファイルからの相対で解決される。NAS の他のコンテナもこの書き方。
       - ${DATA_PATH:-./data}:/data
       # サブスクリプションのログイン情報。消えると再ログインが要るので必ず永続化する。
-      # ホームごと被せると ~/.local/bin の cursor-agent 本体が隠れるので、
-      # 置き場所だけを個別に渡す。
       - claude-config:/home/app/.claude
-      # cursor は二か所に分かれる。~/.cursor は設定と履歴で、
-      # トークン本体は ~/.config/cursor/auth.json。後者が無いと作り直すたび再ログイン。
-      - cursor-config:/home/app/.cursor
-      - cursor-auth:/home/app/.config/cursor
 
     # エンジンとモデルの指定は .env にしかない。ここで渡さないとコンテナに届かず、
     # .env に書いたのに効かない、という食い違いになる（.env はイメージに入らない）。
@@ -141,5 +131,3 @@ services:
 
 volumes:
   claude-config:
-  cursor-config:
-  cursor-auth:

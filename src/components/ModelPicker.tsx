@@ -8,7 +8,7 @@ export interface ModelSelection {
   model: string
   /** 考える深さ。null は既定（おまかせ）。 */
   effort?: Effort | null
-  /** 「Cursor / GPT-5.2」のような表示用の名前。選んだときだけ付く。 */
+  /** 「Claude Code / Opus 5.5」のような表示用の名前。選んだときだけ付く。 */
   label?: string
 }
 

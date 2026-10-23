@@ -292,11 +292,6 @@ describe('updateTopic の考える深さ', () => {
     assert.equal('effort' in raw, false)
   })
 
-  it('選べないモデルに移ると深さは落ちる', async () => {
-    const topic = await createTopic(USER, { engine: 'claude', model: 'claude-opus-5-5', effort: 'max' })
-    assert.equal((await updateTopic(USER, topic.slug, { engine: 'cursor', model: 'auto' })).effort, null)
-  })
-
   it('知らない値は受け付けない', async () => {
     const topic = await createTopic(USER, { engine: 'claude', model: 'claude-opus-5-5' })
     assert.equal((await updateTopic(USER, topic.slug, { effort: 'turbo' })).effort, null)

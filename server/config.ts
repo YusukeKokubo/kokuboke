@@ -80,13 +80,9 @@ export const config = {
 
   /** 各 CLI の実行ファイル名。PATH 上にあるものを使う。 */
   claudeBin: process.env.CLAUDE_BIN ?? 'claude',
-  cursorBin: process.env.CURSOR_BIN ?? 'cursor-agent',
 
   /** 会話に使うモデル。ENGINES にある id。無い値は捨てて既定に落ちる。 */
   claudeModel: process.env.CLAUDE_MODEL ?? 'claude-haiku-5-5',
-
-  /** cursor-agent 側の既定モデル。 */
-  cursorModel: process.env.CURSOR_MODEL ?? 'auto',
 
   /**
    * 自動の命名とタグ付けに使う軽いモデル。見出しとタグを選ぶだけなので重いモデルは要らず、
@@ -94,7 +90,6 @@ export const config = {
    * エンジンはトピックのものに合わせ、モデルだけこちらに差し替える。
    */
   claudeLightModel: process.env.CLAUDE_LIGHT_MODEL ?? 'claude-haiku-5-5',
-  cursorLightModel: process.env.CURSOR_LIGHT_MODEL ?? 'composer-2.5',
 
   /**
    * 「いまなにしとる」の見回りを動かすか。本番は既定で動く。手元の dev は本番の写しを見て
@@ -165,7 +160,5 @@ export function assertConfig(): void {
     throw new Error(`CLAUDE_EFFORT が不正です。使えるのは ${CLAUDE_EFFORTS.join(' | ')}`)
   }
   assertModel('CLAUDE_MODEL', config.claudeModel, 'claude')
-  assertModel('CURSOR_MODEL', config.cursorModel, 'cursor')
   assertModel('CLAUDE_LIGHT_MODEL', config.claudeLightModel, 'claude')
-  assertModel('CURSOR_LIGHT_MODEL', config.cursorLightModel, 'cursor')
 }
