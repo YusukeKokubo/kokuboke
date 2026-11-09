@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { api } from '@/lib/api'
 import { onPushOpen } from '@/lib/push'
@@ -23,9 +23,22 @@ function safeNext(next: string | null): string | null {
   return null
 }
 
+/**
+ * 通知を押した先へ飛ぶ。ただし入口（`/` と `/user`）にいる間は受け取らない。
+ *
+ * 閉じた状態から通知で起こすと、殻はまず `/` を開き、入口が覚えた名前の
+ * 一覧へ振り分ける。その途中で飛ぶと、同じ描画の中で走る入口の `<Navigate>` に
+ * 上書きされて一覧に着いてしまう。受け手を外しておけば行き先は push.ts が
+ * 持っていて、振り分けが済んで入口を出たときに渡ってくる。
+ */
 function PushOpen() {
   const navigate = useNavigate()
-  useEffect(() => onPushOpen((path) => navigate(path)), [navigate])
+  const { pathname } = useLocation()
+  const atEntrance = pathname === '/' || pathname === '/user'
+  useEffect(() => {
+    if (atEntrance) return
+    return onPushOpen((path) => navigate(path))
+  }, [atEntrance, navigate])
   return null
 }
 

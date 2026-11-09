@@ -26,7 +26,7 @@ function open(path: string): void {
   for (const listener of listeners) listener(path)
 }
 
-/** 通知を押した先。リスナーより先に届いた分は、着いたときに渡す。 */
+/** 通知を押した先。受け手が居ない間に届いた分は持っておき、付いたときに渡す。 */
 export function onPushOpen(listener: (path: string) => void): () => void {
   listeners.add(listener)
   if (pendingPath) {
