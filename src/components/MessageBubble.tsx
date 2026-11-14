@@ -1,6 +1,8 @@
-import { FileText } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Check, Copy, FileText, X } from 'lucide-react'
 import type { Message } from '../../shared/types'
 import { cn } from '@/lib/utils'
+import { copyText } from '@/lib/clipboard'
 import { timeLabel } from '@/lib/format'
 import { Markdown } from '@/components/Markdown'
 
@@ -39,6 +41,39 @@ function Thinking() {
         />
       ))}
     </span>
+  )
+}
+
+/**
+ * 返答を Markdown のままクリップボードへ写す。
+ * 押したあと少しの間だけ印を変えて、写ったことを知らせる。
+ */
+function CopyButton({ text }: { text: string }) {
+  const [state, setState] = useState<'idle' | 'done' | 'failed'>('idle')
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current)
+  }, [])
+
+  const onClick = async () => {
+    const ok = await copyText(text)
+    setState(ok ? 'done' : 'failed')
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => setState('idle'), 1500)
+  }
+
+  const Icon = state === 'done' ? Check : state === 'failed' ? X : Copy
+  const label = state === 'done' ? 'コピーしました' : state === 'failed' ? 'コピーできませんでした' : 'コピー'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="text-muted-foreground hover:text-foreground -m-1.5 rounded p-1.5"
+    >
+      <Icon className="size-3.5" />
+    </button>
   )
 }
 
@@ -125,7 +160,10 @@ export function MessageBubble({ message, streaming, activity, selfAuthor }: Prop
             </span>
           )
         ) : (
-          <span className="text-muted-foreground px-1 text-[11px]">{timeLabel(message.at)}</span>
+          <div className="flex items-center gap-1 px-1">
+            <span className="text-muted-foreground text-[11px]">{timeLabel(message.at)}</span>
+            {!typed && message.text && <CopyButton text={message.text} />}
+          </div>
         )}
       </div>
     </div>
